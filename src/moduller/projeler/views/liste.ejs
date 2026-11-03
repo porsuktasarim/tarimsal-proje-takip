@@ -1,0 +1,108 @@
+<%- include('../../../views/partials/ust') %>
+<%- include('../../../views/partials/sayfa-basligi', {
+      ustBaslik: config.il + ' geneli',
+      eylemler: '<a href="/projeler/yeni" class="btn btn-primary"><i class="ti ti-circle-plus me-1"></i> Proje Başlat</a>'
+    }) %>
+
+<div class="page-body">
+  <div class="container-xl">
+    <%- include('../../../views/partials/bildirim') %>
+
+    <div class="row row-cards mb-3">
+      <% Object.keys(sabitler.projeDurumlari).forEach(function (k) { var d = sabitler.projeDurumlari[k]; %>
+        <div class="col-6 col-lg-3">
+          <a href="/projeler?durum=<%= k %>" class="card card-sm card-link">
+            <div class="card-body">
+              <div class="row align-items-center">
+                <div class="col-auto"><span class="badge bg-<%= d.renk %> p-2"></span></div>
+                <div class="col">
+                  <div class="font-weight-medium"><%= d.ad %></div>
+                  <div class="text-secondary"><%= durumSayilari[k] || 0 %> proje</div>
+                </div>
+              </div>
+            </div>
+          </a>
+        </div>
+      <% }) %>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <form class="row g-2 w-100" method="get" action="/projeler">
+          <div class="col-12 col-md">
+            <div class="input-icon">
+              <span class="input-icon-addon"><i class="ti ti-search"></i></span>
+              <input type="search" name="q" value="<%= filtre.q || '' %>" class="form-control" placeholder="Proje adı veya dönem ara">
+            </div>
+          </div>
+          <div class="col-6 col-md-3">
+            <select name="birim" class="form-select">
+              <option value="">Tüm birimler</option>
+              <% sabitler.birimler.forEach(function (b) { %>
+                <option <%= filtre.birim === b ? 'selected' : '' %>><%= b %></option>
+              <% }) %>
+            </select>
+          </div>
+          <div class="col-6 col-md-2">
+            <select name="durum" class="form-select">
+              <option value="">Tüm durumlar</option>
+              <% Object.keys(sabitler.projeDurumlari).forEach(function (k) { %>
+                <option value="<%= k %>" <%= filtre.durum === k ? 'selected' : '' %>><%= sabitler.projeDurumlari[k].ad %></option>
+              <% }) %>
+            </select>
+          </div>
+          <div class="col-auto">
+            <button class="btn" type="submit"><i class="ti ti-filter me-1"></i> Süz</button>
+            <% if (filtre.q || filtre.birim || filtre.durum) { %>
+              <a href="/projeler" class="btn btn-ghost-secondary">Temizle</a>
+            <% } %>
+          </div>
+        </form>
+      </div>
+
+      <% if (projeler.length === 0) { %>
+        <div class="empty">
+          <div class="empty-icon"><i class="ti ti-folder-off" style="font-size:3rem"></i></div>
+          <p class="empty-title">Kayıtlı proje bulunmuyor</p>
+          <p class="empty-subtitle text-secondary">İl genelinde yürütülecek bir projeyi başlatarak başlayabilirsiniz.</p>
+          <div class="empty-action">
+            <a href="/projeler/yeni" class="btn btn-primary"><i class="ti ti-circle-plus me-1"></i> Proje Başlat</a>
+          </div>
+        </div>
+      <% } else { %>
+        <div class="table-responsive">
+          <table class="table table-vcenter card-table">
+            <thead>
+              <tr>
+                <th>Proje</th>
+                <th>Birim</th>
+                <th>Dönem</th>
+                <th class="tablo-sayi">İlçe</th>
+                <th class="tablo-sayi">Hedef çiftçi</th>
+                <th class="tablo-sayi">Hedef dekar</th>
+                <th>Durum</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% projeler.forEach(function (p) { var d = sabitler.projeDurumlari[p.durum]; %>
+                <tr>
+                  <td>
+                    <a href="/projeler/<%= p._id %>" class="text-reset fw-medium"><%= p.ad %></a>
+                    <% if (p.kisaAd) { %><div class="text-secondary small"><%= p.kisaAd %></div><% } %>
+                  </td>
+                  <td class="text-secondary"><%= p.birim %></td>
+                  <td class="text-secondary"><%= p.donem || '–' %></td>
+                  <td class="tablo-sayi"><%= p.ilceler.length %></td>
+                  <td class="tablo-sayi"><%= y.sayi(p.toplamHedefCiftci) %></td>
+                  <td class="tablo-sayi"><%= y.sayi(p.toplamHedefDekar) %></td>
+                  <td><span class="badge bg-<%= d.renk %>-lt"><%= d.ad %></span></td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      <% } %>
+    </div>
+  </div>
+</div>
+<%- include('../../../views/partials/alt') %>

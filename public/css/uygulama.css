@@ -1,0 +1,62 @@
+/* Tarımsal Proje Takip Sistemi — Tabler üzerine küçük eklemeler */
+
+:root {
+  --tblr-primary: #2f7d32;
+  --tblr-primary-rgb: 47, 125, 50;
+  --tblr-primary-darken: #276a2a;
+}
+
+.uygulama-marka {
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+  text-decoration: none;
+  color: inherit;
+}
+.uygulama-marka:hover { text-decoration: none; }
+
+.uygulama-logo {
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: var(--tblr-border-radius);
+  background: var(--tblr-primary);
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.35rem;
+  flex-shrink: 0;
+}
+
+.uygulama-ad {
+  font-size: .875rem;
+  font-weight: 600;
+  line-height: 1.2;
+  text-align: left;
+}
+
+/* Tema düğmesi: yalnızca geçilecek temanın simgesi görünür */
+[data-bs-theme="light"] .tema-ikon-acik { display: none; }
+[data-bs-theme="dark"] .tema-ikon-koyu { display: none; }
+.tema-degistir .ti { font-size: 1.25rem; }
+
+/* Form içindeki dinamik satır tabloları */
+.satir-tablosu td { vertical-align: middle; }
+.satir-tablosu .form-control,
+.satir-tablosu .form-select { min-width: 6rem; }
+.satir-tablosu .form-select { min-width: 8.5rem; }
+.satir-tablosu .sil-sutunu { width: 1%; white-space: nowrap; }
+
+.ilce-tablosu-kap {
+  max-height: 28rem;
+  overflow-y: auto;
+}
+.ilce-tablosu-kap thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--tblr-bg-surface);
+}
+.ilce-tablosu-kap tr.secili-degil input[type="number"] { opacity: .45; }
+
+.tablo-sayi { text-align: right; font-variant-numeric: tabular-nums; }

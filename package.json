@@ -1,0 +1,19 @@
+{
+  "name": "tarimsal-proje-takip-sistemi",
+  "version": "0.1.0",
+  "description": "Tarımsal Proje Takip Sistemi",
+  "main": "src/app.js",
+  "scripts": {
+    "start": "node src/app.js",
+    "dev": "node --watch src/app.js"
+  },
+  "license": "UNLICENSED",
+  "dependencies": {
+    "@tabler/core": "^1.7.3",
+    "@tabler/icons-webfont": "^3.50.0",
+    "ejs": "^3.1.10",
+    "express": "^4.22.3",
+    "mongoose": "^8.24.8"
+  },
+  "private": true
+}

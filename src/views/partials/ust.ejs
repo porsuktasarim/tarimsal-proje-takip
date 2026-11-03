@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="tr" data-bs-theme="<%= config.varsayilanTema %>" data-bs-navbar-position="vertical">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title><%= typeof baslik !== 'undefined' ? baslik + ' · ' : '' %><%= config.uygulamaAdi %></title>
+  <script>
+    // Varsayılan açık tema; kullanıcı koyu temayı seçerse tarayıcıda hatırlanır.
+    (function () {
+      var tema = '<%= config.varsayilanTema %>';
+      try { tema = localStorage.getItem('tpts-tema') || tema; } catch (e) {}
+      document.documentElement.setAttribute('data-bs-theme', tema);
+    })();
+  </script>
+  <link rel="icon" href="/public/favicon.svg" type="image/svg+xml">
+  <link href="/vendor/tabler/css/tabler.min.css" rel="stylesheet">
+  <link href="/vendor/tabler-icons/tabler-icons.min.css" rel="stylesheet">
+  <link href="/public/css/uygulama.css" rel="stylesheet">
+</head>
+<body>
+<div class="page">
+  <aside class="navbar navbar-vertical navbar-expand-lg">
+    <div class="container-fluid">
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#sidebar-menu"
+              aria-controls="sidebar-menu" aria-expanded="false" aria-label="Menüyü aç">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="navbar-brand navbar-brand-autodark">
+        <a href="/" class="uygulama-marka">
+          <span class="uygulama-logo"><i class="ti ti-plant-2"></i></span>
+          <span class="uygulama-ad">Tarımsal Proje<br>Takip Sistemi</span>
+        </a>
+      </div>
+      <div class="navbar-nav flex-row d-lg-none">
+        <a href="#" class="nav-link px-0 tema-degistir" title="Temayı değiştir"><i class="ti ti-moon tema-ikon-koyu"></i><i class="ti ti-sun tema-ikon-acik"></i></a>
+      </div>
+      <div class="collapse navbar-collapse" id="sidebar-menu">
+        <ul class="navbar-nav pt-lg-3">
+          <% menu.forEach(function (oge) { %>
+            <li class="nav-item<%= aktifMenu === oge.yol ? ' active' : '' %>">
+              <a class="nav-link" href="<%= oge.yol %>">
+                <span class="nav-link-icon d-md-none d-lg-inline-block"><i class="ti <%= oge.ikon %>"></i></span>
+                <span class="nav-link-title"><%= oge.ad %></span>
+              </a>
+            </li>
+          <% }) %>
+        </ul>
+      </div>
+    </div>
+  </aside>
+
+  <header class="navbar navbar-expand-md d-none d-lg-flex d-print-none">
+    <div class="container-xl">
+      <div class="navbar-nav flex-row order-md-last">
+        <a href="#" class="nav-link px-2 tema-degistir" title="Temayı değiştir">
+          <i class="ti ti-moon tema-ikon-koyu"></i><i class="ti ti-sun tema-ikon-acik"></i>
+        </a>
+      </div>
+      <div class="text-secondary small"><%= config.kurum %></div>
+    </div>
+  </header>
+
+  <div class="page-wrapper">

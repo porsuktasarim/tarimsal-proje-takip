@@ -1,0 +1,13 @@
+<div class="page-header d-print-none">
+  <div class="container-xl">
+    <div class="row g-2 align-items-center">
+      <div class="col">
+        <% if (typeof ustBaslik !== 'undefined' && ustBaslik) { %><div class="page-pretitle"><%= ustBaslik %></div><% } %>
+        <h2 class="page-title"><%= baslik %></h2>
+      </div>
+      <% if (typeof eylemler !== 'undefined' && eylemler) { %>
+        <div class="col-auto ms-auto d-print-none"><div class="btn-list"><%- eylemler %></div></div>
+      <% } %>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,22 @@
+services:
+  uygulama:
+    build: .
+    container_name: tarimsal-proje-takip
+    restart: unless-stopped
+    ports:
+      - "1763:1763"
+    environment:
+      - PORT=1763
+      - MONGO_URI=mongodb://veritabani:27017/tpts
+    depends_on:
+      - veritabani
+
+  veritabani:
+    image: mongo:7
+    container_name: tarimsal-proje-takip-db
+    restart: unless-stopped
+    volumes:
+      - tpts-veri:/data/db
+
+volumes:
+  tpts-veri:

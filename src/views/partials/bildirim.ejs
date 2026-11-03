@@ -1,0 +1,17 @@
+<%
+  var metinler = {
+    olusturuldu: ['success', 'ti-check', 'Proje başlatıldı.'],
+    guncellendi: ['success', 'ti-check', 'Proje bilgileri güncellendi.'],
+    durum: ['success', 'ti-check', 'Proje durumu değiştirildi.'],
+    silindi: ['success', 'ti-trash', 'Proje silindi.'],
+    silinemez: ['warning', 'ti-alert-triangle', 'Yalnızca taslak projeler silinebilir. Yürütülen bir projenin durumu "İptal" yapılabilir.']
+  };
+  var b = bildirim && metinler[bildirim];
+%>
+<% if (b) { %>
+  <div class="alert alert-<%= b[0] %> alert-dismissible" role="alert">
+    <div class="alert-icon"><i class="ti <%= b[1] %>"></i></div>
+    <div><%= b[2] %></div>
+    <a class="btn-close" data-bs-dismiss="alert" aria-label="Kapat"></a>
+  </div>
+<% } %>

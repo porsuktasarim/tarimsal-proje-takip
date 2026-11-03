@@ -1,0 +1,133 @@
+<%- include('../../../views/partials/ust') %>
+<%
+  var d = sabitler.projeDurumlari[proje.durum];
+  var eylemler = '<a href="/projeler/' + proje._id + '/duzenle" class="btn"><i class="ti ti-edit me-1"></i> Düzenle</a>';
+%>
+<%- include('../../../views/partials/sayfa-basligi', { ustBaslik: proje.birim, eylemler: eylemler }) %>
+
+<div class="page-body">
+  <div class="container-xl">
+    <%- include('../../../views/partials/bildirim') %>
+
+    <div class="row row-cards mb-3">
+      <div class="col-sm-6 col-lg-3">
+        <div class="card card-sm"><div class="card-body">
+          <div class="text-secondary">Durum</div>
+          <div class="h3 mb-0 mt-1"><span class="badge bg-<%= d.renk %>-lt"><%= d.ad %></span></div>
+        </div></div>
+      </div>
+      <div class="col-sm-6 col-lg-3">
+        <div class="card card-sm"><div class="card-body">
+          <div class="text-secondary">İlçe</div>
+          <div class="h2 mb-0"><%= proje.ilceler.length %></div>
+        </div></div>
+      </div>
+      <div class="col-sm-6 col-lg-3">
+        <div class="card card-sm"><div class="card-body">
+          <div class="text-secondary">Hedef çiftçi</div>
+          <div class="h2 mb-0"><%= y.sayi(proje.toplamHedefCiftci) %></div>
+        </div></div>
+      </div>
+      <div class="col-sm-6 col-lg-3">
+        <div class="card card-sm"><div class="card-body">
+          <div class="text-secondary">Hedef alan (da)</div>
+          <div class="h2 mb-0"><%= y.sayi(proje.toplamHedefDekar) %></div>
+        </div></div>
+      </div>
+    </div>
+
+    <div class="row row-cards">
+      <div class="col-lg-4">
+        <div class="card mb-3">
+          <div class="card-header"><h3 class="card-title">Proje bilgileri</h3></div>
+          <div class="card-body">
+            <dl class="row mb-0">
+              <% if (proje.kisaAd) { %><dt class="col-5">Kısa ad</dt><dd class="col-7"><%= proje.kisaAd %></dd><% } %>
+              <dt class="col-5">Birim</dt><dd class="col-7"><%= proje.birim %></dd>
+              <dt class="col-5">Dönem</dt><dd class="col-7"><%= proje.donem || '–' %></dd>
+              <dt class="col-5">Başlangıç</dt><dd class="col-7"><%= y.tarih(proje.baslangicTarihi) %></dd>
+              <dt class="col-5">Bitiş</dt><dd class="col-7"><%= y.tarih(proje.bitisTarihi) %></dd>
+              <dt class="col-5">Kayıt</dt><dd class="col-7"><%= y.tarih(proje.olusturulma) %></dd>
+            </dl>
+            <% if (proje.aciklama) { %>
+              <hr class="my-3">
+              <div class="text-secondary" style="white-space: pre-line"><%= proje.aciklama %></div>
+            <% } %>
+          </div>
+        </div>
+
+        <div class="card mb-3">
+          <div class="card-header"><h3 class="card-title">Durum</h3></div>
+          <div class="card-body">
+            <form method="post" action="/projeler/<%= proje._id %>/durum" class="d-flex gap-2">
+              <select name="durum" class="form-select">
+                <% Object.keys(sabitler.projeDurumlari).forEach(function (k) { %>
+                  <option value="<%= k %>" <%= proje.durum === k ? 'selected' : '' %>><%= sabitler.projeDurumlari[k].ad %></option>
+                <% }) %>
+              </select>
+              <button type="submit" class="btn">Değiştir</button>
+            </form>
+            <% if (proje.durum === 'taslak') { %>
+              <form method="post" action="/projeler/<%= proje._id %>/sil" class="mt-3"
+                    data-onay="Bu taslak proje kalıcı olarak silinecek. Devam edilsin mi?">
+                <button type="submit" class="btn btn-ghost-danger w-100"><i class="ti ti-trash me-1"></i> Taslağı sil</button>
+              </form>
+            <% } %>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-lg-8">
+        <div class="card mb-3">
+          <div class="card-header"><h3 class="card-title">Kalemler</h3></div>
+          <div class="table-responsive">
+            <table class="table table-vcenter card-table">
+              <thead>
+                <tr><th>Tür</th><th>Kalem</th><th class="tablo-sayi">Dekar başı</th><th class="tablo-sayi">Toplam</th><th>Not</th></tr>
+              </thead>
+              <tbody>
+                <% proje.kalemler.forEach(function (k) { %>
+                  <tr>
+                    <td><span class="badge bg-green-lt"><%= k.tur %></span></td>
+                    <td class="fw-medium"><%= k.ad %></td>
+                    <td class="tablo-sayi"><%= k.dekarBasiMiktar != null ? y.sayi(k.dekarBasiMiktar) + ' ' + k.olcuBirimi : '–' %></td>
+                    <td class="tablo-sayi"><%= k.toplamMiktar != null ? y.sayi(k.toplamMiktar) + ' ' + k.olcuBirimi : '–' %></td>
+                    <td class="text-secondary"><%= k.aciklama || '' %></td>
+                  </tr>
+                <% }) %>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="card mb-3">
+          <div class="card-header"><h3 class="card-title">İlçe hedefleri</h3></div>
+          <div class="table-responsive">
+            <table class="table table-sm table-vcenter card-table">
+              <thead>
+                <tr><th>İlçe</th><th class="tablo-sayi">Hedef çiftçi</th><th class="tablo-sayi">Hedef dekar</th></tr>
+              </thead>
+              <tbody>
+                <% proje.ilceler.forEach(function (h) { %>
+                  <tr>
+                    <td><%= h.ilce %></td>
+                    <td class="tablo-sayi"><%= y.sayi(h.hedefCiftci) %></td>
+                    <td class="tablo-sayi"><%= y.sayi(h.hedefDekar) %></td>
+                  </tr>
+                <% }) %>
+              </tbody>
+              <tfoot>
+                <tr class="fw-bold">
+                  <td>Toplam</td>
+                  <td class="tablo-sayi"><%= y.sayi(proje.toplamHedefCiftci) %></td>
+                  <td class="tablo-sayi"><%= y.sayi(proje.toplamHedefDekar) %></td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<%- include('../../../views/partials/alt') %>
