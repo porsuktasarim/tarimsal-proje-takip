@@ -104,8 +104,8 @@ Tema ve ikon dosyaları `node_modules` içinden yerel olarak sunulur; uygulama i
 ### Docker ile (önerilen)
 
 ```bash
-git clone https://github.com/porsuktasarim/tarimsal-proje-takil.git
-cd tarimsal-proje-takil
+git clone https://github.com/porsuktasarim/tarimsal-proje-takip.git
+cd tarimsal-proje-takip
 docker compose up -d --build
 ```
 
