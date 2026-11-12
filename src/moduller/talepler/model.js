@@ -19,11 +19,12 @@ const talepSema = new mongoose.Schema({
   ciftciId: { type: mongoose.Schema.Types.ObjectId, ref: 'Ciftci', required: true },
   ilce: { type: String, required: true, trim: true },                   // talebi alan ilçe (çiftçinin ilçesi)
   satirlar: { type: [satirSema], default: [] },
+  hayvanlar: { type: mongoose.Schema.Types.Mixed, default: {} },       // { <hayvan türü kodu>: sayı } talep anındaki varlık
   durum: { type: String, enum: Object.keys(talepDurumlari), default: 'alindi' },
   aciklama: { type: String, trim: true },
   kaydeden: { type: mongoose.Schema.Types.ObjectId, ref: 'Kisi' },
   kaydedenAd: { type: String, trim: true }
-}, { collection: 'talepler', timestamps: { createdAt: 'olusturulma', updatedAt: 'guncellenme' } });
+}, { collection: 'talepler', minimize: false, timestamps: { createdAt: 'olusturulma', updatedAt: 'guncellenme' } });
 
 talepSema.index({ projeId: 1, ciftciId: 1 }, { unique: true });
 talepSema.index({ projeId: 1, ilce: 1 });

@@ -77,6 +77,23 @@ const tcGecerliMi = (tc) => {
   return d[9] === h10 && d[10] === h11;
 };
 
+// Hayvan varlığı: formdan okuma ve "12 baş büyükbaş · 30 koloni arı" biçiminde gösterme
+const hayvanlariOku = (g, turler) => {
+  const sonuc = {};
+  (turler || []).forEach((t) => {
+    const d = sayiOku(g && g[t.kod]);
+    if (d !== undefined && d >= 0) sonuc[t.kod] = Math.round(d);
+  });
+  return sonuc;
+};
+
+const hayvanMetni = (h, turler) => {
+  const parcalar = (turler || [])
+    .filter((t) => h && h[t.kod] > 0)
+    .map((t) => `${sayi(h[t.kod])} ${t.birim || ''} ${t.ad.toLocaleLowerCase('tr')}`.replace(/\s+/g, ' '));
+  return parcalar.join(' · ');
+};
+
 // Mongoose Map ya da düz nesneden değer okur.
 const mapDeger = (m, k) => {
   if (!m) return undefined;
@@ -85,5 +102,5 @@ const mapDeger = (m, k) => {
 };
 
 module.exports = {
-  sayi, tarih, inputTarih, tarihOku, sayiOku, diziyeCevir, anahtar, kodUret, sonucBirimi, miktar, para, tcGecerliMi, mapDeger
+  sayi, tarih, inputTarih, tarihOku, sayiOku, diziyeCevir, anahtar, kodUret, sonucBirimi, miktar, para, tcGecerliMi, hayvanlariOku, hayvanMetni, mapDeger
 };

@@ -41,6 +41,13 @@ const varsayilanlar = {
     { kod: 'silaj_verimi', ad: 'Silaj verimi', birim: 'kg/da', tip: 'cikti' }
   ],
 
+  // Talep değerlendirmesinde yardımcı bilgi olarak girilen hayvan varlığı
+  hayvanTurleri: [
+    { kod: 'buyukbas', ad: 'Büyükbaş', birim: 'baş' },
+    { kod: 'kucukbas', ad: 'Küçükbaş', birim: 'baş' },
+    { kod: 'ari', ad: 'Arı', birim: 'koloni' }
+  ],
+
   // Rol kodları sabittir (yetki ve ekranlar bunlara bağlanır); ad ve açıklama
   // Ayarlar > Roller'den değiştirilebilir.
   roller: [

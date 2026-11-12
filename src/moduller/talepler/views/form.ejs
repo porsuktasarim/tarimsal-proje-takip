@@ -37,6 +37,21 @@
             <div class="card-body">
               <%- include('../../../views/partials/ciftci-alanlari', { c: ciftci, ilceler: ilceler, onek: 'ciftci', sorgu: true }) %>
               <small class="form-hint mt-2">T.C. kimlik numarası yazıldığında kayıtlı çiftçinin bilgileri getirilir; yeni çiftçi kaydı talep ile birlikte oluşturulur. Çiftçi başka projelerde de kullanılır.</small>
+              <% if (ayar.hayvanTurleri.length) { var hv = talep.hayvanlar || {}; %>
+                <div class="hr-text my-3">Hayvan varlığı</div>
+                <div class="row g-2">
+                  <% ayar.hayvanTurleri.forEach(function (h) { %>
+                    <div class="col-6 col-md-3">
+                      <label class="form-label small mb-1"><%= h.ad %></label>
+                      <div class="input-group input-group-sm">
+                        <input type="number" min="0" step="1" name="hayvanlar[<%= h.kod %>]" value="<%= hv[h.kod] != null ? hv[h.kod] : '' %>" class="form-control text-end" data-hayvan="<%= h.kod %>">
+                        <span class="input-group-text"><%= h.birim %></span>
+                      </div>
+                    </div>
+                  <% }) %>
+                </div>
+                <small class="form-hint mt-1">Talebin değerlendirilmesinde yardımcı bilgidir. Kayıtlı çiftçide son girilen sayılar getirilir; güncel değilse düzeltilmelidir.</small>
+              <% } %>
             </div>
           </div>
 

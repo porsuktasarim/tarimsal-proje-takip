@@ -310,6 +310,10 @@
           });
           var cks = tForm.querySelector('[data-alan="cks"]');
           if (cks) cks.checked = !!ciftci.cks;
+          tForm.querySelectorAll('[data-hayvan]').forEach(function (el) {
+            var v = ciftci.hayvanlar ? ciftci.hayvanlar[el.getAttribute('data-hayvan')] : null;
+            if (el.value === '') el.value = v != null ? v : '';
+          });
           if (!Array.prototype.some.call(ilceSec.options, function (o) { return o.value === ciftci.ilce; })) {
             var o = document.createElement('option'); o.textContent = ciftci.ilce; ilceSec.appendChild(o);
           }

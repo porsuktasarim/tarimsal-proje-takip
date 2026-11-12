@@ -6,7 +6,7 @@ const { ciftciFormuOku, ciftciDenetle } = require('../ciftciler/routes');
 const { talepHesabi, fiyatBirimi } = require('../projeler/hesap');
 const { normOku } = require('../ayarlar/katalog');
 const { talepDurumlari } = require('../../config/sabitler');
-const { sayiOku, diziyeCevir, anahtar, sonucBirimi } = require('../../core/yardimcilar');
+const { sayiOku, diziyeCevir, anahtar, sonucBirimi, hayvanlariOku } = require('../../core/yardimcilar');
 const { calisilanIlceler, ilceKisitliMi } = require('../../core/yetki');
 
 const router = express.Router();
@@ -110,6 +110,10 @@ router.get('/', sar(async (req, res) => {
     ciftciKatkisi: sayilan.reduce((a, s) => a + (s.hesap.ciftciKatkisi || 0), 0),
     miktar: {}
   };
+  toplam.hayvanlar = {};
+  sayilan.forEach((s) => Object.entries(s.talep.hayvanlar || {}).forEach(([k, v]) => {
+    toplam.hayvanlar[k] = (toplam.hayvanlar[k] || 0) + (v || 0);
+  }));
   sayilan.forEach((s) => s.hesap.kalemler.forEach((hk) => {
     if (hk.miktar == null) return;
     toplam.miktar[hk.kalem.olcuBirimi] = (toplam.miktar[hk.kalem.olcuBirimi] || 0) + hk.miktar;
@@ -152,6 +156,7 @@ async function kaydet(req, res, mevcutTalep) {
   const ciftciVeri = ciftciFormuOku(req.body.ciftci || {});
   const satirlar = satirlariOku(req.body, proje);
   const aciklama = metin(req.body.aciklama) || undefined;
+  const hayvanlar = hayvanlariOku(req.body.hayvanlar, ayar.hayvanTurleri);
 
   // Kayıtlı çiftçi T.C. ile bulunur; bilgileri formdakiyle güncellenir.
   let ciftci = ciftciVeri.tcKimlikNo ? await Ciftci.findOne({ tcKimlikNo: ciftciVeri.tcKimlikNo }) : null;
@@ -172,7 +177,7 @@ async function kaydet(req, res, mevcutTalep) {
     return formGoster(res, 422, {
       baslik: mevcutTalep ? 'Talebi düzenle' : 'Talep gir',
       proje,
-      talep: { _id: mevcutTalep ? mevcutTalep._id : undefined, satirlar, aciklama },
+      talep: { _id: mevcutTalep ? mevcutTalep._id : undefined, satirlar, aciklama, hayvanlar },
       ciftci: ciftciVeri,
       ilceler: izinliIlceler,
       hatalar,
@@ -184,16 +189,22 @@ async function kaydet(req, res, mevcutTalep) {
     const { ilce, ...guncel } = ciftciVeri;
     const eskiIlce = ciftci.ilce;
     ciftci.set(ilceler.includes(ciftci.ilce) ? ciftciVeri : guncel);
+    ciftci.hayvanlar = hayvanlar;
+    ciftci.hayvanTarihi = new Date();
+    ciftci.markModified('hayvanlar');
     await ciftci.save();
     if (ciftci.ilce !== eskiIlce) await Talep.updateMany({ ciftciId: ciftci._id }, { $set: { ilce: ciftci.ilce } });
   } else {
-    ciftci = await Ciftci.create({ ...ciftciVeri, kaydeden: ben ? ben._id : undefined, kaydedenAd: ben ? ben.adSoyad : undefined });
+    ciftci = await Ciftci.create({
+      ...ciftciVeri, hayvanlar, hayvanTarihi: new Date(), kaydeden: ben ? ben._id : undefined, kaydedenAd: ben ? ben.adSoyad : undefined
+    });
   }
 
-  const veri = { projeId: proje._id, ciftciId: ciftci._id, ilce: ciftci.ilce, satirlar: satirlar.map(temizSatir), aciklama };
+  const veri = { projeId: proje._id, ciftciId: ciftci._id, ilce: ciftci.ilce, satirlar: satirlar.map(temizSatir), hayvanlar, aciklama };
   let talep = mevcutTalep;
   if (talep) {
     talep.set(veri);
+    talep.markModified('hayvanlar');
     await talep.save();
   } else {
     talep = await Talep.create({ ...veri, kaydeden: ben ? ben._id : undefined, kaydedenAd: ben ? ben.adSoyad : undefined });

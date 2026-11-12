@@ -19,6 +19,7 @@
               <dt class="col-5">Adres</dt><dd class="col-7"><%= c.adres || '–' %></dd>
               <dt class="col-5">Telefon</dt><dd class="col-7"><%= c.telefon || '–' %></dd>
               <dt class="col-5">ÇKS</dt><dd class="col-7"><%- c.cks ? '<span class="badge bg-green-lt">Kaydı var</span>' : '<span class="badge bg-secondary-lt">Kaydı yok</span>' %></dd>
+              <dt class="col-5">Hayvan varlığı</dt><dd class="col-7"><%= y.hayvanMetni(c.hayvanlar, ayar.hayvanTurleri) || '–' %><% if (c.hayvanTarihi) { %><div class="text-secondary small"><%= y.tarih(c.hayvanTarihi) %> itibarıyla</div><% } %></dd>
               <dt class="col-5">Kaydeden</dt><dd class="col-7"><%= c.kaydedenAd || '–' %><div class="text-secondary small"><%= y.tarih(c.olusturulma) %></div></dd>
             </dl>
             <% if (c.aciklama) { %><hr class="my-3"><div class="text-secondary" style="white-space: pre-line"><%= c.aciklama %></div><% } %>
@@ -54,7 +55,7 @@
             <div class="card-header">
               <div>
                 <h3 class="card-title"><a href="/projeler/<%= p._id %>" class="text-reset"><%= p.kisaAd || p.ad %></a></h3>
-                <p class="card-subtitle"><%= p.donem || '' %> · <%= t.ilce %> · <%= y.tarih(t.olusturulma) %></p>
+                <p class="card-subtitle"><%= p.donem || '' %> · <%= t.ilce %> · <%= y.tarih(t.olusturulma) %><% var hm = y.hayvanMetni(t.hayvanlar, ayar.hayvanTurleri); if (hm) { %> · <%= hm %><% } %></p>
               </div>
               <div class="card-actions">
                 <span class="badge bg-<%= d.renk %>-lt me-2"><%= d.ad %></span>

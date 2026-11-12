@@ -84,6 +84,7 @@
               <dt class="col-5">Mahalle / köy</dt><dd class="col-7"><%= ciftci.mahalle || '–' %></dd>
               <dt class="col-5">Telefon</dt><dd class="col-7"><%= ciftci.telefon || '–' %></dd>
               <dt class="col-5">ÇKS</dt><dd class="col-7"><%- ciftci.cks ? '<span class="badge bg-green-lt">Kaydı var</span>' : '<span class="badge bg-secondary-lt">Kaydı yok</span>' %></dd>
+              <dt class="col-5">Hayvan varlığı</dt><dd class="col-7"><%= y.hayvanMetni(talep.hayvanlar, ayar.hayvanTurleri) || 'Yok / girilmemiş' %></dd>
             </dl>
           </div>
           <div class="card-footer"><a href="/ciftciler/<%= ciftci._id %>" class="btn btn-sm w-100"><i class="ti ti-list-details me-1"></i> Çiftçi icmali</a></div>

@@ -20,6 +20,7 @@ const sekmeler = [
   { yol: '/ayarlar/donemler', ad: 'Dönemler', ikon: 'ti-calendar' },
   { yol: '/ayarlar/urunler', ad: 'Ürün kataloğu', ikon: 'ti-seeding' },
   { yol: '/ayarlar/normlar', ad: 'Hesaplama normları', ikon: 'ti-calculator' },
+  { yol: '/ayarlar/hayvan-turleri', ad: 'Hayvan türleri', ikon: 'ti-paw' },
   { yol: '/ayarlar/kalem-turleri', ad: 'Kalem türleri', ikon: 'ti-category' },
   { yol: '/ayarlar/olcu-birimleri', ad: 'Ölçü birimleri', ikon: 'ti-ruler-measure' },
   { yol: '/ayarlar/ilceler', ad: 'İlçeler', ikon: 'ti-map-pin' }
@@ -362,6 +363,52 @@ router.post('/urunler/:id/sil', sar(urunBul), sar(async (req, res) => {
   if (n > 0) return res.redirect(`/ayarlar/urunler/${req.urun._id}/duzenle?bildirim=urun-kullaniliyor`);
   await req.urun.deleteOne();
   return res.redirect('/ayarlar/urunler?bildirim=urun-silindi');
+}));
+
+// ---------------------------------------------------------------------------
+// Hayvan türleri (talep değerlendirmesinde yardımcı bilgi)
+// ---------------------------------------------------------------------------
+async function hayvanKullanimi(kod) {
+  if (!mongoose.modelNames().includes('Talep')) return 0;
+  return mongoose.model('Talep').countDocuments({ [`hayvanlar.${kod}`]: { $exists: true } });
+}
+
+router.get('/hayvan-turleri', sar(async (req, res) => {
+  const satirlar = res.locals.ayar.hayvanTurleri;
+  const kullanim = {};
+  for (const h of satirlar) kullanim[h.kod] = await hayvanKullanimi(h.kod);
+  res.render(V + 'hayvan-turleri', { baslik: 'Hayvan türleri', satirlar, kullanim, hatalar: [] });
+}));
+
+router.post('/hayvan-turleri', sar(async (req, res) => {
+  const mevcut = res.locals.ayar.hayvanTurleri;
+  const hatalar = [];
+  const satirlar = diziyeCevir(req.body.satirlar)
+    .map((s) => ({ kod: (s.kod || '').trim(), ad: (s.ad || '').trim(), birim: (s.birim || '').trim() }))
+    .filter((s) => s.ad || s.kod);
+  const kodlar = new Set(satirlar.map((s) => s.kod).filter(Boolean));
+  satirlar.forEach((s, i) => {
+    if (!s.ad) hatalar.push(`${i + 1}. satırdaki hayvan türünün adı girilmelidir.`);
+    if (!s.kod) {
+      let kod = kodUret(s.ad);
+      let n = 2;
+      while (kodlar.has(kod)) kod = `${kodUret(s.ad)}_${n++}`;
+      s.kod = kod;
+      kodlar.add(kod);
+    }
+  });
+  const adlar = satirlar.map((s) => anahtar(s.ad));
+  if (new Set(adlar).size !== adlar.length) hatalar.push('Aynı adla birden fazla hayvan türü tanımlanamaz.');
+  const kullanim = {};
+  for (const h of mevcut) kullanim[h.kod] = await hayvanKullanimi(h.kod);
+  mevcut.filter((h) => !satirlar.some((s) => s.kod === h.kod)).forEach((h) => {
+    if (kullanim[h.kod] > 0) hatalar.push(`"${h.ad}" ${kullanim[h.kod]} talepte girildiği için silinemez.`);
+  });
+  if (hatalar.length) {
+    return res.status(422).render(V + 'hayvan-turleri', { baslik: 'Hayvan türleri', satirlar, kullanim, hatalar });
+  }
+  await ayarlar.guncelle({ hayvanTurleri: satirlar });
+  return res.redirect('/ayarlar/hayvan-turleri?bildirim=kaydedildi');
 }));
 
 // ---------------------------------------------------------------------------

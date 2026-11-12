@@ -33,6 +33,10 @@ const ayarSema = new mongoose.Schema({
   olcuBirimleri: { type: [String], default: [] },
   normlar: { type: [normSema], default: [] },
   roller: { type: [rolSema], default: undefined },
+  hayvanTurleri: {
+    type: [new mongoose.Schema({ kod: String, ad: String, birim: String }, { _id: false })],
+    default: undefined
+  },
   gocSurumu: { type: Number, default: 0 }   // uygulanmış veri dönüşümlerinin sürümü (core/gocler.js)
 }, { collection: 'ayarlar', timestamps: { createdAt: false, updatedAt: 'guncellenme' } });
 

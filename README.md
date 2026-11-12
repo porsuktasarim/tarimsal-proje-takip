@@ -32,6 +32,7 @@
 - Miktar her çiftçinin her kalemi için ayrı hesaplanır ve ambalaja yukarı yuvarlanır (ör. 12,5 da × 20 kg/da = 250 kg → 7 çuval / 280 kg). Bedel ve çiftçi katkısı teslim edilecek miktar üzerinden hesaplanır.
 - Talep durumu: Talep alındı, Onaylandı, Teslim edildi, Reddedildi (reddedilenler toplamlara girmez).
 - **İlçe kuralı:** yürütücüler yalnızca sorumlu oldukları ilçelerin çiftçisini kaydeder ve talebini girer; listeler varsayılan olarak kendi ilçeleriyle açılır. Koordinatör ve yöneticiler tüm ilçelerde çalışır.
+- **Hayvan varlığı:** talepte işletmedeki hayvan sayıları (büyükbaş, küçükbaş, arı vb.; türler Ayarlar > Hayvan türleri'nden yönetilir) değerlendirmeye yardımcı bilgi olarak girilir. Talep anındaki sayılar talepte saklanır; kayıtlı çiftçinin son girilen sayıları yeni talep formuna getirilir.
 - **Çiftçi icmali:** çiftçinin tüm projelerdeki talepleri, alanları, miktarları, bedelleri ve katkıları.
 - Proje sayfasında kalem ve ilçe bazında talep özeti (talep / hedef); Genel Bakış'ta talep eden çiftçi, talep alanı, hedef bütçe ve çiftçi katkısı.
 
@@ -57,6 +58,7 @@
 | Dönemler | Dönem adı, başlangıç/bitiş, yeni projede seçili gelecek varsayılan dönem |
 | Ürün kataloğu | Türe göre ürünler; dağıtım birimi, ambalaj içeriği, normların varsayılan değer ve birimleri; çeşitler ve çeşide özel değerler |
 | Hesaplama normları | Dekar başına tanımlanan değerler ve hesaptaki rolleri |
+| Hayvan türleri | Talepte sorulan hayvan varlığı türleri ve birimleri |
 | Kalem türleri, ölçü birimleri, ilçeler | Formlardaki seçim listeleri |
 
 - Bir değerin adı değiştirildiğinde, onu kullanan projeler ve katalog kayıtları da yeni adla güncellenir.

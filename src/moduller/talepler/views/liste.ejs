@@ -90,6 +90,7 @@
                     <td>
                       <a href="/talepler/<%= t._id %>" class="text-reset fw-medium"><%= c.adSoyad %></a>
                       <div class="text-secondary small font-monospace"><%= c.tcKimlikNo %></div>
+                      <% var hm = y.hayvanMetni(t.hayvanlar, ayar.hayvanTurleri); if (hm) { %><div class="small text-secondary"><i class="ti ti-paw"></i> <%= hm %></div><% } %>
                     </td>
                     <td><%= t.ilce %><% if (c.mahalle) { %><div class="text-secondary small"><%= c.mahalle %></div><% } %></td>
                     <td><%- c.cks ? '<span class="badge bg-green-lt">Var</span>' : '<span class="badge bg-secondary-lt">Yok</span>' %></td>
@@ -111,7 +112,8 @@
               </tbody>
               <tfoot>
                 <tr class="fw-bold">
-                  <td colspan="4"><%= toplam.ciftci %> çiftçi <span class="fw-normal text-secondary">(reddedilenler hariç)</span></td>
+                  <td colspan="4"><%= toplam.ciftci %> çiftçi <span class="fw-normal text-secondary">(reddedilenler hariç)</span>
+                    <% var th = y.hayvanMetni(toplam.hayvanlar, ayar.hayvanTurleri); if (th) { %><div class="small fw-normal text-secondary"><i class="ti ti-paw"></i> <%= th %></div><% } %></td>
                   <td class="tablo-sayi text-nowrap"><%= y.sayi(toplam.alan) %> da</td>
                   <td class="tablo-sayi small"><%= birimli(toplam.miktar) %></td>
                   <td class="tablo-sayi text-nowrap"><%= y.para(toplam.ciftciKatkisi) %></td>
