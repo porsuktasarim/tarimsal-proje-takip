@@ -33,7 +33,9 @@ const ayarSema = new mongoose.Schema({
   varsayilanDonem: { type: String, trim: true },
   ilceler: { type: [String], default: [] },
   kalemTurleri: { type: [String], default: [] },
+  normsuzTurler: { type: [String], default: undefined },
   olcuBirimleri: { type: [String], default: [] },
+  talepBirimleri: { type: [String], default: undefined },
   normlar: { type: [normSema], default: [] },
   roller: { type: [rolSema], default: undefined },
   hayvanTurleri: {

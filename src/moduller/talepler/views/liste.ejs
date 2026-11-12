@@ -20,8 +20,11 @@
           <div class="h2 mb-0"><%= toplam.ciftci %> <span class="fs-4 text-secondary fw-normal">/ <%= y.sayi(proje.toplamHedefCiftci) %> hedef</span></div>
         </div></div></div>
         <div class="col-sm-6 col-lg-3"><div class="card card-sm"><div class="card-body">
-          <div class="text-secondary">Talep alanı</div>
+          <div class="text-secondary">Talep edilen</div>
           <div class="h2 mb-0"><%= y.sayi(toplam.alan) %> <span class="fs-4 text-secondary fw-normal">/ <%= y.sayi(proje.toplamHedefDekar) %> da</span></div>
+          <% var digerB = Object.keys(toplam.toplamlar || {}).filter(function (b) { return b !== 'da'; }); if (digerB.length) { %>
+            <div class="small text-secondary"><%= digerB.map(function (b) { return y.sayi(toplam.toplamlar[b]) + ' ' + b; }).join(' · ') %></div>
+          <% } %>
         </div></div></div>
         <div class="col-sm-6 col-lg-3"><div class="card card-sm"><div class="card-body">
           <div class="text-secondary">Dağıtılacak</div>
@@ -78,7 +81,7 @@
                   <th>İlçe</th>
                   <th>ÇKS</th>
                   <th>Kalemler</th>
-                  <th class="tablo-sayi">Alan</th>
+                  <th class="tablo-sayi">Talep</th>
                   <th class="tablo-sayi">Miktar</th>
                   <th class="tablo-sayi">Çiftçi katkısı</th>
                   <th>Durum</th>
@@ -95,10 +98,10 @@
                     <td><%= t.ilce %><% if (c.mahalle) { %><div class="text-secondary small"><%= c.mahalle %></div><% } %></td>
                     <td><%- c.cks ? '<span class="badge bg-green-lt">Var</span>' : '<span class="badge bg-secondary-lt">Yok</span>' %></td>
                     <td class="small">
-                      <% h.kalemler.forEach(function (hk) { %><div class="text-nowrap"><%= hk.kalem.urun %><%= hk.kalem.cesit ? ' · ' + hk.kalem.cesit : '' %>: <%= y.sayi(hk.alan) %> da</div><% }) %>
+                      <% h.kalemler.forEach(function (hk) { %><div class="text-nowrap"><%= hk.kalem.urun %><%= hk.kalem.cesit ? ' · ' + hk.kalem.cesit : '' %>: <%= y.sayi(hk.esasMiktari) %> <%= hk.talepBirimi %><% if (hk.fark != null) { %> <span class="badge bg-yellow-lt" title="Parsellerde <%= y.sayi(hk.parselMiktari) %> <%= hk.talepBirimi %>">parsel <%= hk.fark > 0 ? '+' : '' %><%= y.sayi(hk.fark) %></span><% } else if (hk.parselsiz) { %> <span class="badge bg-secondary-lt">parsel yok</span><% } %></div><% }) %>
                     </td>
                     <td class="tablo-sayi text-nowrap">
-                      <%= y.sayi(h.toplamAlan) %> da
+                      <%= y.toplamMetni(h.toplamlar) %>
                       <% if (bas.azamiAlan != null && h.toplamAlan > bas.azamiAlan) { %><div><span class="badge bg-red-lt">azami sınır aşıldı</span></div>
                       <% } else if (bas.oncelikliAlan != null && h.toplamAlan > bas.oncelikliAlan) { %><div><span class="badge bg-yellow-lt">öncelik sınırı üstü</span></div><% } %>
                     </td>
@@ -114,7 +117,7 @@
                 <tr class="fw-bold">
                   <td colspan="4"><%= toplam.ciftci %> çiftçi <span class="fw-normal text-secondary">(reddedilenler hariç)</span>
                     <% var th = y.hayvanMetni(toplam.hayvanlar, ayar.hayvanTurleri); if (th) { %><div class="small fw-normal text-secondary"><i class="ti ti-paw"></i> <%= th %></div><% } %></td>
-                  <td class="tablo-sayi text-nowrap"><%= y.sayi(toplam.alan) %> da</td>
+                  <td class="tablo-sayi text-nowrap"><%= y.toplamMetni(toplam.toplamlar) %></td>
                   <td class="tablo-sayi small"><%= birimli(toplam.miktar) %></td>
                   <td class="tablo-sayi text-nowrap"><%= y.para(toplam.ciftciKatkisi) %></td>
                   <td></td>

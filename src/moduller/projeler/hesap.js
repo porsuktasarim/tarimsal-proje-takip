@@ -3,7 +3,9 @@ const { normOku } = require('../ayarlar/katalog');
 
 // Proje kalemleri için norm tabanlı hesaplar.
 //
-//   ihtiyaç     = alan (da) × ekim normu               ör. 6.578 da × 20 kg/da = 131.560 kg
+//   ihtiyaç     = talep miktarı × ekim normu           ör. 6.578 da × 20 kg/da = 131.560 kg
+//                 talep birimi da, adet (fidan) ya da m² (naylon) olabilir;
+//                 ekim normunun paydası talep birimidir (kg/da, adet/adet, m²/m²)
 //   dağıtım     = ihtiyaç, dağıtım birimiyle aynıysa doğrudan; dağıtım birimi
 //                 ambalajsa (çuval, torba) içeriğe bölünüp yukarı yuvarlanır
 //                 ör. 131.560 kg ÷ 40 kg/çuval = 3.289 çuval
@@ -11,7 +13,7 @@ const { normOku } = require('../ayarlar/katalog');
 //   bedel       = fiyat birimine göre miktar × birim fiyat
 //                 ör. 131.560 kg × 36 TL/kg = 4.736.160 TL
 //   katkılar    = bedel × çiftçi katkı oranı; kalanı destek kaynağının katkısı
-//   hedef çıktı = alan (da) × çıktı normu
+//   hedef çıktı = talep miktarı × çıktı normu (normun paydası talep birimiyse)
 //
 // Aynı hesap çiftçi talebine de uygulanır; yuvarlama her çiftçinin her kalemi
 // için ayrı yapıldığından talep toplamları proje hedefinden biraz fazla olabilir.
@@ -29,23 +31,34 @@ function fiyatBirimi(k) {
 }
 
 // Verilen alan için miktar ve bedel. elleMiktar: dağıtım biriminde elle girilen toplam.
+// Normsuz türler (makine, ekipman, malzeme): talep edilen miktar doğrudan ihtiyaçtır.
+const normsuzMu = (k, ayar) => (ayar.normsuzTurler || []).includes(k.tur);
+
 function miktarHesabi(k, alan, ayar, proje, elleMiktar) {
-  const ekimTanim = ayar.ekimNormu;
+  const normsuz = normsuzMu(k, ayar);
+  const tb = (k && k.talepBirimi) || 'da';
+  const ekimTanim = normsuz ? null : ayar.ekimNormu;
   const ekim = ekimTanim ? normOku(k.normlar, ekimTanim.kod) : null;
   const ekimBirimi = ekim ? (ekim.birim || ekimTanim.birim) : null;
-  const ihtiyacBirimi = ekimBirimi ? sonucBirimi(ekimBirimi) : null;
-  const ihtiyac = ekim && alan != null ? alan * ekim.deger : null;
+  const ihtiyacBirimi = normsuz ? tb : (ekimBirimi ? sonucBirimi(ekimBirimi) : null);
+  let ihtiyac = null;
+  if (alan != null) {
+    if (normsuz) ihtiyac = alan;
+    else if (ekim) ihtiyac = alan * ekim.deger;
+  }
 
   // Ekim normunun birimi ambalaj içeriğinin birimine bağlıdır (ör. adet/da ↔ 1 paket = 50.000 adet),
-  // bu yüzden ihtiyaç doğrudan ambalaj içeriğine bölünür.
+  // bu yüzden ihtiyaç doğrudan ambalaj içeriğine bölünür. Ölçüye göre (özel üretim)
+  // kalemlerde ambalaja yuvarlanmaz: 150 m² isteyene 1,5 top verilir.
   const ambalaj = k.ambalaj && k.ambalaj.miktar > 0 ? k.ambalaj : null;
+  const yuvarla = (v) => (k.olcuyeGore ? v : Math.ceil(v - 1e-9));
   let hesaplananMiktar = null;
   let birimUyumsuz = false;
   if (ihtiyac != null) {
     if (ambalaj && birimiAyni(ambalaj.birim, ihtiyacBirimi)) {
-      hesaplananMiktar = Math.ceil(ihtiyac / ambalaj.miktar - 1e-9);
-    } else if (!ambalaj && birimiAyni(ihtiyacBirimi, k.olcuBirimi)) {
-      hesaplananMiktar = ihtiyac;
+      hesaplananMiktar = yuvarla(ihtiyac / ambalaj.miktar);
+    } else if (!ambalaj && (normsuz || birimiAyni(ihtiyacBirimi, k.olcuBirimi))) {
+      hesaplananMiktar = ihtiyac;   // ambalajsız: 1 dağıtım birimi = 1 talep birimi (ör. 1 adet makine)
     } else {
       birimUyumsuz = true;
     }
@@ -73,6 +86,7 @@ function miktarHesabi(k, alan, ayar, proje, elleMiktar) {
   const destek = bedel != null && ciftciKatkisi != null ? bedel - ciftciKatkisi : null;
 
   return {
+    normsuz,
     ekimDegeri: ekim ? ekim.deger : null,
     ekimBirimi,
     ihtiyac,
@@ -91,16 +105,27 @@ function miktarHesabi(k, alan, ayar, proje, elleMiktar) {
   };
 }
 
+const talepBirimiOku = (k) => (k && k.talepBirimi) || 'da';
+
+// Normun paydası (kg/da → da). Paydası kalemin talep birimiyle uyuşmayan çıktı
+// normu hesaplanmaz (ör. adet ile sayılan fidanda kg/da verim).
+const payda = (birim) => {
+  const p = String(birim || '').split('/');
+  return p.length > 1 ? p[1].trim() : '';
+};
+
 function kalemHesabi(k, alan, ayar, proje) {
   const m = miktarHesabi(k, alan, ayar, proje, k.toplamMiktar != null ? k.toplamMiktar : null);
+  const tb = talepBirimiOku(k);
   const ciktilar = ayar.ciktiNormlari.map((n) => {
-    const o = normOku(k.normlar, n.kod);
+    const o = m.normsuz ? null : normOku(k.normlar, n.kod);
     const birim = o ? (o.birim || n.birim) : n.birim;
+    const uyumlu = !payda(birim) || birimiAyni(payda(birim), tb);
     return {
       kod: n.kod,
       deger: o ? o.deger : null,
       normBirimi: birim,
-      sonuc: o && alan != null ? alan * o.deger : null,
+      sonuc: o && alan != null && uyumlu ? alan * o.deger : null,
       birim: sonucBirimi(birim)
     };
   });
@@ -127,7 +152,7 @@ function projeHesabi(proje, ayar) {
     let alan = k.alan;
     let alanKaynak = 'kalem';
     if (alan == null) {
-      if (tekKalem && toplamDekar > 0) { alan = toplamDekar; alanKaynak = 'proje'; } else { alan = null; alanKaynak = null; }
+      if (tekKalem && toplamDekar > 0 && talepBirimiOku(k) === 'da') { alan = toplamDekar; alanKaynak = 'proje'; } else { alan = null; alanKaynak = null; }
     }
     return { kalem: k, alan, alanKaynak, ...kalemHesabi(k, alan, ayar, proje) };
   });
@@ -146,7 +171,10 @@ function projeHesabi(proje, ayar) {
     topla(teslimToplamlari, h.teslimBirimi, h.teslim);
   });
 
-  const kalemAlanlari = proje.kalemler.filter((k) => k.alan != null);
+  // Dekar hedefleri ilçe hedefleriyle karşılaştırılır; adet ve m² ile sayılan kalemler ayrı tutulur.
+  const kalemAlanlari = proje.kalemler.filter((k) => k.alan != null && talepBirimiOku(k) === 'da');
+  const hedefToplamlari = {};
+  proje.kalemler.forEach((k) => topla(hedefToplamlari, talepBirimiOku(k), k.alan));
   const kalemAlanToplami = kalemAlanlari.length ? kalemAlanlari.reduce((t, k) => t + k.alan, 0) : null;
 
   const butce = {
@@ -164,59 +192,106 @@ function projeHesabi(proje, ayar) {
     miktarToplamlari,
     teslimToplamlari,
     kalemAlanToplami,
+    hedefToplamlari,
     alanFarki: kalemAlanToplami != null && toplamDekar > 0 && Math.abs(kalemAlanToplami - toplamDekar) > 0.0001,
     butce
   };
 }
 
-// Bir çiftçi talebinin hesabı: satırlar kaleme göre toplanır, her kalem için
-// ihtiyaç ayrı hesaplanıp ambalaja yukarı yuvarlanır.
+// Bir çiftçi talebinin hesabı. Her kalem için iki miktar olabilir:
+//   talep  : çiftçinin istediği toplam (talep biriminde: da, adet, m²)
+//   parsel : parsellere dağıtılmış miktarların toplamı
+// İkisi de ayrı ayrı hesaplanır. Esas alınan talep miktarıdır; girilmemişse
+// parsel toplamı esas alınır. Yuvarlama her çiftçinin her kalemi için ayrı yapılır.
 function talepHesabi(talep, proje, ayar) {
+  const satirMiktari = (s) => (s.miktar != null ? s.miktar : (s.alan || 0));
   const kalemler = [];
   proje.kalemler.forEach((k) => {
-    const satirlar = (talep.satirlar || []).filter((s) => String(s.kalemId) === String(k._id));
-    if (!satirlar.length) return;
-    const alan = satirlar.reduce((t, s) => t + (s.alan || 0), 0);
-    kalemler.push({ kalem: k, alan, parselSayisi: satirlar.length, ...miktarHesabi(k, alan, ayar, proje, null) });
+    const id = String(k._id);
+    const satirlar = (talep.satirlar || []).filter((s) => String(s.kalemId) === id);
+    const tk = (talep.talepKalemleri || []).find((x) => String(x.kalemId) === id);
+    const talepMiktari = tk && tk.miktar > 0 ? tk.miktar : null;
+    const parselMiktari = satirlar.length ? satirlar.reduce((t, s) => t + satirMiktari(s), 0) : null;
+    if (talepMiktari == null && parselMiktari == null) return;
+
+    const talepHesap = talepMiktari != null ? miktarHesabi(k, talepMiktari, ayar, proje, null) : null;
+    const parselHesap = parselMiktari != null ? miktarHesabi(k, parselMiktari, ayar, proje, null) : null;
+    const esasKaynak = talepMiktari != null ? 'talep' : 'parsel';
+    const esasMiktari = esasKaynak === 'talep' ? talepMiktari : parselMiktari;
+    const fark = talepMiktari != null && parselMiktari != null ? parselMiktari - talepMiktari : null;
+    kalemler.push({
+      kalem: k,
+      talepBirimi: talepBirimiOku(k),
+      talepMiktari,
+      parselMiktari,
+      parselSayisi: satirlar.length,
+      esasKaynak,
+      esasMiktari,
+      fark: fark != null && Math.abs(fark) > 1e-9 ? fark : null,
+      parselsiz: talepMiktari != null && parselMiktari == null,
+      talepHesap,
+      parselHesap,
+      ...(esasKaynak === 'talep' ? talepHesap : parselHesap)
+    });
   });
   const tanimsiz = (talep.satirlar || []).filter((s) => !proje.kalemler.some((k) => String(k._id) === String(s.kalemId)));
-  const toplamAlan = (talep.satirlar || []).reduce((t, s) => t + (s.alan || 0), 0);
+
+  // Birimlere göre toplamlar (da ile adet toplanmaz)
+  const toplamlar = {};
+  const talepToplamlari = {};
+  const parselToplamlari = {};
+  kalemler.forEach((h) => {
+    topla(toplamlar, h.talepBirimi, h.esasMiktari);
+    topla(talepToplamlari, h.talepBirimi, h.talepMiktari);
+    topla(parselToplamlari, h.talepBirimi, h.parselMiktari);
+  });
+  const parselBedel = toplamVeyaNull(kalemler.map((h) => (h.parselHesap ? h.parselHesap.bedel : null)));
   return {
     kalemler,
-    toplamAlan,
+    toplamlar,
+    talepToplamlari,
+    parselToplamlari,
+    toplamAlan: toplamlar.da || 0,                 // dekar ile sayılan kalemlerin toplamı (başvuru sınırları buna uygulanır)
+    farkVar: kalemler.some((h) => h.fark != null),
+    parselsizKalem: kalemler.filter((h) => h.parselsiz).length,
     tanimsizSatir: tanimsiz.length,
     bedel: toplamVeyaNull(kalemler.map((h) => h.bedel)),
     ciftciKatkisi: toplamVeyaNull(kalemler.map((h) => h.ciftciKatkisi)),
-    destek: toplamVeyaNull(kalemler.map((h) => h.destek))
+    destek: toplamVeyaNull(kalemler.map((h) => h.destek)),
+    parselBedel
   };
 }
 
 // Projedeki taleplerin toplamı: kalem ve ilçe bazında
 function taleplerOzeti(talepler, proje, ayar) {
   const kalemler = proje.kalemler.map((k) => ({
-    kalem: k, ciftci: 0, alan: 0, miktar: null, teslim: null, teslimBirimi: null, bedel: null, ciftciKatkisi: null
+    kalem: k, talepBirimi: talepBirimiOku(k), ciftci: 0, esasMiktari: 0, talepMiktari: 0, parselMiktari: 0,
+    miktar: null, teslim: null, teslimBirimi: null, bedel: null, ciftciKatkisi: null
   }));
   const ilceler = {};
   const ekle = (a, b) => (b == null ? a : (a || 0) + b);
-  let toplamAlan = 0;
+  const toplamlar = {};
   let bedel = null;
   let ciftciKatkisi = null;
 
   talepler.forEach((t) => {
     const h = talepHesabi(t, proje, ayar);
     const ilce = t.ilce || '–';
-    ilceler[ilce] = ilceler[ilce] || { ilce, ciftci: 0, alan: 0, bedel: null, ciftciKatkisi: null };
+    ilceler[ilce] = ilceler[ilce] || { ilce, ciftci: 0, alan: 0, toplamlar: {}, bedel: null, ciftciKatkisi: null };
     ilceler[ilce].ciftci += 1;
     ilceler[ilce].alan += h.toplamAlan;
+    Object.entries(h.toplamlar).forEach(([b, v]) => topla(ilceler[ilce].toplamlar, b, v));
     ilceler[ilce].bedel = ekle(ilceler[ilce].bedel, h.bedel);
     ilceler[ilce].ciftciKatkisi = ekle(ilceler[ilce].ciftciKatkisi, h.ciftciKatkisi);
-    toplamAlan += h.toplamAlan;
+    Object.entries(h.toplamlar).forEach(([b, v]) => topla(toplamlar, b, v));
     bedel = ekle(bedel, h.bedel);
     ciftciKatkisi = ekle(ciftciKatkisi, h.ciftciKatkisi);
     h.kalemler.forEach((hk) => {
       const o = kalemler.find((x) => String(x.kalem._id) === String(hk.kalem._id));
       o.ciftci += 1;
-      o.alan += hk.alan;
+      o.esasMiktari += hk.esasMiktari;
+      o.talepMiktari += hk.talepMiktari || 0;
+      o.parselMiktari += hk.parselMiktari || 0;
       o.miktar = ekle(o.miktar, hk.miktar);
       o.teslim = ekle(o.teslim, hk.teslim);
       o.teslimBirimi = hk.teslimBirimi || o.teslimBirimi;
@@ -227,7 +302,8 @@ function taleplerOzeti(talepler, proje, ayar) {
 
   return {
     ciftciSayisi: talepler.length,
-    toplamAlan,
+    toplamlar,
+    toplamAlan: toplamlar.da || 0,
     bedel,
     ciftciKatkisi,
     kalemler,
@@ -235,4 +311,4 @@ function taleplerOzeti(talepler, proje, ayar) {
   };
 }
 
-module.exports = { projeHesabi, kalemHesabi, miktarHesabi, talepHesabi, taleplerOzeti, fiyatBirimi };
+module.exports = { normsuzMu, projeHesabi, kalemHesabi, miktarHesabi, talepHesabi, taleplerOzeti, fiyatBirimi, talepBirimiOku };

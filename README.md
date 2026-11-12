@@ -9,12 +9,15 @@
 ### Projeler
 
 - **Proje Başlat:** proje adı, kısa ad, yürütücü birim, dönem, başlangıç ve bitiş tarihleri, açıklama
-- **Kalemler:** tür (tohum, gübre…), ürün (Mısır, Yulaf…), çeşit (AGA, ADA…), hedef alan (da), dağıtım birimi (kg, torba, çuval…), ambalaj içeriği (1 torba = 25.000 adet), normlar (değer + birim) ve toplam dağıtım
+- **Kalemler:** tür (tohum, gübre, malzeme, makine…), ürün (Mısır, Yulaf…), çeşit (AGA, ADA…), talep birimi (da, adet, m²), hedef miktar, dağıtım birimi (çuval, paket, torba, top, adet), ambalaj içeriği (1 torba = 25.000 adet, 1 top = 100 m²), normlar (değer + birim) ve toplam dağıtım
+  - **Talep birimi:** tohumda dekar, fidan ve fidede adet, sera naylonunda m². Ekim normunun birimi "ambalaj içeriği / talep birimi" olur (kg/da, adet/da, adet/adet)
+  - **Normsuz türler** (Ayarlar > Kalem türleri'nde işaretlenir; varsayılan malzeme, makine, ekipman, diğer): ekim ve çıktı normu sorulmaz, talep edilen miktar doğrudan dağıtılır. Ambalaj isteğe bağlıdır ve içeriği talep birimindedir (1 top = 100 m² → 150 m² isteyene 2 top); ambalajsızsa 1 adet = 1 adet. Teknik özellik / marka-model girilebilir
+  - **Ölçüye göre (özel üretim):** işaretli kalemde ambalaja yukarı yuvarlanmaz, istenen ölçü kadar teslim edilir (125 m² → 1,25 top). Standart ve özel üretim aynı ürünün iki kalemi (ör. çeşit "Özel üretim") olarak girilebilir
   - Katalogdan seçilen ürün ve çeşidin normları, birimleri ve ambalaj içeriği kendiliğinden dolar; proje içinde değiştirilebilir
   - Katalogda olmayan ürün ya da çeşit yazılırsa proje kaydedilince kataloğa eklenir; yeni çeşitte ürününkinden farklı girilen değerler o çeşide özel olarak saklanır
   - Toplam dağıtım boş bırakılırsa hesaplanır: ihtiyaç = alan × ekim normu; dağıtım birimi ambalajsa ihtiyaç ambalaj içeriğine bölünür (ör. 1.000 da × 7.500 adet/da = 7.500.000 adet → 300 torba)
 - **İlçe hedefleri:** projenin uygulanacağı ilçeler; ilçe bazında hedef çiftçi sayısı ve hedef dekar
-- **Hedef çıktılar:** kalem bazında alan × çıktı normu (ot verimi, tane verimi, silaj verimi…) ve proje toplamları
+- **Hedef çıktılar:** kalem bazında hedef × çıktı normu (normun paydası talep birimiyse) (ot verimi, tane verimi, silaj verimi…) ve proje toplamları
 - Proje listesi, arama, birim ve durum süzgeci
 - Proje durumu: Taslak, Yürütülüyor, Tamamlandı, İptal (yalnızca taslaklar silinebilir)
 
@@ -27,7 +30,10 @@
 ### Çiftçiler ve talepler
 
 - **Çiftçi kaydı** projelerden bağımsızdır: T.C. kimlik no (denetimli, benzersiz), ad soyad, telefon, ilçe, mahalle/köy, adres, ÇKS kaydı var/yok. Aynı çiftçi birden fazla projede kullanılır.
-- **Talep** bir çiftçinin bir projedeki talebidir. Her satır bir parselde ekilecek bir kalemdir: kalem, parselin ilçesi, mahalle/köy, ada, parsel, ekilecek alan (da). Parsel çiftçinin ilçesi dışında olabilir; karışım ekimde aynı parsel her kalem için ayrı satırda girilir.
+- **Talep** bir çiftçinin bir projedeki talebidir ve iki kısımdır:
+  - **Talep edilen miktar:** her kalem için istenen toplam, kalemin talep biriminde (30 da yulaf, 50 adet ceviz fidanı, 500 m² sera naylonu)
+  - **Parseller:** talebin hangi parsellerde kullanılacağı — kalem, parselin ilçesi, mahalle/köy, ada, parsel, miktar. m² ile sayılan kalemlerde en × boy (m) girilirse miktar hesaplanır. Parsel çiftçinin ilçesi dışında olabilir; karışım ekimde aynı parsel her kalem için ayrı satırda girilir; parseller henüz belli değilse boş bırakılabilir
+  - Hesap hem talebe hem parsellere göre yapılır ve yan yana gösterilir; farklar işaretlenir. Toplamlarda talep miktarı esas alınır, girilmemişse parsel toplamı kullanılır. Başvuru alan sınırları dekar ile sayılan kalemlere uygulanır
 - Talep formunda T.C. yazıldığında kayıtlı çiftçinin bilgileri getirilir; yeni çiftçi talep ile birlikte kaydedilir. Bir çiftçinin bir projede tek talebi olur.
 - Miktar her çiftçinin her kalemi için ayrı hesaplanır ve ambalaja yukarı yuvarlanır (ör. 12,5 da × 20 kg/da = 250 kg → 7 çuval / 280 kg). Bedel ve çiftçi katkısı teslim edilecek miktar üzerinden hesaplanır.
 - Talep durumu: Talep alındı, Onaylandı, Teslim edildi, Reddedildi (reddedilenler toplamlara girmez).
@@ -58,9 +64,10 @@
 | Yürütücü birimler | Projeleri yürüten birimler |
 | Dönemler | Dönem adı, başlangıç/bitiş, yeni projede seçili gelecek varsayılan dönem |
 | Ürün kataloğu | Türe göre ürünler; dağıtım birimi, ambalaj içeriği, normların varsayılan değer ve birimleri; çeşitler ve çeşide özel değerler |
-| Hesaplama normları | Dekar başına tanımlanan değerler ve hesaptaki rolleri |
+| Hesaplama normları | Talep birimi başına tanımlanan değerler ve hesaptaki rolleri |
+| Talep birimleri | Talep ve parsellerin birimleri (da, adet, m²) |
 | Hayvan türleri | Talepte sorulan hayvan varlığı türleri ve birimleri |
-| Kalem türleri, dağıtım birimleri, ilçeler | Formlardaki seçim listeleri (dağıtım birimi: çuval, paket, torba) |
+| Kalem türleri, dağıtım birimleri, ilçeler | Formlardaki seçim listeleri (dağıtım birimi: çuval, paket, torba, top, adet); kalem türlerinde normsuz olanlar işaretlenir |
 
 - Bir değerin adı değiştirildiğinde, onu kullanan projeler ve katalog kayıtları da yeni adla güncellenir.
 - Kullanılan bir değer (projesi olan dönem, birim vb.) silinemez.
@@ -146,7 +153,7 @@ src/
   moduller/
     genel-bakis/            Toplu istatistik ve son durum panosu
     projeler/               Proje modeli, norm, miktar ve bütçe hesapları (hesap.js), sayfalar
-    talepler/               Çiftçi talepleri (parsel satırları)
+    talepler/               Çiftçi talepleri (talep edilen miktarlar ve parseller)
     ciftciler/              Çiftçi kaydı ve çiftçi icmali
     gorevler/               Görev modeli ve sayfaları
     ayarlar/                Ayar, Ürün ve Kişi modelleri, ayar sayfaları
@@ -161,7 +168,7 @@ public/                     Uygulamaya özel CSS, JS, simge
 | `urunler` | Ürün kataloğu: tür, ad, dağıtım birimi, ambalaj, normlar `{ kod: { deger, birim } }`, çeşitler (kendi normları ve ambalajıyla) |
 | `projeler` | Proje bilgileri, kalemler (ürün kimliği, ürün, çeşit, alan, dağıtım birimi, ambalaj, normlar), ilçe hedefleri, proje ekibi |
 | `ciftciler` | Çiftçiler: T.C. kimlik no, ad soyad, iletişim, ilçe, mahalle/köy, ÇKS |
-| `talepler` | Çiftçi talepleri: proje, çiftçi, ilçe, parsel satırları (kalem, ilçe, mahalle, ada, parsel, alan), durum |
+| `talepler` | Çiftçi talepleri: proje, çiftçi, ilçe, talep edilen miktarlar (kalem, miktar), parsel satırları (kalem, ilçe, mahalle, ada, parsel, en, boy, miktar), durum |
 | `kisiler` | Kişiler: ad soyad, unvan, rol kodu, birim, ilçeler, aktiflik |
 | `gorevler` | Görevler: atama (kişi ya da rol), proje, ilçe, son tarih, öncelik, durum, hareket geçmişi |
 
@@ -190,7 +197,7 @@ Yeni bir ayar listesi başka kayıtlarda kullanılacaksa `src/core/ayarlar.js` i
 - İlçe bazında hak sahipliği ve dağıtım listeleri
 - Teslim tutanakları ve çiftçi katkı tahsilatı
 - Gerçekleşen verimlerin girilmesi ve hedeflerle karşılaştırılması
-- Raporlar ve Excel/PDF çıktıları (çiftçi icmali, ilçe listeleri)
+- Raporlar ve Excel/PDF çıktıları (çiftçi icmali, ilçe listeleri), başvuru formu ve parsel formu çıktıları
 - Rollere göre ekranlar ve yetkiler; isteğe bağlı şifreli giriş
 
 ## Lisans

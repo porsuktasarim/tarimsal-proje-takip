@@ -2,7 +2,7 @@
 <%
   function satir(i, s) {
     var n = (s.eski && kullanim[s.eski]) || 0;
-    return { i: i, eski: s.eski || '', ad: s.ad || '', n: n };
+    return { i: i, eski: s.eski || '', ad: s.ad || '', n: n, isaret: !!s.isaret };
   }
 %>
 <form method="post" action="/ayarlar/<%= tanim.yol %>" class="card" autocomplete="off">
@@ -10,6 +10,7 @@
     <div>
       <h3 class="card-title"><%= tanim.baslik %></h3>
       <p class="card-subtitle"><%= tanim.aciklama %></p>
+      <% if (tanim.isaret) { %><p class="card-subtitle mt-1"><i class="ti ti-info-circle"></i> <strong><%= tanim.isaret.baslik %>:</strong> <%= tanim.isaret.aciklama %></p><% } %>
     </div>
     <div class="card-actions">
       <button type="button" class="btn btn-sm" data-satir-ekle="satirlar"><i class="ti ti-plus me-1"></i> Ekle</button>
@@ -18,7 +19,7 @@
   <div class="table-responsive">
     <table class="table table-vcenter card-table satir-tablosu">
       <thead>
-        <tr><th class="w-1">#</th><th><%= tanim.tekil %></th><th class="w-1 text-nowrap">Kullanım</th><th class="w-1"></th></tr>
+        <tr><th class="w-1">#</th><th><%= tanim.tekil %></th><% if (tanim.isaret) { %><th class="w-1 text-nowrap"><%= tanim.isaret.baslik %></th><% } %><th class="w-1 text-nowrap">Kullanım</th><th class="w-1"></th></tr>
       </thead>
       <tbody data-satirlar="satirlar">
         <% satirlar.forEach(function (s, i) { var r = satir(i, s); %>
@@ -28,6 +29,7 @@
               <input type="hidden" name="satirlar[<%= i %>][eski]" value="<%= r.eski %>">
               <input type="text" name="satirlar[<%= i %>][ad]" value="<%= r.ad %>" class="form-control">
             </td>
+            <% if (tanim.isaret) { %><td class="text-center"><input type="checkbox" class="form-check-input" name="satirlar[<%= i %>][isaret]" value="1" <%= r.isaret ? 'checked' : '' %>></td><% } %>
             <td class="text-nowrap">
               <% if (r.n) { %><span class="badge bg-blue-lt"><%= r.n %> kayıt</span><% } else { %><span class="text-secondary">–</span><% } %>
             </td>
@@ -48,6 +50,7 @@
         <input type="hidden" name="satirlar[__i__][eski]" value="">
         <input type="text" name="satirlar[__i__][ad]" class="form-control">
       </td>
+      <% if (tanim.isaret) { %><td class="text-center"><input type="checkbox" class="form-check-input" name="satirlar[__i__][isaret]" value="1"></td><% } %>
       <td><span class="badge bg-green-lt">Yeni</span></td>
       <td class="sil-sutunu"><button type="button" class="btn btn-ghost-danger btn-icon" data-satir-sil title="Kaldır"><i class="ti ti-trash"></i></button></td>
     </tr>

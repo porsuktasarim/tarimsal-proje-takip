@@ -11,17 +11,73 @@
   <div class="container-xl">
     <%- include('../../../views/partials/bildirim') %>
     <% if (bas.azamiAlan != null && hesap.toplamAlan > bas.azamiAlan) { %>
-      <div class="alert alert-danger"><div><i class="ti ti-alert-triangle me-1"></i> Talep alanı (<%= y.sayi(hesap.toplamAlan) %> da) projenin azami alan sınırını (<%= y.sayi(bas.azamiAlan) %> da) aşıyor.</div></div>
+      <div class="alert alert-danger"><div><i class="ti ti-alert-triangle me-1"></i> Talep edilen alan (<%= y.sayi(hesap.toplamAlan) %> da) projenin azami alan sınırını (<%= y.sayi(bas.azamiAlan) %> da) aşıyor.</div></div>
     <% } else if (bas.oncelikliAlan != null && hesap.toplamAlan > bas.oncelikliAlan) { %>
-      <div class="alert alert-warning"><div><i class="ti ti-info-circle me-1"></i> Talep alanı (<%= y.sayi(hesap.toplamAlan) %> da) öncelikli alan sınırının (<%= y.sayi(bas.oncelikliAlan) %> da) üstünde.</div></div>
+      <div class="alert alert-warning"><div><i class="ti ti-info-circle me-1"></i> Talep edilen alan (<%= y.sayi(hesap.toplamAlan) %> da) öncelikli alan sınırının (<%= y.sayi(bas.oncelikliAlan) %> da) üstünde.</div></div>
     <% } %>
     <div class="row row-cards">
       <div class="col-lg-8">
+        <% if (hesap.farkVar || hesap.parselsizKalem) { %>
+          <div class="alert alert-info"><div><i class="ti ti-info-circle me-1"></i>
+            <% if (hesap.farkVar) { %>Bazı kalemlerde parsellere dağıtılan miktar talep edilen miktardan farklı. <% } %>
+            <% if (hesap.parselsizKalem) { %><%= hesap.parselsizKalem %> kalemin parseli girilmemiş. <% } %>
+            Miktar ve bedelde talep edilen miktar esas alınır; parsellere göre hesap ayrıca gösterilir.
+          </div></div>
+        <% } %>
+
         <div class="card mb-3">
-          <div class="card-header"><h3 class="card-title">Parseller</h3></div>
+          <div class="card-header"><h3 class="card-title">Talep ve hesap</h3></div>
           <div class="table-responsive">
             <table class="table table-vcenter card-table">
-              <thead><tr><th>Kalem</th><th>İlçe</th><th>Mahalle / köy</th><th>Ada / parsel</th><th class="tablo-sayi">Alan</th></tr></thead>
+              <thead>
+                <tr>
+                  <th>Kalem</th><th class="tablo-sayi">Talep</th><th class="tablo-sayi">Parsellerde</th><th class="tablo-sayi">İhtiyaç</th><th class="tablo-sayi">Dağıtılacak</th>
+                  <th class="tablo-sayi">Bedel</th><th class="tablo-sayi">Çiftçi katkısı</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% hesap.kalemler.forEach(function (hk) { var ph = hk.parselHesap; var ayri = hk.fark != null && ph; %>
+                  <tr>
+                    <td><%= hk.kalem.urun %><% if (hk.kalem.cesit) { %> <span class="text-secondary">· <%= hk.kalem.cesit %></span><% } %>
+                      <div class="small text-secondary"><%= hk.esasKaynak === 'talep' ? 'talep esas' : 'parsel toplamı esas (talep miktarı girilmemiş)' %></div></td>
+                    <td class="tablo-sayi text-nowrap"><%= hk.talepMiktari != null ? y.sayi(hk.talepMiktari) + ' ' + hk.talepBirimi : '–' %></td>
+                    <td class="tablo-sayi text-nowrap">
+                      <%= hk.parselMiktari != null ? y.sayi(hk.parselMiktari) + ' ' + hk.talepBirimi : '–' %>
+                      <% if (hk.parselSayisi) { %><div class="small text-secondary"><%= hk.parselSayisi %> parsel</div><% } %>
+                      <% if (hk.fark != null) { %><div><span class="badge bg-yellow-lt"><%= hk.fark > 0 ? '+' : '' %><%= y.sayi(hk.fark) %> <%= hk.talepBirimi %></span></div><% } %>
+                    </td>
+                    <td class="tablo-sayi text-nowrap"><%= hk.ihtiyac != null ? y.sayi(hk.ihtiyac) + ' ' + hk.ihtiyacBirimi : '–' %>
+                      <% if (ayri && ph.ihtiyac != null) { %><div class="small text-secondary">parsel: <%= y.sayi(ph.ihtiyac) %> <%= ph.ihtiyacBirimi %></div><% } %></td>
+                    <td class="tablo-sayi text-nowrap">
+                      <span class="fw-medium"><%= y.sayi(hk.miktar) %> <%= hk.kalem.olcuBirimi %></span>
+                      <% if (hk.ambalaj) { %><div class="text-secondary small"><%= y.sayi(hk.teslim) %> <%= hk.teslimBirimi %></div><% } %>
+                      <% if (ayri) { %><div class="small text-secondary">parsel: <%= y.sayi(ph.miktar) %> <%= hk.kalem.olcuBirimi %></div><% } %>
+                    </td>
+                    <td class="tablo-sayi text-nowrap"><%= y.para(hk.bedel) %><% if (ayri && ph.bedel != null) { %><div class="small text-secondary">parsel: <%= y.para(ph.bedel) %></div><% } %></td>
+                    <td class="tablo-sayi text-nowrap"><%= y.para(hk.ciftciKatkisi) %><% if (ayri && ph.ciftciKatkisi != null) { %><div class="small text-secondary">parsel: <%= y.para(ph.ciftciKatkisi) %></div><% } %></td>
+                  </tr>
+                <% }) %>
+              </tbody>
+              <tfoot><tr class="fw-bold">
+                <td>Toplam<% if (fin.ciftciKatkiOrani != null) { %> <span class="fw-normal text-secondary">(çiftçi katkısı %<%= y.sayi(fin.ciftciKatkiOrani) %>)</span><% } %></td>
+                <td class="tablo-sayi text-nowrap"><%= y.toplamMetni(hesap.talepToplamlari) %></td>
+                <td class="tablo-sayi text-nowrap"><%= y.toplamMetni(hesap.parselToplamlari) %></td>
+                <td colspan="2"></td>
+                <td class="tablo-sayi text-nowrap"><%= y.para(hesap.bedel) %></td>
+                <td class="tablo-sayi text-nowrap"><%= y.para(hesap.ciftciKatkisi) %></td>
+              </tr></tfoot>
+            </table>
+          </div>
+        </div>
+
+        <div class="card mb-3">
+          <div class="card-header"><h3 class="card-title">Parseller</h3></div>
+          <% if (!talep.satirlar.length) { %>
+            <div class="card-body text-secondary">Parsel girilmemiş.</div>
+          <% } else { %>
+          <div class="table-responsive">
+            <table class="table table-vcenter card-table">
+              <thead><tr><th>Kalem</th><th>İlçe</th><th>Mahalle / köy</th><th>Ada / parsel</th><th class="tablo-sayi">Miktar</th></tr></thead>
               <tbody>
                 <% talep.satirlar.forEach(function (s) { %>
                   <tr>
@@ -29,48 +85,16 @@
                     <td><%= s.parselIlce || '–' %></td>
                     <td><%= s.mahalle || '–' %></td>
                     <td class="font-monospace"><%= s.ada || '–' %> / <%= s.parsel || '–' %></td>
-                    <td class="tablo-sayi"><%= y.sayi(s.alan) %> da</td>
+                    <td class="tablo-sayi text-nowrap"><%= y.sayi(s.miktar != null ? s.miktar : s.alan) %> <%= kalemBirimi(s.kalemId) %><% if (s.en && s.boy) { %><div class="small text-secondary"><%= y.sayi(s.en) %> × <%= y.sayi(s.boy) %> m</div><% } %></td>
                   </tr>
                 <% }) %>
               </tbody>
-              <tfoot><tr class="fw-bold"><td colspan="4">Toplam</td><td class="tablo-sayi"><%= y.sayi(hesap.toplamAlan) %> da</td></tr></tfoot>
+              <tfoot><tr class="fw-bold"><td colspan="4">Toplam</td><td class="tablo-sayi text-nowrap"><%= y.toplamMetni(hesap.parselToplamlari) %></td></tr></tfoot>
             </table>
           </div>
+          <% } %>
         </div>
 
-        <div class="card mb-3">
-          <div class="card-header"><h3 class="card-title">Miktar ve bedel</h3></div>
-          <div class="table-responsive">
-            <table class="table table-vcenter card-table">
-              <thead>
-                <tr>
-                  <th>Kalem</th><th class="tablo-sayi">Alan</th><th class="tablo-sayi">İhtiyaç</th><th class="tablo-sayi">Dağıtılacak</th>
-                  <th class="tablo-sayi">Bedel</th><th class="tablo-sayi">Çiftçi katkısı</th>
-                </tr>
-              </thead>
-              <tbody>
-                <% hesap.kalemler.forEach(function (hk) { %>
-                  <tr>
-                    <td><%= hk.kalem.urun %><% if (hk.kalem.cesit) { %> <span class="text-secondary">· <%= hk.kalem.cesit %></span><% } %></td>
-                    <td class="tablo-sayi"><%= y.sayi(hk.alan) %> da</td>
-                    <td class="tablo-sayi text-nowrap"><%= hk.ihtiyac != null ? y.sayi(hk.ihtiyac) + ' ' + hk.ihtiyacBirimi : '–' %></td>
-                    <td class="tablo-sayi text-nowrap">
-                      <span class="fw-medium"><%= y.sayi(hk.miktar) %> <%= hk.kalem.olcuBirimi %></span>
-                      <% if (hk.ambalaj) { %><div class="text-secondary small"><%= y.sayi(hk.teslim) %> <%= hk.teslimBirimi %></div><% } %>
-                    </td>
-                    <td class="tablo-sayi text-nowrap"><%= y.para(hk.bedel) %></td>
-                    <td class="tablo-sayi text-nowrap"><%= y.para(hk.ciftciKatkisi) %></td>
-                  </tr>
-                <% }) %>
-              </tbody>
-              <tfoot><tr class="fw-bold">
-                <td colspan="4">Toplam<% if (fin.ciftciKatkiOrani != null) { %> <span class="fw-normal text-secondary">(çiftçi katkısı %<%= y.sayi(fin.ciftciKatkiOrani) %>)</span><% } %></td>
-                <td class="tablo-sayi text-nowrap"><%= y.para(hesap.bedel) %></td>
-                <td class="tablo-sayi text-nowrap"><%= y.para(hesap.ciftciKatkisi) %></td>
-              </tr></tfoot>
-            </table>
-          </div>
-        </div>
         <% if (talep.aciklama) { %><div class="card mb-3"><div class="card-body" style="white-space: pre-line"><%= talep.aciklama %></div></div><% } %>
       </div>
 

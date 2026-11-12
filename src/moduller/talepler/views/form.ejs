@@ -1,7 +1,9 @@
 <%- include('../../../views/partials/ust') %>
 <%
   var yeni = !talep._id;
-  var satirlar = (talep.satirlar && talep.satirlar.length) ? talep.satirlar : [{}];
+  var satirlar = (talep.satirlar && talep.satirlar.length) ? talep.satirlar : (talep._id ? [] : [{}]);
+  var talepMiktari = {};
+  (talep.talepKalemleri || []).forEach(function (t) { talepMiktari[String(t.kalemId)] = t.miktar; });
   var bas = proje.basvuru || {};
   var fin = proje.finansman || {};
   var istemci = {
@@ -57,13 +59,49 @@
 
           <div class="card mb-3">
             <div class="card-header">
-              <h3 class="card-title"><span class="badge bg-primary-lt me-2">2</span> Parseller ve ekilecek kalemler</h3>
+              <h3 class="card-title"><span class="badge bg-primary-lt me-2">2</span> Talep edilen miktar</h3>
+            </div>
+            <div class="card-body pb-0">
+              <p class="text-secondary mb-0">Çiftçinin her kalem için istediği toplam. Birim kaleme göredir: tohumda dekar, fidanda adet, sera naylonunda m².</p>
+            </div>
+            <div class="table-responsive">
+              <table class="table table-vcenter card-table talep-kalemleri">
+                <thead>
+                  <tr>
+                    <th>Kalem</th>
+                    <th style="width:11rem" class="text-end">Talep</th>
+                    <th class="text-end">Parsellerde</th>
+                    <th class="text-end">Fark</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <% proje.kalemler.forEach(function (k) { var id = String(k._id), tb = k.talepBirimi || 'da'; %>
+                    <tr data-talep-kalem="<%= id %>">
+                      <td><%= k.urun %><% if (k.cesit) { %> <span class="text-secondary">· <%= k.cesit %></span><% } %><div class="small text-secondary"><%= k.tur %></div></td>
+                      <td>
+                        <div class="input-group input-group-sm">
+                          <input type="number" step="any" min="0" name="talepKalemleri[<%= id %>]" value="<%= talepMiktari[id] != null ? talepMiktari[id] : '' %>" class="form-control text-end talep-miktari">
+                          <span class="input-group-text"><%= tb %></span>
+                        </div>
+                      </td>
+                      <td class="text-end text-nowrap" data-parsel-toplam>–</td>
+                      <td class="text-end text-nowrap" data-fark>–</td>
+                    </tr>
+                  <% }) %>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="card mb-3">
+            <div class="card-header">
+              <h3 class="card-title"><span class="badge bg-primary-lt me-2">3</span> Parseller</h3>
               <div class="card-actions">
                 <button type="button" class="btn btn-sm" data-satir-ekle="satirlar"><i class="ti ti-plus me-1"></i> Parsel ekle</button>
               </div>
             </div>
             <div class="card-body pb-0">
-              <p class="text-secondary mb-0">Her satır bir parselde ekilecek bir kalemdir. Parsel çiftçinin ilçesi dışında olabilir. Karışım ekimde aynı parsel her kalem için ayrı satırda girilir.</p>
+              <p class="text-secondary mb-0">Talebin hangi parsellerde kullanılacağı. Her satır bir parselde bir kalemdir; parsel çiftçinin ilçesi dışında olabilir. Karışım ekimde aynı parsel her kalem için ayrı satırda girilir. Parseller henüz belli değilse boş bırakılabilir.</p>
             </div>
             <div class="table-responsive">
               <table class="table table-vcenter card-table satir-tablosu talep-satirlari">
@@ -74,7 +112,7 @@
                     <th>Mahalle / köy</th>
                     <th style="width:6rem">Ada</th>
                     <th style="width:6rem">Parsel</th>
-                    <th style="width:8rem" class="text-end">Alan (da)</th>
+                    <th style="width:14rem" class="text-end">Miktar</th>
                     <th class="w-1"></th>
                   </tr>
                 </thead>
@@ -99,10 +137,10 @@
           <div class="card mb-3 talep-ozet">
             <div class="card-header"><h3 class="card-title">Talep özeti</h3></div>
             <div class="card-body" data-talep-ozet>
-              <div class="text-secondary">Parsel girildikçe hesaplanır.</div>
+              <div class="text-secondary">Talep ve parseller girildikçe hesaplanır.</div>
             </div>
             <div class="card-footer small text-secondary">
-              Miktar her kalem için ayrı hesaplanır ve ambalaja (çuval, torba) yukarı yuvarlanır.
+              Miktar her kalem için ayrı hesaplanır ve ambalaja (çuval, paket) yukarı yuvarlanır. Talep miktarı esas alınır; girilmemişse parsel toplamı kullanılır.
               <% if (bas.oncelikliAlan != null || bas.azamiAlan != null) { %>
                 <div class="mt-1">Alan sınırları: <% if (bas.oncelikliAlan != null) { %><%= y.sayi(bas.oncelikliAlan) %> da'ya kadar öncelikli<% } %><% if (bas.oncelikliAlan != null && bas.azamiAlan != null) { %>, <% } %><% if (bas.azamiAlan != null) { %>en çok <%= y.sayi(bas.azamiAlan) %> da<% } %>.</div>
               <% } %>

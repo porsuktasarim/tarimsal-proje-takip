@@ -23,27 +23,35 @@
     </div>
     <div class="card-body">
       <div class="row g-3">
-        <div class="col-md-4">
+        <div class="col-md-3">
           <label class="form-label required">Kalem türü</label>
-          <select name="tur" class="form-select" required>
+          <select name="tur" class="form-select" required id="urun-tur" data-normsuz-turler="<%= JSON.stringify(ayar.normsuzTurler || []) %>">
             <% turler.forEach(function (t) { %><option <%= urun.tur === t ? 'selected' : '' %>><%= t %></option><% }) %>
           </select>
         </div>
-        <div class="col-md-8">
+        <div class="col-md-6">
           <label class="form-label required">Ürün adı</label>
-          <input type="text" name="ad" value="<%= urun.ad || '' %>" class="form-control" placeholder="ör. Mısır, Yulaf, DAP gübresi" required>
+          <input type="text" name="ad" value="<%= urun.ad || '' %>" class="form-control" placeholder="ör. Mısır, Yulaf, Ceviz fidanı, Sera naylonu" required>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label required">Talep birimi</label>
+          <select name="talepBirimi" class="form-select talep-birimi" id="urun-talep-birimi" required>
+            <% var tbs = ayar.talepBirimleri.slice(); if (urun.talepBirimi && tbs.indexOf(urun.talepBirimi) < 0) tbs.push(urun.talepBirimi); %>
+            <% tbs.forEach(function (b) { %><option <%= (urun.talepBirimi || 'da') === b ? 'selected' : '' %>><%= b %></option><% }) %>
+          </select>
+          <small class="form-hint">Talep ve parsel: tohumda da, fidanda adet, naylonda m².</small>
         </div>
         <div class="col-md-4">
           <label class="form-label required">Dağıtım birimi</label>
           <select name="olcuBirimi" class="form-select dagitim-birimi" required>
             <% olculer.forEach(function (b) { %><option <%= urun.olcuBirimi === b ? 'selected' : '' %>><%= b %></option><% }) %>
           </select>
-          <small class="form-hint">Çiftçiye hangi birimle verildiği (kg, torba, adet...).</small>
+          <small class="form-hint">Çiftçiye hangi ambalajla verildiği (çuval, paket, torba).</small>
         </div>
         <div class="col-md-8" id="urun-ambalaj">
           <label class="form-label">Ambalaj içeriği</label>
           <%- include('../../../views/partials/ambalaj-girdi', { onek: 'ambalaj', a: urun.ambalaj, etiket: '1 ' + (urun.olcuBirimi || 'ambalaj') + ' =' }) %>
-          <small class="form-hint">Dağıtım birimi torba, çuval gibi bir ambalajsa içeriği girilir (ör. 1 torba = 25.000 adet ya da 25 kg). Dağıtılacak ambalaj sayısı bundan hesaplanır.</small>
+          <small class="form-hint">Ör. 1 çuval = 25 kg, 1 paket = 50.000 adet, 1 rulo = 500 m². Ekim normunun birimi "içerik / talep birimi" olur (kg/da, adet/da, m²/m²); dağıtılacak ambalaj sayısı bundan hesaplanır.</small>
         </div>
         <div class="col-12">
           <label class="form-label">Açıklama</label>
@@ -53,7 +61,7 @@
     </div>
   </div>
 
-  <div class="card mb-3">
+  <div class="card mb-3 yalniz-normlu<%= (ayar.normsuzTurler || []).indexOf(urun.tur || turler[0]) >= 0 ? ' d-none' : '' %>" id="urun-normlar">
     <div class="card-header">
       <div>
         <h3 class="card-title">Varsayılan normlar</h3>

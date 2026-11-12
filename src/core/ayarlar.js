@@ -12,6 +12,7 @@ function duzenle(belge) {
   a.donemAdlari = (a.donemler || []).map((d) => d.ad);
   a.ekimNormu = (a.normlar || []).find((n) => n.tip === 'ekim') || null;
   a.ciktiNormlari = (a.normlar || []).filter((n) => n.tip === 'cikti');
+  a.normsuzTurler = a.normsuzTurler || [];
   // Roller: kayıttakiler; Sistem Yöneticisi her zaman ilk sıradadır.
   // Yetkileri tanımlanmamış eski rollere varsayılan yetkileri verilir.
   const varsayilanRol = (kod) => varsayilanlar.roller.find((r) => r.kod === kod) || {};
@@ -81,7 +82,8 @@ const baglar = {
     { model: 'Talep', dizi: 'satirlar', alan: 'parselIlce' }
   ],
   kalemTurleri: [{ model: 'Urun', alan: 'tur' }, { model: 'Proje', dizi: 'kalemler', alan: 'tur' }],
-  olcuBirimleri: [{ model: 'Urun', alan: 'olcuBirimi' }, { model: 'Proje', dizi: 'kalemler', alan: 'olcuBirimi' }]
+  olcuBirimleri: [{ model: 'Urun', alan: 'olcuBirimi' }, { model: 'Proje', dizi: 'kalemler', alan: 'olcuBirimi' }],
+  talepBirimleri: [{ model: 'Urun', alan: 'talepBirimi' }, { model: 'Proje', dizi: 'kalemler', alan: 'talepBirimi' }]
 };
 
 const modelVarMi = (ad) => mongoose.modelNames().includes(ad);

@@ -22,6 +22,7 @@ const cesitSema = new mongoose.Schema({
 const urunSema = new mongoose.Schema({
   tur: { type: String, required: true, trim: true },
   ad: { type: String, required: true, trim: true },
+  talepBirimi: { type: String, trim: true, default: 'da' },  // talep ve parsel birimi (da, adet, m²)
   olcuBirimi: { type: String, trim: true, default: 'kg' },   // dağıtım birimi
   ambalaj: { type: ambalajSema, default: undefined },
   normlar: { type: mongoose.Schema.Types.Mixed, default: {} },

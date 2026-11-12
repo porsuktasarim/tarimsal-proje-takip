@@ -57,6 +57,7 @@ function urunDuz(u) {
     _id: o._id ? String(o._id) : undefined,
     tur: o.tur,
     ad: o.ad,
+    talepBirimi: o.talepBirimi || 'da',
     olcuBirimi: o.olcuBirimi,
     ambalaj: ambalajDuz(o.ambalaj),
     normlar: normlarDuz(o.normlar),
@@ -75,6 +76,7 @@ function cesitBul(urun, ad) {
 function etkinVarsayilanlar(urun, cesitAd) {
   const cesit = cesitBul(urun, cesitAd);
   return {
+    talepBirimi: urun.talepBirimi || 'da',
     olcuBirimi: urun.olcuBirimi,
     ambalaj: (cesit && cesit.ambalaj) || urun.ambalaj || null,
     normlar: { ...urun.normlar, ...((cesit && cesit.normlar) || {}) }
@@ -116,9 +118,10 @@ function farkliNormlar(normlar, temel) {
 
 // Ekim normunun birimi ambalaj içeriğinin birimine bağlıdır: 1 paket = 50.000 adet
 // ise ekim normu adet/da, 1 çuval = 25 kg ise kg/da. Normlar nesnesini yerinde günceller.
-function ekimBiriminiEsitle(normlar, ambalaj, ekimKod) {
+// Talep birimi da değilse: fidanda adet/adet, naylonda m²/m².
+function ekimBiriminiEsitle(normlar, ambalaj, ekimKod, talepBirimi) {
   if (!ekimKod || !normlar || !normlar[ekimKod] || !ambalaj || !ambalaj.birim) return normlar;
-  normlar[ekimKod] = { ...normlar[ekimKod], birim: `${ambalaj.birim}/da` };
+  normlar[ekimKod] = { ...normlar[ekimKod], birim: `${ambalaj.birim}/${talepBirimi || 'da'}` };
   return normlar;
 }
 

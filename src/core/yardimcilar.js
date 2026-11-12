@@ -49,8 +49,8 @@ const kodUret = (s) => anahtar(s)
   .replace(/ç/g, 'c').replace(/ğ/g, 'g').replace(/ı/g, 'i').replace(/ö/g, 'o').replace(/ş/g, 's').replace(/ü/g, 'u')
   .replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '') || 'norm';
 
-// "kg/da" -> "kg": normun dekar ile çarpımından çıkan sonucun birimi
-const sonucBirimi = (birim) => String(birim || '').replace(/\s*\/\s*(da|dekar)\s*$/i, '').trim() || '';
+// "kg/da" -> "kg", "adet/adet" -> "adet": normun talep miktarıyla çarpımından çıkan sonucun birimi
+const sonucBirimi = (birim) => String(birim || '').split('/')[0].trim() || '';
 
 // Büyük kg değerlerini ton olarak da gösterir.
 const miktar = (deger, birim) => {
@@ -94,6 +94,12 @@ const hayvanMetni = (h, turler) => {
   return parcalar.join(' · ');
 };
 
+// { da: 12, adet: 300 } → "12 da · 300 adet" (farklı birimler toplanmaz)
+const toplamMetni = (toplamlar, bos = '–') => {
+  const p = Object.entries(toplamlar || {}).filter(([, v]) => v != null).map(([b, v]) => `${sayi(v)} ${b}`);
+  return p.length ? p.join(' · ') : bos;
+};
+
 // Mongoose Map ya da düz nesneden değer okur.
 const mapDeger = (m, k) => {
   if (!m) return undefined;
@@ -102,5 +108,5 @@ const mapDeger = (m, k) => {
 };
 
 module.exports = {
-  sayi, tarih, inputTarih, tarihOku, sayiOku, diziyeCevir, anahtar, kodUret, sonucBirimi, miktar, para, tcGecerliMi, hayvanlariOku, hayvanMetni, mapDeger
+  sayi, tarih, inputTarih, tarihOku, sayiOku, diziyeCevir, anahtar, kodUret, sonucBirimi, miktar, para, tcGecerliMi, hayvanlariOku, hayvanMetni, toplamMetni, mapDeger
 };

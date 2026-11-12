@@ -26,6 +26,7 @@ const sekmeler = [
   { yol: '/ayarlar/hayvan-turleri', ad: 'Hayvan türleri', ikon: 'ti-paw', yetki: 'ayar.katalog' },
   { yol: '/ayarlar/kalem-turleri', ad: 'Kalem türleri', ikon: 'ti-category', yetki: 'ayar.katalog' },
   { yol: '/ayarlar/olcu-birimleri', ad: 'Dağıtım birimleri', ikon: 'ti-package', yetki: 'ayar.katalog' },
+  { yol: '/ayarlar/talep-birimleri', ad: 'Talep birimleri', ikon: 'ti-ruler-measure', yetki: 'ayar.katalog' },
   { yol: '/ayarlar/ilceler', ad: 'İlçeler', ikon: 'ti-map-pin', yetki: 'ayar.genel' }
 ];
 
@@ -69,11 +70,19 @@ const listeler = {
   },
   kalemTurleri: {
     yol: 'kalem-turleri', baslik: 'Kalem türleri', tekil: 'Tür',
-    aciklama: 'Projelerde dağıtılan kalemlerin türleri (tohum, fide, gübre vb.). Ürün kataloğu türlere göre gruplanır.'
+    aciklama: 'Projelerde dağıtılan kalemlerin türleri (tohum, fide, gübre vb.). Ürün kataloğu türlere göre gruplanır.',
+    isaret: {
+      alan: 'normsuzTurler', baslik: 'Normsuz',
+      aciklama: 'İşaretli türlerde ekim ve çıktı normları kullanılmaz; talep edilen miktar doğrudan dağıtılır (makine, ekipman, sera naylonu gibi).'
+    }
   },
   olcuBirimleri: {
     yol: 'olcu-birimleri', baslik: 'Dağıtım birimleri', tekil: 'Ambalaj',
-    aciklama: 'Kalemlerin çiftçiye dağıtıldığı ambalajlar (çuval, paket, torba). İçeriği kalemde girilir: 1 çuval = 25 kg, 1 paket = 50.000 adet.'
+    aciklama: 'Kalemlerin çiftçiye dağıtıldığı ambalajlar (çuval, paket, torba, top, adet). İçeriği kalemde girilir: 1 çuval = 25 kg, 1 paket = 50.000 adet, 1 top = 100 m².'
+  },
+  talepBirimleri: {
+    yol: 'talep-birimleri', baslik: 'Talep birimleri', tekil: 'Birim',
+    aciklama: 'Çiftçi talebinin ve parsellerin girildiği birimler: tohumda dekar (da), fidan ve fidede adet, sera naylonunda metrekare (m²). Ekim normunun birimi "ambalaj içeriği / talep birimi" olur (kg/da, adet/adet, m²/m²).'
   },
   ilceler: {
     yol: 'ilceler', baslik: 'İlçeler', tekil: 'İlçe',
@@ -85,8 +94,9 @@ Object.entries(listeler).forEach(([alan, tanim]) => {
   router.get('/' + tanim.yol, sar(async (req, res) => {
     const mevcut = res.locals.ayar[alan];
     const kullanim = await ayarlar.kullanimlar(alan, mevcut);
+    const isaretli = tanim.isaret ? (res.locals.ayar[tanim.isaret.alan] || []) : [];
     res.render(V + 'liste', {
-      baslik: tanim.baslik, tanim, satirlar: mevcut.map((d) => ({ eski: d, ad: d })), kullanim, hatalar: []
+      baslik: tanim.baslik, tanim, satirlar: mevcut.map((d) => ({ eski: d, ad: d, isaret: isaretli.includes(d) })), kullanim, hatalar: []
     });
   }));
 
@@ -100,7 +110,13 @@ Object.entries(listeler).forEach(([alan, tanim]) => {
         baslik: tanim.baslik, tanim, satirlar, kullanim, hatalar: sonuc.hatalar
       });
     }
-    await ayarlar.guncelle({ [alan]: sonuc.degerler });
+    const degisiklik = { [alan]: sonuc.degerler };
+    if (tanim.isaret) {
+      degisiklik[tanim.isaret.alan] = satirlar
+        .filter((s) => s && s.isaret && String(s.ad || '').trim())
+        .map((s) => String(s.ad).trim());
+    }
+    await ayarlar.guncelle(degisiklik);
     return res.redirect(`/ayarlar/${tanim.yol}?bildirim=kaydedildi`);
   }));
 });
@@ -238,6 +254,7 @@ function urunFormuOku(govde, ayar) {
   return {
     tur: (govde.tur || '').trim(),
     ad: (govde.ad || '').trim(),
+    talepBirimi: (govde.talepBirimi || '').trim() || 'da',
     olcuBirimi: (govde.olcuBirimi || '').trim(),
     ambalaj: katalog.ambalajFormuOku(govde.ambalaj),
     normlar: katalog.normFormuOku(govde.normlar, ayar.normlar, true),
@@ -250,12 +267,12 @@ function urunFormuOku(govde, ayar) {
 // normunun birimi ürünün (çeşitte varsa çeşidin) ambalaj içeriğinin birimine eşitlenir.
 function urunKayitVerisi(veri, ayar) {
   const ekimKod = ayar && ayar.ekimNormu ? ayar.ekimNormu.kod : null;
-  katalog.ekimBiriminiEsitle(veri.normlar, veri.ambalaj, ekimKod);
+  katalog.ekimBiriminiEsitle(veri.normlar, veri.ambalaj, ekimKod, veri.talepBirimi);
   veri.cesitler.forEach((c) => {
     if (c.normlar[ekimKod] && !c.normlar[ekimKod].birim && !c.ambalaj && veri.normlar[ekimKod]) {
       c.normlar[ekimKod].birim = veri.normlar[ekimKod].birim;
     }
-    katalog.ekimBiriminiEsitle(c.normlar, c.ambalaj || veri.ambalaj, ekimKod);
+    katalog.ekimBiriminiEsitle(c.normlar, c.ambalaj || veri.ambalaj, ekimKod, veri.talepBirimi);
   });
   return {
     ...veri,
@@ -306,7 +323,7 @@ router.get('/urunler/yeni', (req, res) => {
   const a = res.locals.ayar;
   urunFormu(res, 200, {
     baslik: 'Yeni ürün',
-    urun: { tur: req.query.tur || a.kalemTurleri[0], olcuBirimi: a.olcuBirimleri[0], cesitler: [], normlar: {} },
+    urun: { tur: req.query.tur || a.kalemTurleri[0], talepBirimi: a.talepBirimleri[0] || 'da', olcuBirimi: a.olcuBirimleri[0], cesitler: [], normlar: {} },
     hatalar: [],
     eylem: '/ayarlar/urunler'
   });

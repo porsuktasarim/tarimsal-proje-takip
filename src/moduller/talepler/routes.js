@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const Talep = require('./model');
 const Ciftci = require('../ciftciler/model');
 const { ciftciFormuOku, ciftciDenetle } = require('../ciftciler/routes');
-const { talepHesabi, fiyatBirimi } = require('../projeler/hesap');
+const { talepHesabi, fiyatBirimi, normsuzMu } = require('../projeler/hesap');
 const { normOku } = require('../ayarlar/katalog');
 const { talepDurumlari } = require('../../config/sabitler');
 const { sayiOku, diziyeCevir, anahtar, sonucBirimi, hayvanlariOku } = require('../../core/yardimcilar');
@@ -31,14 +31,18 @@ const acikProjeler = () => Proje().find({ durum: { $in: ['taslak', 'aktif'] } })
 function kalemVerisi(proje, ayar) {
   const ekim = ayar.ekimNormu;
   return proje.kalemler.map((k) => {
-    const n = ekim ? normOku(k.normlar, ekim.kod) : null;
+    const normsuz = normsuzMu(k, ayar);
+    const n = ekim && !normsuz ? normOku(k.normlar, ekim.kod) : null;
     const ekimBirimi = n ? (n.birim || ekim.birim) : null;
     return {
+      normsuz,
+      olcuyeGore: !!k.olcuyeGore,
       _id: String(k._id),
       ad: k.urun + (k.cesit ? ' · ' + k.cesit : ''),
       tur: k.tur,
-      ekim: n ? n.deger : null,
-      ihtiyacBirimi: ekimBirimi ? sonucBirimi(ekimBirimi) : null,
+      talepBirimi: k.talepBirimi || 'da',
+      ekim: normsuz ? 1 : (n ? n.deger : null),       // normsuz kalemde ihtiyaç = talep miktarı
+      ihtiyacBirimi: normsuz ? (k.talepBirimi || 'da') : (ekimBirimi ? sonucBirimi(ekimBirimi) : null),
       olcuBirimi: k.olcuBirimi,
       ambalaj: k.ambalaj && k.ambalaj.miktar > 0 ? { miktar: k.ambalaj.miktar, birim: k.ambalaj.birim } : null,
       birimFiyat: k.birimFiyat != null ? k.birimFiyat : null,
@@ -47,6 +51,15 @@ function kalemVerisi(proje, ayar) {
   });
 }
 
+// Talep edilen toplamlar: talepKalemleri[<kalemId>] = miktar
+function talepKalemleriniOku(govde, proje) {
+  const g = govde.talepKalemleri || {};
+  return proje.kalemler
+    .map((k) => ({ kalemId: String(k._id), miktar: sayiOku(g[String(k._id)]) }))
+    .filter((t) => t.miktar !== undefined);
+}
+
+// Parsel satırları. Yalnızca kalem ve ilçesi seçili boş satırlar dikkate alınmaz.
 function satirlariOku(govde, proje) {
   return diziyeCevir(govde.satirlar)
     .map((s) => ({
@@ -56,19 +69,31 @@ function satirlariOku(govde, proje) {
       mahalle: metin(s.mahalle) || undefined,
       ada: metin(s.ada) || undefined,
       parsel: metin(s.parsel) || undefined,
-      alan: sayiOku(s.alan)
+      en: sayiOku(s.en),
+      boy: sayiOku(s.boy),
+      miktar: sayiOku(s.miktar)
     }))
-    .filter((s) => s.kalemId || s.alan !== undefined || s.ada || s.parsel)
+    // En ve boy girilip miktar boş bırakılmışsa alan hesaplanır (sera: 8 m × 50 m = 400 m²)
+    .map((s) => (s.miktar === undefined && s.en > 0 && s.boy > 0 ? { ...s, miktar: Math.round(s.en * s.boy * 100) / 100 } : s))
+    .filter((s) => s.miktar !== undefined || s.ada || s.parsel || s.mahalle)
     .map((s) => ({ ...s, kalemGecerli: proje.kalemler.some((k) => String(k._id) === s.kalemId) }));
 }
 
-function satirlariDenetle(satirlar) {
+function talebiDenetle(talepKalemleri, satirlar, proje) {
   const hatalar = [];
-  if (!satirlar.length) hatalar.push('En az bir parsel satırı girilmelidir.');
+  const birim = (id) => {
+    const k = proje.kalemler.find((x) => String(x._id) === String(id));
+    return (k && k.talepBirimi) || 'da';
+  };
+  talepKalemleri.forEach((t) => {
+    if (t.miktar < 0) hatalar.push('Talep edilen miktar eksi olamaz.');
+  });
+  const talepVar = talepKalemleri.some((t) => t.miktar > 0);
+  if (!talepVar && !satirlar.length) hatalar.push('En az bir kalem için talep edilen miktar ya da parsel girilmelidir.');
   satirlar.forEach((s, i) => {
-    if (!s.kalemGecerli) hatalar.push(`${i + 1}. satırda ekilecek kalem seçilmelidir.`);
-    if (s.alan === undefined || s.alan <= 0) hatalar.push(`${i + 1}. satırda ekilecek alan (da) girilmelidir.`);
-    if (!s.parselIlce) hatalar.push(`${i + 1}. satırda parselin ilçesi seçilmelidir.`);
+    if (!s.kalemGecerli) hatalar.push(`${i + 1}. parselde kalem seçilmelidir.`);
+    if (s.miktar === undefined || s.miktar <= 0) hatalar.push(`${i + 1}. parselde miktar (${s.kalemGecerli ? birim(s.kalemId) : 'da'}) girilmelidir.`);
+    if (!s.parselIlce) hatalar.push(`${i + 1}. parselde ilçe seçilmelidir.`);
   });
   return hatalar;
 }
@@ -115,6 +140,7 @@ router.get('/', sar(async (req, res) => {
   const toplam = {
     ciftci: sayilan.length,
     alan: sayilan.reduce((a, s) => a + s.hesap.toplamAlan, 0),
+    toplamlar: {},
     bedel: sayilan.reduce((a, s) => a + (s.hesap.bedel || 0), 0),
     ciftciKatkisi: sayilan.reduce((a, s) => a + (s.hesap.ciftciKatkisi || 0), 0),
     miktar: {}
@@ -122,6 +148,9 @@ router.get('/', sar(async (req, res) => {
   toplam.hayvanlar = {};
   sayilan.forEach((s) => Object.entries(s.talep.hayvanlar || {}).forEach(([k, v]) => {
     toplam.hayvanlar[k] = (toplam.hayvanlar[k] || 0) + (v || 0);
+  }));
+  sayilan.forEach((s) => Object.entries(s.hesap.toplamlar).forEach(([b, v]) => {
+    toplam.toplamlar[b] = (toplam.toplamlar[b] || 0) + v;
   }));
   sayilan.forEach((s) => s.hesap.kalemler.forEach((hk) => {
     if (hk.miktar == null) return;
@@ -145,7 +174,7 @@ router.get('/yeni', sar(async (req, res) => {
   return formGoster(res, 200, {
     baslik: 'Talep gir',
     proje,
-    talep: { satirlar: [] },
+    talep: { talepKalemleri: [], satirlar: [] },
     ciftci: { ilce: ilceler.length === 1 ? ilceler[0] : '' },
     ilceler,
     hatalar: [],
@@ -163,6 +192,7 @@ async function kaydet(req, res, mevcutTalep) {
 
   const ilceler = calisilanIlceler(ben, ayar);
   const ciftciVeri = ciftciFormuOku(req.body.ciftci || {});
+  const talepKalemleri = talepKalemleriniOku(req.body, proje);
   const satirlar = satirlariOku(req.body, proje);
   const aciklama = metin(req.body.aciklama) || undefined;
   const hayvanlar = hayvanlariOku(req.body.hayvanlar, ayar.hayvanTurleri);
@@ -173,7 +203,7 @@ async function kaydet(req, res, mevcutTalep) {
   if (ciftci && !ilceler.includes(ciftci.ilce)) {
     izinliIlceler = [...ilceler, ciftci.ilce];
   }
-  const hatalar = [...ciftciDenetle(ciftciVeri, izinliIlceler), ...satirlariDenetle(satirlar)];
+  const hatalar = [...ciftciDenetle(ciftciVeri, izinliIlceler), ...talebiDenetle(talepKalemleri, satirlar, proje)];
   if (ciftci && !ilceler.includes(ciftci.ilce) && ilceKisitliMi(ben, ayar)) {
     hatalar.push(`Bu çiftçi ${ciftci.ilce} ilçesinde kayıtlı; talebi ${ciftci.ilce} ilçesi personeli girmelidir.`);
   }
@@ -186,7 +216,7 @@ async function kaydet(req, res, mevcutTalep) {
     return formGoster(res, 422, {
       baslik: mevcutTalep ? 'Talebi düzenle' : 'Talep gir',
       proje,
-      talep: { _id: mevcutTalep ? mevcutTalep._id : undefined, satirlar, aciklama, hayvanlar },
+      talep: { _id: mevcutTalep ? mevcutTalep._id : undefined, talepKalemleri, satirlar, aciklama, hayvanlar },
       ciftci: ciftciVeri,
       ilceler: izinliIlceler,
       hatalar,
@@ -209,7 +239,9 @@ async function kaydet(req, res, mevcutTalep) {
     });
   }
 
-  const veri = { projeId: proje._id, ciftciId: ciftci._id, ilce: ciftci.ilce, satirlar: satirlar.map(temizSatir), hayvanlar, aciklama };
+  const veri = {
+    projeId: proje._id, ciftciId: ciftci._id, ilce: ciftci.ilce, talepKalemleri: talepKalemleri.filter((t) => t.miktar > 0), satirlar: satirlar.map(temizSatir), hayvanlar, aciklama
+  };
   let talep = mevcutTalep;
   if (talep) {
     talep.set(veri);
@@ -238,7 +270,11 @@ router.get('/:id', sar(talepBul), sar(async (req, res) => {
     const k = proje.kalemler.find((x) => String(x._id) === String(id));
     return k ? k.urun + (k.cesit ? ' · ' + k.cesit : '') : '(silinmiş kalem)';
   };
-  res.render(V + 'detay', { baslik: ciftci.adSoyad, talep: req.talep, proje, ciftci, hesap, kalemAdi });
+  const kalemBirimi = (id) => {
+    const k = proje.kalemler.find((x) => String(x._id) === String(id));
+    return (k && k.talepBirimi) || 'da';
+  };
+  res.render(V + 'detay', { baslik: ciftci.adSoyad, talep: req.talep, proje, ciftci, hesap, kalemAdi, kalemBirimi });
 }));
 
 router.get('/:id/duzenle', sar(talepBul), sar(async (req, res) => {

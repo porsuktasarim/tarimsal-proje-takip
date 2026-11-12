@@ -4,8 +4,10 @@
   // --- Ekim normunun birimi ambalaj içeriğinin birimine bağlıdır ---
   // Proje kaleminde kalemin ambalajı; ürün formunda ürünün ambalajı, çeşitte
   // içerik girilmişse çeşidin ambalajı esas alınır (ör. 1 paket = 50.000 adet → adet/da).
+  // Payda talep birimidir: tohumda da, fidanda adet, naylonda m² (ör. adet/da, adet/adet, m²/m²).
   var ekimBirimleriniEsitle = function () {
     var urunAmb = document.querySelector('#urun-ambalaj .ambalaj-birim');
+    var urunTb = document.getElementById('urun-talep-birimi');
     document.querySelectorAll('[data-ekim-birim]').forEach(function (inp) {
       var blok = inp.closest('.kalem-blok');
       var birim = null;
@@ -14,12 +16,22 @@
         if (!urunAmb || (!isNaN(m) && m > 0)) birim = blok.querySelector('.ambalaj-birim').value;
       }
       if (!birim && urunAmb) birim = urunAmb.value;
-      if (birim) { inp.value = birim + '/da'; inp.placeholder = birim + '/da'; }
+      var tbEl = (blok && blok.querySelector('.kalem-talep-birimi')) || urunTb;
+      var tb = tbEl ? tbEl.value : 'da';
+      if (birim) { inp.value = birim + '/' + tb; inp.placeholder = birim + '/' + tb; }
     });
   };
-  document.addEventListener('change', function (e) { if (e.target.matches('.ambalaj-birim, .ambalaj-miktar')) ekimBirimleriniEsitle(); });
+  document.addEventListener('change', function (e) { if (e.target.matches('.ambalaj-birim, .ambalaj-miktar, .talep-birimi')) ekimBirimleriniEsitle(); });
   document.addEventListener('input', function (e) { if (e.target.matches('.ambalaj-miktar')) ekimBirimleriniEsitle(); });
   document.addEventListener('satir-eklendi', ekimBirimleriniEsitle);
+
+  // --- Ürün formu: normsuz türde (makine, ekipman) normlar gizlenir ---
+  var urunTur = document.getElementById('urun-tur');
+  if (urunTur) {
+    var normsuzlar = JSON.parse(urunTur.getAttribute('data-normsuz-turler') || '[]');
+    var urunNormlar = document.getElementById('urun-normlar');
+    urunTur.addEventListener('change', function () { if (urunNormlar) urunNormlar.classList.toggle('d-none', normsuzlar.indexOf(urunTur.value) >= 0); });
+  }
 
   // --- Tema değiştirme (açık / koyu) ---
   document.querySelectorAll('.tema-degistir').forEach(function (dugme) {
@@ -158,7 +170,7 @@
       var normlar = {};
       Object.keys(urun.normlar || {}).forEach(function (k) { normlar[k] = urun.normlar[k]; });
       if (c) Object.keys(c.normlar || {}).forEach(function (k) { normlar[k] = c.normlar[k]; });
-      return { olcuBirimi: urun.olcuBirimi, ambalaj: (c && c.ambalaj) || urun.ambalaj || null, normlar: normlar };
+      return { talepBirimi: urun.talepBirimi || 'da', olcuBirimi: urun.olcuBirimi, ambalaj: (c && c.ambalaj) || urun.ambalaj || null, normlar: normlar };
     };
 
     // "oto" işaretli alanlar katalogdan doldurulmuştur; kullanıcı elle değiştirince işaret kalkar
@@ -173,7 +185,26 @@
       select.dispatchEvent(new Event('change', { bubbles: true }));
     };
 
+    // Normsuz türde (makine, ekipman, malzeme) norm alanları gizlenir; ambalaj isteğe bağlıdır
+    // ve içeriği talep birimindedir (1 top = 100 m²).
+    var normsuzGuncelle = function (blok) {
+      var normsuz = (veri.normsuzTurler || []).indexOf(blok.querySelector('.kalem-tur').value) >= 0;
+      blok.classList.toggle('kalem-normsuz', normsuz);
+      blok.querySelectorAll('.yalniz-normlu').forEach(function (el) { el.classList.toggle('d-none', normsuz); });
+      blok.querySelectorAll('.yalniz-normsuz').forEach(function (el) { el.classList.toggle('d-none', !normsuz); });
+      blok.querySelector('.kalem-ambalaj-etiket').classList.toggle('required', !normsuz);
+      var aMiktar = blok.querySelector('.ambalaj-miktar');
+      if (normsuz) aMiktar.removeAttribute('required'); else aMiktar.setAttribute('required', '');
+      if (normsuz) {
+        var aBirim = blok.querySelector('.ambalaj-birim');
+        var tb = blok.querySelector('.kalem-talep-birimi').value;
+        if (aBirim.value !== tb) seciliYap(aBirim, tb);
+      }
+      return normsuz;
+    };
+
     var kalemGuncelle = function (blok, doldur) {
+      normsuzGuncelle(blok);
       var tur = blok.querySelector('.kalem-tur').value;
       var urunInput = blok.querySelector('.kalem-urun');
       var cesitInput = blok.querySelector('.kalem-cesit');
@@ -222,6 +253,8 @@
       if (doldur && e) {
         var olcu = blok.querySelector('.kalem-olcu');
         if (olcu.dataset.oto !== '0') { seciliYap(olcu, e.olcuBirimi); olcu.dataset.oto = '1'; }
+        var tbSec = blok.querySelector('.kalem-talep-birimi');
+        if (tbSec && tbSec.dataset.oto !== '0') { seciliYap(tbSec, e.talepBirimi); tbSec.dataset.oto = '1'; }
         var aMiktar = blok.querySelector('.ambalaj-miktar');
         var aBirim = blok.querySelector('.ambalaj-birim');
         if (doldurulabilir(aMiktar)) {
@@ -240,7 +273,12 @@
       var alan = parseFloat(blok.querySelector('.kalem-alan').value);
       var ekimCift = veri.ekimKod ? blok.querySelector('.norm-deger[data-norm="' + veri.ekimKod + '"]') : null;
       var ipucu = 'Hesaplanır';
-      if (ekimCift) {
+      var olcuyeGore = blok.querySelector('.kalem-olcuye-gore');
+      var yuvarla = function (v) { return olcuyeGore && olcuyeGore.checked ? v : Math.ceil(v - 1e-9); };
+      if (blok.classList.contains('kalem-normsuz')) {
+        var am = parseFloat(blok.querySelector('.ambalaj-miktar').value);
+        if (!isNaN(alan)) ipucu = 'Hesap: ' + sayiYaz(!isNaN(am) && am > 0 ? yuvarla(alan / am) : alan) + ' ' + blok.querySelector('.kalem-olcu').value;
+      } else if (ekimCift) {
         var cift = ekimCift.closest('.norm-cifti');
         var norm = parseFloat(ekimCift.value !== '' ? ekimCift.value : ekimCift.placeholder);
         var birim = sonucBirimi(cift.querySelector('.norm-birim').value || cift.querySelector('.norm-birim').placeholder);
@@ -250,7 +288,7 @@
           var aMiktar = parseFloat(blok.querySelector('.ambalaj-miktar').value);
           var aBirim = blok.querySelector('.ambalaj-birim').value;
           // Ekim normunun birimi ambalaj içeriğinin birimine bağlı olduğundan doğrudan bölünür
-          if (!isNaN(aMiktar) && aMiktar > 0) ipucu = 'Hesap: ' + sayiYaz(Math.ceil(ihtiyac / aMiktar - 1e-9)) + ' ' + dagitim;
+          if (!isNaN(aMiktar) && aMiktar > 0) ipucu = 'Hesap: ' + sayiYaz(yuvarla(ihtiyac / aMiktar)) + ' ' + dagitim;
           else if (isNaN(aMiktar) && anahtar(birim) === anahtar(dagitim)) ipucu = 'Hesap: ' + sayiYaz(ihtiyac);
           else ipucu = 'İhtiyaç ' + sayiYaz(ihtiyac) + ' ' + birim;
         }
@@ -281,10 +319,10 @@
     form.addEventListener('change', function (e) {
       var b = blokOf(e.target);
       if (!b) return;
-      if (e.isTrusted && e.target.matches('.kalem-olcu, .ambalaj-birim')) e.target.dataset.oto = '0';
+      if (e.isTrusted && e.target.matches('.kalem-olcu, .ambalaj-birim, .kalem-talep-birimi')) e.target.dataset.oto = '0';
       if (e.isTrusted && e.target.matches('.kalem-fiyat-birimi')) e.target.dataset.elle = '1';
       if (e.target.matches('.kalem-tur, .kalem-urun, .kalem-cesit')) kalemGuncelle(b, true);
-      else miktarIpucu(b);
+      else { if (e.target.matches('.kalem-talep-birimi')) normsuzGuncelle(b); miktarIpucu(b); }
       if (!e.target.matches('.kalem-fiyat-birimi')) fiyatBirimleri(b);
     });
     form.addEventListener('input', function (e) {
@@ -352,6 +390,10 @@
     var sorguDugme = tForm.querySelector('[data-tc-sorgula]');
     if (sorguDugme) sorguDugme.addEventListener('click', tcSorgula);
 
+    // Çiftçinin ilçesi seçilince ilçesi boş parsellere de yazılır
+    ilceSec.addEventListener('change', function () {
+      tForm.querySelectorAll('.talep-parsel-ilce').forEach(function (s) { if (!s.value && ilceSec.value) s.value = ilceSec.value; });
+    });
     // Yeni parsel satırının ilçesi çiftçinin ilçesi olur
     tForm.addEventListener('satir-eklendi', function (e) {
       var s = e.detail.querySelector('.talep-parsel-ilce');
@@ -359,58 +401,113 @@
       ozetGuncelle();
     });
 
+    // Bir kalemin verilen talep miktarı (da, adet, m²) için dağıtım miktarı ve bedeli
+    var kalemHesap = function (k, m) {
+      var r = { ihtiyac: null, miktar: null, teslim: null, teslimBirimi: null, bedel: null, katki: null, uyumsuz: false };
+      if (k.ekim == null) return r;
+      r.ihtiyac = m * k.ekim;
+      if (k.ambalaj && esit(k.ambalaj.birim, k.ihtiyacBirimi)) {
+        var bolum = r.ihtiyac / k.ambalaj.miktar;
+        r.miktar = k.olcuyeGore ? bolum : Math.ceil(bolum - 1e-9); r.teslim = r.miktar * k.ambalaj.miktar; r.teslimBirimi = k.ambalaj.birim;
+      } else if (!k.ambalaj && (k.normsuz || esit(k.ihtiyacBirimi, k.olcuBirimi))) {
+        r.miktar = r.ihtiyac; r.teslim = r.ihtiyac; r.teslimBirimi = k.olcuBirimi;
+      } else { r.uyumsuz = true; return r; }
+      if (k.birimFiyat != null) {
+        r.bedel = esit(k.fiyatBirimi, k.olcuBirimi) ? r.miktar * k.birimFiyat : (esit(k.fiyatBirimi, r.teslimBirimi) ? r.teslim * k.birimFiyat : null);
+        if (r.bedel != null && tv.katkiOrani != null) r.katki = r.bedel * tv.katkiOrani / 100;
+      }
+      return r;
+    };
+    var hesapMetni = function (k, m, r) {
+      var t = sy(m) + ' ' + kacis(k.talepBirimi);
+      if (r.miktar == null) return t;
+      t += ' → <strong>' + sy(r.miktar) + ' ' + kacis(k.olcuBirimi) + '</strong>';
+      if (k.ambalaj && !esit(k.ambalaj.birim, k.olcuBirimi)) t += ' <span class="text-secondary">(' + sy(r.teslim) + ' ' + kacis(r.teslimBirimi) + ')</span>';
+      if (r.bedel != null) t += '<div class="text-secondary">Bedel ' + tl(r.bedel) + (r.katki != null ? ' · katkı ' + tl(r.katki) : '') + '</div>';
+      return t;
+    };
+    var birimMetni = function (o) {
+      var p = Object.keys(o).map(function (b) { return sy(o[b]) + ' ' + kacis(b); });
+      return p.length ? p.join(' · ') : '–';
+    };
+
     var ozetGuncelle = function () {
-      var alanlar = {};
-      var toplamAlan = 0;
+      var kalemBul = function (id) { return tv.kalemler.filter(function (k) { return k._id === id; })[0]; };
+      var parsel = {};
       tForm.querySelectorAll('tbody[data-satirlar] > tr').forEach(function (tr) {
-        var k = tr.querySelector('.talep-kalem').value;
+        var id = tr.querySelector('.talep-kalem').value;
+        var k = kalemBul(id);
+        var be = tr.querySelector('.talep-satir-birim');
+        if (be) be.textContent = k ? k.talepBirimi : '–';
+        // m² ile sayılan kalemde en × boy girilirse miktar hesaplanır
+        var eb = tr.querySelector('.talep-en-boy');
+        if (eb) {
+          eb.classList.toggle('d-none', !(k && k.talepBirimi === 'm²'));
+          var en = parseFloat(tr.querySelector('.talep-en').value), boy = parseFloat(tr.querySelector('.talep-boy').value);
+          if (k && k.talepBirimi === 'm²' && en > 0 && boy > 0 && eb.dataset.son !== en + 'x' + boy) {
+            tr.querySelector('.talep-alan').value = Math.round(en * boy * 100) / 100; eb.dataset.son = en + 'x' + boy;
+          }
+        }
         var a = parseFloat(tr.querySelector('.talep-alan').value);
         if (!k || isNaN(a)) return;
-        alanlar[k] = (alanlar[k] || 0) + a;
-        toplamAlan += a;
+        parsel[id] = (parsel[id] || 0) + a;
       });
+      var talep = {};
+      tForm.querySelectorAll('[data-talep-kalem]').forEach(function (tr) {
+        var id = tr.getAttribute('data-talep-kalem');
+        var k = kalemBul(id);
+        var v = parseFloat(tr.querySelector('.talep-miktari').value);
+        if (!isNaN(v) && v > 0) talep[id] = v;
+        tr.querySelector('[data-parsel-toplam]').textContent = parsel[id] != null ? sy(parsel[id]) + ' ' + k.talepBirimi : '–';
+        var f = tr.querySelector('[data-fark]');
+        if (talep[id] != null && parsel[id] != null && Math.abs(parsel[id] - talep[id]) > 1e-9) {
+          var d = parsel[id] - talep[id];
+          f.innerHTML = '<span class="badge bg-yellow-lt">' + (d > 0 ? '+' : '') + sy(d) + ' ' + kacis(k.talepBirimi) + '</span>';
+        } else if (talep[id] != null && parsel[id] == null) {
+          f.innerHTML = '<span class="text-secondary small">parsel yok</span>';
+        } else if (talep[id] != null) {
+          f.innerHTML = '<span class="text-green"><i class="ti ti-check"></i></span>';
+        } else f.textContent = '–';
+      });
+
       var html = '';
-      var bedel = 0, katki = 0, bedelVar = false;
+      var toplamlar = {};
+      var bedel = 0, katki = 0, bedelVar = false, parselBedel = 0, parselBedelVar = false, parselsizVar = false;
       tv.kalemler.forEach(function (k) {
-        var alan = alanlar[k._id];
-        if (!alan) return;
-        var satir = '<div class="mb-2"><div class="fw-medium">' + kacis(k.ad) + '</div><div class="small text-secondary">' + sy(alan) + ' da';
-        if (k.ekim != null) {
-          var ihtiyac = alan * k.ekim;
-          var miktar = null, teslim = null, teslimBirimi = null;
-          if (k.ambalaj && esit(k.ambalaj.birim, k.ihtiyacBirimi)) {
-            miktar = Math.ceil(ihtiyac / k.ambalaj.miktar - 1e-9); teslim = miktar * k.ambalaj.miktar; teslimBirimi = k.ambalaj.birim;
-          } else if (!k.ambalaj && esit(k.ihtiyacBirimi, k.olcuBirimi)) {
-            miktar = ihtiyac; teslim = ihtiyac; teslimBirimi = k.olcuBirimi;
-          }
-          satir += ' × ' + sy(k.ekim) + ' = ' + sy(ihtiyac) + ' ' + kacis(k.ihtiyacBirimi || '') + '</div>';
-          if (miktar != null) {
-            satir += '<div><strong>' + sy(miktar) + ' ' + kacis(k.olcuBirimi) + '</strong>' + (k.ambalaj && !esit(k.ambalaj.birim, k.olcuBirimi) ? ' <span class="text-secondary small">(' + sy(teslim) + ' ' + kacis(teslimBirimi) + ')</span>' : '') + '</div>';
-            if (k.birimFiyat != null) {
-              var b = esit(k.fiyatBirimi, k.olcuBirimi) ? miktar * k.birimFiyat : (esit(k.fiyatBirimi, teslimBirimi) ? teslim * k.birimFiyat : null);
-              if (b != null) {
-                bedel += b; bedelVar = true;
-                var kk = tv.katkiOrani != null ? b * tv.katkiOrani / 100 : null;
-                if (kk != null) katki += kk;
-                satir += '<div class="small text-secondary">Bedel ' + tl(b) + (kk != null ? ' · çiftçi katkısı ' + tl(kk) : '') + '</div>';
-              }
-            }
-          } else {
-            satir += '<div class="small text-warning">Ekim normu ile ambalaj içeriğinin birimi uyuşmuyor; proje kalemi düzenlenip kaydedilmelidir</div>';
-          }
-        } else {
-          satir += '</div><div class="small text-secondary">Ekim normu tanımlı değil</div>';
+        var tm = talep[k._id], pm = parsel[k._id];
+        if (tm == null && pm == null) return;
+        var esas = tm != null ? tm : pm;
+        toplamlar[k.talepBirimi] = (toplamlar[k.talepBirimi] || 0) + esas;
+        var satir = '<div class="mb-2"><div class="fw-medium">' + kacis(k.ad) + '</div>';
+        if (k.ekim == null) {
+          satir += '<div class="small text-secondary">' + sy(esas) + ' ' + kacis(k.talepBirimi) + ' · ekim normu tanımlı değil</div></div>';
+          html += satir; return;
         }
+        var rt = tm != null ? kalemHesap(k, tm) : null;
+        var rp = pm != null ? kalemHesap(k, pm) : null;
+        var re = rt || rp;
+        if (re.uyumsuz) {
+          html += satir + '<div class="small text-warning">Ekim normu ile ambalaj içeriğinin birimi uyuşmuyor; proje kalemi düzenlenip kaydedilmelidir</div></div>';
+          return;
+        }
+        if (rt) satir += '<div class="small"><span class="badge bg-primary-lt me-1">Talep</span>' + hesapMetni(k, tm, rt) + '</div>';
+        if (rp && (!rt || Math.abs(pm - tm) > 1e-9)) satir += '<div class="small mt-1"><span class="badge bg-secondary-lt me-1">Parsel</span>' + hesapMetni(k, pm, rp) + '</div>';
+        else if (rp) satir += '<div class="small text-green mt-1"><i class="ti ti-check"></i> Parseller talebe eşit</div>';
+        if (re.bedel != null) { bedel += re.bedel; bedelVar = true; if (re.katki != null) katki += re.katki; }
+        if (rp && rp.bedel != null) { parselBedel += rp.bedel; parselBedelVar = true; }
+        if (!rp) parselsizVar = true;
         html += satir + '</div>';
       });
-      if (!html) { ozetEl.innerHTML = '<div class="text-secondary">Parsel girildikçe hesaplanır.</div>'; return; }
+      if (!html) { ozetEl.innerHTML = '<div class="text-secondary">Talep ve parseller girildikçe hesaplanır.</div>'; return; }
+      var dekar = toplamlar.da || 0;
       var uyari = '';
-      if (tv.azamiAlan != null && toplamAlan > tv.azamiAlan) uyari = '<div class="alert alert-danger py-2 mb-2">Toplam alan azami sınırı (' + sy(tv.azamiAlan) + ' da) aşıyor.</div>';
-      else if (tv.oncelikliAlan != null && toplamAlan > tv.oncelikliAlan) uyari = '<div class="alert alert-warning py-2 mb-2">Toplam alan öncelikli alan sınırının (' + sy(tv.oncelikliAlan) + ' da) üstünde.</div>';
-      html = uyari + html + '<hr class="my-2"><div class="d-flex"><span>Toplam alan</span><strong class="ms-auto">' + sy(toplamAlan) + ' da</strong></div>';
+      if (tv.azamiAlan != null && dekar > tv.azamiAlan) uyari = '<div class="alert alert-danger py-2 mb-2">Toplam alan azami sınırı (' + sy(tv.azamiAlan) + ' da) aşıyor.</div>';
+      else if (tv.oncelikliAlan != null && dekar > tv.oncelikliAlan) uyari = '<div class="alert alert-warning py-2 mb-2">Toplam alan öncelikli alan sınırının (' + sy(tv.oncelikliAlan) + ' da) üstünde.</div>';
+      html = uyari + html + '<hr class="my-2"><div class="d-flex"><span>Toplam talep</span><strong class="ms-auto text-end">' + birimMetni(toplamlar) + '</strong></div>';
       if (bedelVar) {
         html += '<div class="d-flex"><span>Bedel</span><strong class="ms-auto">' + tl(bedel) + '</strong></div>';
         if (tv.katkiOrani != null) html += '<div class="d-flex"><span>Çiftçi katkısı (%' + sy(tv.katkiOrani) + ')</span><strong class="ms-auto">' + tl(katki) + '</strong></div>';
+        if (parselBedelVar && !parselsizVar && Math.abs(parselBedel - bedel) > 0.005) html += '<div class="d-flex small text-secondary"><span>Parsellere göre bedel</span><span class="ms-auto">' + tl(parselBedel) + '</span></div>';
       }
       ozetEl.innerHTML = html;
     };

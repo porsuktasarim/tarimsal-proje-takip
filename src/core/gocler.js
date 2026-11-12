@@ -96,6 +96,48 @@ const gocler = [
         await projeler.updateOne({ _id: p._id }, { $set: { kalemler } });
       }
     }
+  },
+  {
+    no: 5,
+    aciklama: 'Talep birimi: talep satırlarında alan → miktar; talep edilen toplamlar parsel toplamlarından oluşturulur',
+    async uygula(db) {
+      await db.collection('urunler').updateMany({ talepBirimi: { $exists: false } }, { $set: { talepBirimi: 'da' } });
+      const projeler = db.collection('projeler');
+      for await (const p of projeler.find({})) {
+        const kalemler = (p.kalemler || []).map((k) => ({ ...k, talepBirimi: k.talepBirimi || 'da' }));
+        await projeler.updateOne({ _id: p._id }, { $set: { kalemler } });
+      }
+      const talepler = db.collection('talepler');
+      for await (const t of talepler.find({})) {
+        const satirlar = (t.satirlar || []).map((s) => {
+          const { alan, ...kalan } = s;
+          return { ...kalan, miktar: s.miktar != null ? s.miktar : (alan || 0) };
+        });
+        let talepKalemleri = t.talepKalemleri;
+        if (!Array.isArray(talepKalemleri) || !talepKalemleri.length) {
+          const toplam = new Map();
+          satirlar.forEach((s) => toplam.set(String(s.kalemId), { kalemId: s.kalemId, miktar: (toplam.get(String(s.kalemId)) || { miktar: 0 }).miktar + s.miktar }));
+          talepKalemleri = Array.from(toplam.values());
+        }
+        await talepler.updateOne({ _id: t._id }, { $set: { satirlar, talepKalemleri } });
+      }
+    }
+  },
+  {
+    no: 6,
+    aciklama: 'Normsuz kalem türleri (malzeme, makine); dağıtım birimlerine top ve adet eklenir',
+    async uygula(db, ayar) {
+      const ekle = (liste, degerler) => {
+        const l = Array.isArray(liste) ? [...liste] : [];
+        degerler.forEach((d) => { if (!l.some((x) => x.toLocaleLowerCase('tr') === d.toLocaleLowerCase('tr'))) l.push(d); });
+        return l;
+      };
+      const kalemTurleri = ekle(ayar.kalemTurleri, ['Malzeme', 'Makine']);
+      const olcuBirimleri = ekle(ayar.olcuBirimleri, ['top', 'adet']);
+      const normsuz = ['malzeme', 'makine', 'ekipman', 'diğer'];
+      const normsuzTurler = kalemTurleri.filter((t) => normsuz.includes(t.toLocaleLowerCase('tr')));
+      await db.collection('ayarlar').updateOne({ _id: 'genel' }, { $set: { kalemTurleri, olcuBirimleri, normsuzTurler } });
+    }
   }
 ];
 

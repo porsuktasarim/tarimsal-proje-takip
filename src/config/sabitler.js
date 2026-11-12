@@ -25,11 +25,17 @@ const varsayilanlar = {
     'Ümraniye', 'Üsküdar', 'Zeytinburnu'
   ],
 
-  kalemTurleri: ['Tohum', 'Fide', 'Fidan', 'Gübre', 'Ekipman', 'Diğer'],
+  kalemTurleri: ['Tohum', 'Fide', 'Fidan', 'Gübre', 'Malzeme', 'Makine', 'Ekipman', 'Diğer'],
+  // Norm kullanılmayan türler: talep edilen miktar doğrudan dağıtılır (makine, ekipman, sera naylonu)
+  normsuzTurler: ['Malzeme', 'Makine', 'Ekipman', 'Diğer'],
+
+  // Çiftçinin talebinin ve parsellerinin hangi birimle girildiği:
+  // tohumda dekar, fidan ve fidede adet (tane), sera naylonunda metrekare.
+  talepBirimleri: ['da', 'adet', 'm²'],
 
   // Kalemin çiftçiye dağıtıldığı ambalaj (dağıtım birimi). İçeriği kalemde
   // "1 çuval = 25 kg" ya da "1 paket = 50.000 adet" biçiminde girilir.
-  olcuBirimleri: ['çuval', 'paket', 'torba'],
+  olcuBirimleri: ['çuval', 'paket', 'torba', 'top', 'adet'],
 
   // tip: ekim  -> dekar başına verilecek kalem miktarı (dağıtım ihtiyacını hesaplar)
   //      cikti -> dekar başına beklenen üretim (hedef çıktıyı hesaplar)
@@ -116,7 +122,7 @@ const normBirimOnerileri = ['kg/da', 'adet/da', 'g/da', 'fide/da', 'litre/da', '
 
 // Ambalaj içeriğinin birimi (1 paket = 50.000 adet, 1 çuval = 25 kg ...).
 // Ekim normunun birimi bu birime bağlıdır: içerik adet ise adet/da, kg ise kg/da.
-const ambalajBirimleri = ['kg', 'adet', 'g', 'fide', 'litre'];
+const ambalajBirimleri = ['kg', 'adet', 'g', 'fide', 'litre', 'm²', 'm'];
 
 const normTipleri = {
   ekim: { ad: 'Ekim / uygulama normu', aciklama: 'Dekar başına verilecek miktar; dağıtım ihtiyacı hesaplanır', renk: 'green' },

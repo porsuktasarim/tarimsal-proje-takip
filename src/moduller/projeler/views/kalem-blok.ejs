@@ -8,6 +8,9 @@
   var kTurler = turler.slice();
   if (k.tur && kTurler.indexOf(k.tur) < 0) kTurler.push(k.tur);
   var olcu = k.olcuBirimi || olculer[0] || 'çuval';
+  var tb = k.talepBirimi || 'da';
+  var kTalepB = ayar.talepBirimleri.slice();
+  if (kTalepB.indexOf(tb) < 0) kTalepB.push(tb);
   var dv = function (v) { return v !== undefined && v !== null ? v : ''; };
   // Fiyat birimi: dağıtım birimi (TL/çuval) ya da ambalaj içeriğinin birimi (TL/kg)
   var amb = k.ambalaj && k.ambalaj.miktar > 0 ? k.ambalaj : null;
@@ -15,8 +18,11 @@
   if (amb && fiyatBirimleri.indexOf(amb.birim) < 0) fiyatBirimleri.unshift(amb.birim);
   if (k.fiyatBirimi && fiyatBirimleri.indexOf(k.fiyatBirimi) < 0) fiyatBirimleri.push(k.fiyatBirimi);
   var fb = k.fiyatBirimi || (amb ? amb.birim : olcu);
+  // Normsuz türlerde (makine, ekipman, malzeme) norm alanları yerine genel bilgiler gösterilir.
+  var normsuz = (ayar.normsuzTurler || []).indexOf(k.tur || kTurler[0]) >= 0;
+  var gizle = function (kosul) { return kosul ? ' d-none' : ''; };
 %>
-<div class="kalem-blok" data-satir data-ambalaj-kapsam>
+<div class="kalem-blok<%= normsuz ? ' kalem-normsuz' : '' %>" data-satir data-ambalaj-kapsam>
   <div class="d-flex align-items-center mb-2">
     <span class="badge bg-primary-lt me-2">Kalem <span class="satir-no"></span></span>
     <span class="kalem-durum small"></span>
@@ -43,12 +49,15 @@
              list="dl-cesit-<%= u %>" placeholder="ör. ADA">
       <datalist id="dl-cesit-<%= u %>"></datalist>
     </div>
-    <div class="col-6 col-md-2">
-      <label class="form-label small mb-1">Alan</label>
-      <div class="input-group input-group-sm">
-        <input type="number" step="any" min="0" name="<%= nm('alan') %>" value="<%= dv(k.alan) %>" class="form-control text-end kalem-alan">
-        <span class="input-group-text">da</span>
-      </div>
+    <div class="col-6 col-md-1">
+      <label class="form-label small mb-1" title="Talep ve parsellerin birimi">Talep b.</label>
+      <select name="<%= nm('talepBirimi') %>" class="form-select form-select-sm kalem-talep-birimi talep-birimi px-2">
+        <% kTalepB.forEach(function (b) { %><option <%= tb === b ? 'selected' : '' %>><%= b %></option><% }) %>
+      </select>
+    </div>
+    <div class="col-6 col-md-1">
+      <label class="form-label small mb-1" title="Hedef miktar (talep biriminde)">Hedef</label>
+      <input type="number" step="any" min="0" name="<%= nm('alan') %>" value="<%= dv(k.alan) %>" class="form-control form-control-sm text-end kalem-alan px-1" title="Hedef miktar (talep biriminde)">
     </div>
     <div class="col-6 col-md-2">
       <label class="form-label small mb-1">Dağıtım birimi</label>
@@ -57,8 +66,15 @@
       </select>
     </div>
     <div class="col-12 col-md-5">
-      <label class="form-label small mb-1 required">Ambalaj içeriği <span class="text-secondary fw-normal">(ekim normunun birimi buna göre gelir)</span></label>
-      <%- include('../../../views/partials/ambalaj-girdi', { onek: nm('ambalaj'), a: k.ambalaj, etiket: '1 ' + olcu + ' =', zorunlu: true }) %>
+      <label class="form-label small mb-1 kalem-ambalaj-etiket<%= normsuz ? '' : ' required' %>">Ambalaj içeriği
+        <span class="text-secondary fw-normal yalniz-normlu<%= gizle(normsuz) %>">(ekim normu = içerik / talep birimi)</span>
+        <span class="text-secondary fw-normal yalniz-normsuz<%= gizle(!normsuz) %>">(isteğe bağlı; talep biriminde, ör. 1 top = 100 m²)</span>
+      </label>
+      <%- include('../../../views/partials/ambalaj-girdi', { onek: nm('ambalaj'), a: k.ambalaj, etiket: '1 ' + olcu + ' =', zorunlu: !normsuz }) %>
+      <label class="form-check form-check-inline small mt-1 mb-0" title="Özel üretim ya da kesilerek verilen kalemlerde istenen ölçü kadar teslim edilir: 150 m² isteyene 1,5 top">
+        <input type="checkbox" class="form-check-input kalem-olcuye-gore" name="<%= nm('olcuyeGore') %>" value="1" <%= k.olcuyeGore ? 'checked' : '' %>>
+        <span class="form-check-label">Ölçüye göre (özel üretim; ambalaja yuvarlanmaz)</span>
+      </label>
     </div>
     <div class="col-6 col-md-3">
       <label class="form-label small mb-1">Toplam dağıtım</label>
@@ -81,21 +97,30 @@
 
   <%
     var ekimT = ayar.ekimNormu, ekimV = ekimT ? knormlar[ekimT.kod] : null;
-    var uyusmaz = ekimV && ekimV.deger != null && amb && ekimV.birim && ekimV.birim !== amb.birim + '/da';
+    var uyusmaz = ekimV && ekimV.deger != null && amb && ekimV.birim && ekimV.birim !== amb.birim + '/' + tb;
   %>
-  <% if (uyusmaz) { %>
+  <% if (uyusmaz && !normsuz) { %>
     <div class="alert alert-warning py-2 mt-2 mb-0 small">
       Kayıtlı ekim normu <strong><%= y.sayi(ekimV.deger) %> <%= ekimV.birim %></strong>, ambalaj içeriği ise <strong><%= amb.birim %></strong>.
-      Ekim normunun birimi artık ambalaj içeriğine bağlı (<%= amb.birim %>/da); değer ya da ambalaj içeriği kontrol edilerek kaydedilmelidir.
+      Ekim normunun birimi artık ambalaj içeriğine bağlı (<%= amb.birim %>/<%= tb %>); değer ya da ambalaj içeriği kontrol edilerek kaydedilmelidir.
     </div>
   <% } %>
   <div class="row g-2 mt-1">
-    <% ayar.normlar.forEach(function (n) { var v = knormlar[n.kod] || {}; %>
-      <%- include('../../../views/partials/norm-girdi', {
-            onek: nm('normlar'), n: n, deger: v.deger, birim: v.deger != null ? (v.birim || n.birim) : n.birim,
-            kolon: 'col-6 col-md-4 col-xl-3'
-          }) %>
-    <% }) %>
+    <div class="col-12 yalniz-normlu<%= gizle(normsuz) %>">
+      <div class="row g-2 kalem-normlar">
+        <% ayar.normlar.forEach(function (n) { var v = knormlar[n.kod] || {}; %>
+          <%- include('../../../views/partials/norm-girdi', {
+                onek: nm('normlar'), n: n, deger: v.deger, birim: v.deger != null ? (v.birim || n.birim) : n.birim,
+                kolon: 'col-6 col-md-4 col-xl-3'
+              }) %>
+        <% }) %>
+      </div>
+    </div>
+    <div class="col-12 yalniz-normsuz<%= gizle(!normsuz) %>">
+      <label class="form-label small mb-1">Teknik özellik / marka-model</label>
+      <input type="text" name="<%= nm('ozellik') %>" value="<%= dv(k.ozellik) %>" class="form-control form-control-sm" placeholder="ör. 8 m çalışma genişliği, 0,15 mm UV katkılı">
+      <small class="form-hint">Bu türde ekim ve çıktı normu kullanılmaz; talep edilen miktar doğrudan dağıtılır.</small>
+    </div>
     <div class="col-12">
       <label class="form-label small mb-1">Not</label>
       <input type="text" name="<%= nm('aciklama') %>" value="<%= dv(k.aciklama) %>" class="form-control form-control-sm">

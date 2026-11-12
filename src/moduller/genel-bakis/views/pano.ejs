@@ -137,6 +137,7 @@
                       <td class="tablo-sayi"><%= p.ilceler.length %></td>
                       <td class="tablo-sayi text-nowrap">
                         <%= y.sayi(s.talep.toplamAlan) %> / <%= y.sayi(s.hesap.toplamDekar) %> da
+                        <% var pdg = Object.keys(s.talep.toplamlar || {}).filter(function (b) { return b !== 'da'; }); if (pdg.length) { %><div class="text-secondary small"><%= pdg.map(function (b) { return y.sayi(s.talep.toplamlar[b]) + ' ' + b; }).join(' · ') %></div><% } %>
                         <div class="text-secondary small"><%= s.talep.ciftciSayisi %> / <%= y.sayi(s.proje.toplamHedefCiftci) %> çiftçi</div>
                       </td>
                       <td class="tablo-sayi text-nowrap small"><%= birimli(s.hesap.miktarToplamlari) %></td>

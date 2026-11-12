@@ -42,14 +42,20 @@ function ciftciDenetle(v, izinliIlceler) {
 }
 
 // Çiftçilerin talep sayısı ve toplam alanı
-async function talepOzetleri(ciftciIdleri) {
-  const talepler = await Talep.find({ ciftciId: { $in: ciftciIdleri }, durum: { $ne: 'reddedildi' } }).select('ciftciId satirlar').lean();
+// Talep birimleri kaleme göre değiştiği için (da, adet, m²) toplamlar birime göre tutulur.
+async function talepOzetleri(ciftciIdleri, ayar) {
+  const talepler = await Talep.find({ ciftciId: { $in: ciftciIdleri }, durum: { $ne: 'reddedildi' } }).select('ciftciId projeId talepKalemleri satirlar').lean();
+  const projeIdleri = [...new Set(talepler.map((t) => String(t.projeId)))];
+  const projeler = await mongoose.model('Proje').find({ _id: { $in: projeIdleri } }).lean();
+  const projeHaritasi = Object.fromEntries(projeler.map((p) => [String(p._id), p]));
   const ozet = {};
   talepler.forEach((t) => {
     const k = String(t.ciftciId);
-    ozet[k] = ozet[k] || { proje: 0, alan: 0 };
+    ozet[k] = ozet[k] || { proje: 0, toplamlar: {} };
     ozet[k].proje += 1;
-    ozet[k].alan += (t.satirlar || []).reduce((a, s) => a + (s.alan || 0), 0);
+    const p = projeHaritasi[String(t.projeId)];
+    if (!p) return;
+    Object.entries(talepHesabi(t, p, ayar).toplamlar).forEach(([b, v]) => { ozet[k].toplamlar[b] = (ozet[k].toplamlar[b] || 0) + v; });
   });
   return ozet;
 }
@@ -69,7 +75,7 @@ router.get('/', sar(async (req, res) => {
     const q = anahtar(req.query.q);
     ciftciler = ciftciler.filter((c) => anahtar(c.adSoyad).includes(q) || c.tcKimlikNo.includes(q) || anahtar(c.mahalle).includes(q) || (c.telefon || '').includes(q));
   }
-  const ozet = await talepOzetleri(ciftciler.map((c) => c._id));
+  const ozet = await talepOzetleri(ciftciler.map((c) => c._id), res.locals.ayar);
   res.render(V + 'liste', { baslik: 'Çiftçiler', ciftciler, ozet, filtre: { ...req.query, ilce }, kisitli });
 }));
 
@@ -115,10 +121,11 @@ router.get('/:id', sar(ciftciBul), sar(async (req, res) => {
   }));
   const sayilanlar = satirlar.filter((s) => s.talep.durum !== 'reddedildi');
   const toplam = {
-    alan: sayilanlar.reduce((a, s) => a + s.hesap.toplamAlan, 0),
+    toplamlar: {},
     bedel: sayilanlar.reduce((a, s) => a + (s.hesap.bedel || 0), 0),
     ciftciKatkisi: sayilanlar.reduce((a, s) => a + (s.hesap.ciftciKatkisi || 0), 0)
   };
+  sayilanlar.forEach((s) => Object.entries(s.hesap.toplamlar).forEach(([b, v]) => { toplam.toplamlar[b] = (toplam.toplamlar[b] || 0) + v; }));
   res.render(V + 'detay', { baslik: req.ciftci.adSoyad, ciftci: req.ciftci, satirlar, toplam });
 }));
 

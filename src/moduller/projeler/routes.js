@@ -43,16 +43,19 @@ function formuOku(govde, ayar, mevcut) {
         tur: metin(k.tur),
         urun: metin(k.urun),
         cesit: metin(k.cesit) || undefined,
+        talepBirimi: metin(k.talepBirimi) || 'da',
         olcuBirimi: metin(k.olcuBirimi),
         ambalaj: katalog.ambalajFormuOku(k.ambalaj),
         alan: sayiOku(k.alan),
         normlar: katalog.normFormuOku(k.normlar, ayar.normlar, true),
+        olcuyeGore: k.olcuyeGore === '1' || k.olcuyeGore === 'on',
+        ozellik: metin(k.ozellik) || undefined,
         toplamMiktar: sayiOku(k.toplamMiktar),
         birimFiyat: sayiOku(k.birimFiyat),
         fiyatBirimi: metin(k.fiyatBirimi) || undefined,
         aciklama: metin(k.aciklama) || undefined
       }))
-      .filter((k) => k.urun || k.cesit || k.alan !== undefined || Object.keys(k.normlar).length),
+      .filter((k) => k.urun || k.cesit || k.alan !== undefined || Object.keys(k.normlar).length || k.ozellik),
     ilceler: diziyeCevir(govde.ilceler)
       .filter((i) => i && i.ilce && gecerliIlceler.has(i.ilce))
       .map((i) => ({ ilce: i.ilce, hedefCiftci: sayiOku(i.hedefCiftci), hedefDekar: sayiOku(i.hedefDekar) })),
@@ -82,8 +85,17 @@ function formuOku(govde, ayar, mevcut) {
   if (veri.kalemler.length === 0) hatalar.push('En az bir kalem eklenmelidir.');
   const ekimKod = ayar.ekimNormu ? ayar.ekimNormu.kod : null;
   veri.kalemler.forEach((k, i) => {
-    if (!k.ambalaj) hatalar.push(`${i + 1}. kalemin ambalaj içeriği girilmelidir (ör. 1 çuval = 25 kg, 1 paket = 50.000 adet).`);
-    katalog.ekimBiriminiEsitle(k.normlar, k.ambalaj, ekimKod);
+    if ((ayar.normsuzTurler || []).includes(k.tur)) {
+      // Normsuz kalem: norm tutulmaz; ambalaj varsa içeriği talep biriminde olmalıdır (1 top = 100 m²)
+      k.normlar = {};
+      if (k.ambalaj && k.ambalaj.birim !== k.talepBirimi) {
+        hatalar.push(`${i + 1}. kalemde ambalaj içeriğinin birimi talep birimiyle (${k.talepBirimi}) aynı olmalıdır (ör. 1 top = 100 m²).`);
+      }
+    } else {
+      if (!k.ambalaj) hatalar.push(`${i + 1}. kalemin ambalaj içeriği girilmelidir (ör. 1 çuval = 25 kg, 1 paket = 50.000 adet).`);
+      katalog.ekimBiriminiEsitle(k.normlar, k.ambalaj, ekimKod, k.talepBirimi);
+      k.ozellik = undefined;
+    }
     if (!k.tur) hatalar.push(`${i + 1}. kalemin türü seçilmelidir.`);
     if (!k.urun) hatalar.push(`${i + 1}. kalemin ürün adı girilmelidir.`);
     if (!k.olcuBirimi) hatalar.push(`${i + 1}. kalemin dağıtım birimi seçilmelidir.`);
@@ -117,6 +129,7 @@ async function katalogaIsle(kalemler, ayar) {
       belge = await Urun.create({
         tur: k.tur,
         ad: k.urun,
+        talepBirimi: k.talepBirimi,
         olcuBirimi: k.olcuBirimi,
         ambalaj: k.ambalaj,
         normlar: k.normlar,
@@ -149,7 +162,7 @@ async function katalogaIsle(kalemler, ayar) {
       }
     });
     if (!k.ambalaj && etkin.ambalaj && k.olcuBirimi === etkin.olcuBirimi) k.ambalaj = etkin.ambalaj;
-    katalog.ekimBiriminiEsitle(k.normlar, k.ambalaj, ayar.ekimNormu ? ayar.ekimNormu.kod : null);
+    katalog.ekimBiriminiEsitle(k.normlar, k.ambalaj, ayar.ekimNormu ? ayar.ekimNormu.kod : null, k.talepBirimi);
     k.urunId = belge._id;
     k.urun = belge.ad;
   }

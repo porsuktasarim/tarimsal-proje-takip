@@ -3,19 +3,22 @@
   var on = 'satirlar[' + i + ']';
   var dv = function (v) { return v !== undefined && v !== null ? v : ''; };
   var ilce = s.parselIlce || varsayilanIlce;
+  var secili = kalemler.find(function (k) { return String(k._id) === String(s.kalemId); }) || (kalemler.length === 1 ? kalemler[0] : null);
+  var tb = secili ? (secili.talepBirimi || 'da') : '';
+  var miktar = s.miktar != null ? s.miktar : s.alan;
 %>
 <tr>
   <td>
     <% if (s._id) { %><input type="hidden" name="<%= on %>[_id]" value="<%= s._id %>"><% } %>
-    <select name="<%= on %>[kalemId]" class="form-select form-select-sm talep-kalem" required>
+    <select name="<%= on %>[kalemId]" class="form-select form-select-sm talep-kalem">
       <% if (kalemler.length !== 1) { %><option value="">Seçiniz</option><% } %>
       <% kalemler.forEach(function (k) { %>
-        <option value="<%= k._id %>" <%= String(s.kalemId) === String(k._id) ? 'selected' : '' %>><%= k.urun %><%= k.cesit ? ' · ' + k.cesit : '' %></option>
+        <option value="<%= k._id %>" data-birim="<%= k.talepBirimi || 'da' %>" <%= String(s.kalemId) === String(k._id) ? 'selected' : '' %>><%= k.urun %><%= k.cesit ? ' · ' + k.cesit : '' %></option>
       <% }) %>
     </select>
   </td>
   <td>
-    <select name="<%= on %>[parselIlce]" class="form-select form-select-sm talep-parsel-ilce" required>
+    <select name="<%= on %>[parselIlce]" class="form-select form-select-sm talep-parsel-ilce">
       <option value="">Seçiniz</option>
       <% ayar.ilceler.forEach(function (x) { %><option <%= ilce === x ? 'selected' : '' %>><%= x %></option><% }) %>
     </select>
@@ -23,6 +26,17 @@
   <td><input type="text" name="<%= on %>[mahalle]" value="<%= dv(s.mahalle) %>" class="form-control form-control-sm"></td>
   <td><input type="text" name="<%= on %>[ada]" value="<%= dv(s.ada) %>" class="form-control form-control-sm"></td>
   <td><input type="text" name="<%= on %>[parsel]" value="<%= dv(s.parsel) %>" class="form-control form-control-sm"></td>
-  <td><input type="number" step="any" min="0" name="<%= on %>[alan]" value="<%= dv(s.alan) %>" class="form-control form-control-sm text-end talep-alan" required></td>
+  <td>
+    <div class="input-group input-group-sm flex-nowrap mb-1 talep-en-boy<%= tb === 'm²' ? '' : ' d-none' %>" title="Sera ölçüsü: en × boy (m); miktar hesaplanır">
+      <input type="number" step="any" min="0" name="<%= on %>[en]" value="<%= dv(s.en) %>" class="form-control text-end talep-en" placeholder="en">
+      <span class="input-group-text px-1">×</span>
+      <input type="number" step="any" min="0" name="<%= on %>[boy]" value="<%= dv(s.boy) %>" class="form-control text-end talep-boy" placeholder="boy">
+      <span class="input-group-text px-1">m</span>
+    </div>
+    <div class="input-group input-group-sm">
+      <input type="number" step="any" min="0" name="<%= on %>[miktar]" value="<%= dv(miktar) %>" class="form-control text-end talep-alan">
+      <span class="input-group-text talep-satir-birim"><%= tb || '–' %></span>
+    </div>
+  </td>
   <td class="sil-sutunu"><button type="button" class="btn btn-ghost-danger btn-icon btn-sm" data-satir-sil title="Kaldır"><i class="ti ti-trash"></i></button></td>
 </tr>

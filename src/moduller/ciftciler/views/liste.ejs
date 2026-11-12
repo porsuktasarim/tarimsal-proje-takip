@@ -53,7 +53,7 @@
               </tr>
             </thead>
             <tbody>
-              <% ciftciler.forEach(function (c) { var o = ozet[String(c._id)] || { proje: 0, alan: 0 }; %>
+              <% ciftciler.forEach(function (c) { var o = ozet[String(c._id)] || { proje: 0, toplamlar: {} }; %>
                 <tr>
                   <td><a href="/ciftciler/<%= c._id %>" class="text-reset fw-medium"><%= c.adSoyad %></a></td>
                   <td class="text-secondary font-monospace"><%= c.tcKimlikNo %></td>
@@ -61,7 +61,7 @@
                   <td class="text-secondary text-nowrap"><%= c.telefon || '–' %></td>
                   <td><% if (c.cks) { %><span class="badge bg-green-lt">Var</span><% } else { %><span class="badge bg-secondary-lt">Yok</span><% } %></td>
                   <td class="tablo-sayi"><%= o.proje || '–' %></td>
-                  <td class="tablo-sayi text-nowrap"><%= o.alan ? y.sayi(o.alan) + ' da' : '–' %></td>
+                  <td class="tablo-sayi text-nowrap"><%= y.toplamMetni(o.toplamlar) %></td>
                 </tr>
               <% }) %>
             </tbody>
