@@ -2,8 +2,9 @@ const express = require('express');
 const mongoose = require('mongoose');
 const ayarlar = require('../../core/ayarlar');
 const Urun = require('./modeller/Urun');
-const { normTipleri } = require('../../config/sabitler');
-const { sayiOku, diziyeCevir, tarihOku, anahtar, kodUret } = require('../../core/yardimcilar');
+const { normTipleri, normBirimOnerileri, ambalajBirimleri } = require('../../config/sabitler');
+const katalog = require('./katalog');
+const { diziyeCevir, tarihOku, anahtar, kodUret } = require('../../core/yardimcilar');
 
 const router = express.Router();
 const V = 'ayarlar/views/';
@@ -184,8 +185,18 @@ router.post('/normlar', sar(async (req, res) => {
     return res.status(422).render(V + 'normlar', { baslik: 'Hesaplama normları', satirlar, kullanim, hatalar, normTipleri });
   }
 
-  for (const n of silinenler) {
-    await Urun.updateMany({}, { $unset: { [`normlar.${n.kod}`]: '' } });
+  // Silinen normun değerleri ürünlerden ve çeşitlerden kaldırılır.
+  if (silinenler.length) {
+    const urunler = await Urun.find();
+    for (const u of urunler) {
+      silinenler.forEach((n) => {
+        if (u.normlar) delete u.normlar[n.kod];
+        u.cesitler.forEach((c) => { if (c.normlar) delete c.normlar[n.kod]; });
+      });
+      u.markModified('normlar');
+      u.markModified('cesitler');
+      await u.save();
+    }
   }
   await ayarlar.guncelle({ normlar: satirlar });
   return res.redirect('/ayarlar/normlar?bildirim=kaydedildi');
@@ -200,23 +211,41 @@ async function urunKullanimi(id) {
 }
 
 function urunFormuOku(govde, ayar) {
-  const normlar = {};
-  ayar.normlar.forEach((n) => {
-    const d = sayiOku(govde.normlar && govde.normlar[n.kod]);
-    if (d !== undefined) normlar[n.kod] = d;
-  });
   const gorulen = new Set();
-  const cesitler = String(govde.cesitler || '')
-    .split(/[\n,;]+/)
-    .map((c) => c.trim())
-    .filter((c) => c && !gorulen.has(anahtar(c)) && gorulen.add(anahtar(c)));
+  const cesitler = diziyeCevir(govde.cesitler)
+    .map((c) => ({
+      eski: (c.eski || '').trim(),
+      ad: (c.ad || '').trim(),
+      ambalaj: katalog.ambalajFormuOku(c.ambalaj),
+      // Çeşitte birim boş bırakılırsa ürünün birimi geçerli olur.
+      normlar: katalog.normFormuOku(c.normlar, ayar.normlar, false),
+      aciklama: (c.aciklama || '').trim() || undefined
+    }))
+    .filter((c) => c.ad && !gorulen.has(anahtar(c.ad)) && gorulen.add(anahtar(c.ad)));
+
   return {
     tur: (govde.tur || '').trim(),
     ad: (govde.ad || '').trim(),
     olcuBirimi: (govde.olcuBirimi || '').trim(),
+    ambalaj: katalog.ambalajFormuOku(govde.ambalaj),
+    normlar: katalog.normFormuOku(govde.normlar, ayar.normlar, true),
     cesitler,
-    normlar,
     aciklama: (govde.aciklama || '').trim() || undefined
+  };
+}
+
+// Kaydedilecek biçim: çeşitte birimi boş normlar ürünün birimini alır.
+function urunKayitVerisi(veri) {
+  return {
+    ...veri,
+    ambalaj: veri.ambalaj || undefined,
+    cesitler: veri.cesitler.map((c) => {
+      const normlar = {};
+      Object.entries(c.normlar).forEach(([k, n]) => {
+        normlar[k] = { deger: n.deger, birim: n.birim || (veri.normlar[k] && veri.normlar[k].birim) || '' };
+      });
+      return { ad: c.ad, normlar, ambalaj: c.ambalaj || undefined, aciklama: c.aciklama };
+    })
   };
 }
 
@@ -224,7 +253,7 @@ async function urunDenetle(veri, ayar, id) {
   const hatalar = [];
   if (!veri.tur) hatalar.push('Kalem türü seçilmelidir.');
   if (!veri.ad) hatalar.push('Ürün adı girilmelidir.');
-  if (!veri.olcuBirimi) hatalar.push('Ölçü birimi seçilmelidir.');
+  if (!veri.olcuBirimi) hatalar.push('Dağıtım birimi seçilmelidir.');
   if (veri.tur && veri.ad) {
     const ayni = (await Urun.find({ tur: veri.tur }).lean())
       .find((u) => anahtar(u.ad) === anahtar(veri.ad) && String(u._id) !== String(id || ''));
@@ -233,9 +262,15 @@ async function urunDenetle(veri, ayar, id) {
   return hatalar;
 }
 
+function urunFormu(res, durum, yerel) {
+  return res.status(durum).render(V + 'urun-form', {
+    normBirimOnerileri, ambalajBirimleri, kullanim: 0, ...yerel
+  });
+}
+
 router.get('/urunler', sar(async (req, res) => {
   const tur = req.query.tur && res.locals.ayar.kalemTurleri.includes(req.query.tur) ? req.query.tur : '';
-  const urunler = await Urun.find(tur ? { tur } : {}).lean();
+  const urunler = (await Urun.find(tur ? { tur } : {}).lean()).map(katalog.urunDuz);
   const sira = res.locals.ayar.kalemTurleri;
   urunler.sort((a, b) => {
     const t = (sira.indexOf(a.tur) + 1 || 999) - (sira.indexOf(b.tur) + 1 || 999);
@@ -248,7 +283,7 @@ router.get('/urunler', sar(async (req, res) => {
 
 router.get('/urunler/yeni', (req, res) => {
   const a = res.locals.ayar;
-  res.render(V + 'urun-form', {
+  urunFormu(res, 200, {
     baslik: 'Yeni ürün',
     urun: { tur: req.query.tur || a.kalemTurleri[0], olcuBirimi: a.olcuBirimleri[0], cesitler: [], normlar: {} },
     hatalar: [],
@@ -260,9 +295,9 @@ router.post('/urunler', sar(async (req, res) => {
   const veri = urunFormuOku(req.body, res.locals.ayar);
   const hatalar = await urunDenetle(veri, res.locals.ayar);
   if (hatalar.length) {
-    return res.status(422).render(V + 'urun-form', { baslik: 'Yeni ürün', urun: veri, hatalar, eylem: '/ayarlar/urunler' });
+    return urunFormu(res, 422, { baslik: 'Yeni ürün', urun: veri, hatalar, eylem: '/ayarlar/urunler' });
   }
-  await Urun.create(veri);
+  await Urun.create(urunKayitVerisi(veri));
   return res.redirect(`/ayarlar/urunler?tur=${encodeURIComponent(veri.tur)}&bildirim=kaydedildi`);
 }));
 
@@ -273,10 +308,14 @@ async function urunBul(req, res, next) {
 }
 
 router.get('/urunler/:id/duzenle', sar(urunBul), sar(async (req, res) => {
-  const urun = req.urun.toObject({ flattenMaps: true });
-  const kullanim = await urunKullanimi(req.urun._id);
-  res.render(V + 'urun-form', {
-    baslik: 'Ürünü düzenle', urun, kullanim, hatalar: [], eylem: `/ayarlar/urunler/${req.urun._id}`
+  const urun = katalog.urunDuz(req.urun);
+  urun.cesitler.forEach((c) => { c.eski = c.ad; });
+  urunFormu(res, 200, {
+    baslik: 'Ürünü düzenle',
+    urun,
+    kullanim: await urunKullanimi(req.urun._id),
+    hatalar: [],
+    eylem: `/ayarlar/urunler/${req.urun._id}`
   });
 }));
 
@@ -285,22 +324,29 @@ router.post('/urunler/:id', sar(urunBul), sar(async (req, res) => {
   const hatalar = await urunDenetle(veri, res.locals.ayar, req.urun._id);
   if (hatalar.length) {
     veri._id = req.urun._id;
-    return res.status(422).render(V + 'urun-form', {
-      baslik: 'Ürünü düzenle', urun: veri, hatalar, eylem: `/ayarlar/urunler/${req.urun._id}`
+    return urunFormu(res, 422, {
+      baslik: 'Ürünü düzenle', urun: veri, hatalar, eylem: `/ayarlar/urunler/${req.urun._id}`,
+      kullanim: await urunKullanimi(req.urun._id)
     });
   }
 
-  // Ad ya da tür değişirse projelerdeki kalemler de güncellenir.
   const adDegisti = req.urun.ad !== veri.ad || req.urun.tur !== veri.tur;
-  req.urun.set(veri);
-  req.urun.normlar = veri.normlar;
+  const cesitAdlari = veri.cesitler.filter((c) => c.eski && c.eski !== c.ad);
+  req.urun.set(urunKayitVerisi(veri));
+  req.urun.markModified('normlar');
+  req.urun.markModified('cesitler');
   await req.urun.save();
 
-  if (adDegisti && mongoose.modelNames().includes('Proje')) {
+  // Ürün, tür ya da çeşit adı değişirse projelerdeki kalemler de güncellenir.
+  if ((adDegisti || cesitAdlari.length) && mongoose.modelNames().includes('Proje')) {
     const projeler = await mongoose.model('Proje').find({ 'kalemler.urunId': req.urun._id });
     for (const p of projeler) {
       p.kalemler.forEach((k) => {
-        if (String(k.urunId) === String(req.urun._id)) { k.urun = veri.ad; k.tur = veri.tur; }
+        if (String(k.urunId) !== String(req.urun._id)) return;
+        k.urun = veri.ad;
+        k.tur = veri.tur;
+        const c = cesitAdlari.find((x) => k.cesit && anahtar(x.eski) === anahtar(k.cesit));
+        if (c) k.cesit = c.ad;
       });
       await p.save({ validateBeforeSave: false });
     }

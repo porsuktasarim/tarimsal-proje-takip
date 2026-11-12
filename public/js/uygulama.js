@@ -100,12 +100,22 @@
     ilceGuncelle();
   }
 
+  // --- Dağıtım birimi değişince ambalaj etiketleri ("1 torba =") güncellenir ---
+  document.addEventListener('change', function (e) {
+    if (!e.target.matches('.dagitim-birimi')) return;
+    var kapsam = e.target.closest('[data-ambalaj-kapsam]') || document;
+    var b = e.target.value;
+    kapsam.querySelectorAll('.ambalaj-etiket').forEach(function (el) { el.textContent = '1 ' + b + ' ='; });
+    kapsam.querySelectorAll('.ambalaj-etiket-birim').forEach(function (el) { el.textContent = b; });
+  });
+
   // --- Proje formu: ürün kataloğu ile kalem doldurma ---
   var katalogEl = document.getElementById('urun-katalogu');
   if (katalogEl) {
     var veri = JSON.parse(katalogEl.textContent);
     var anahtar = function (s) { return String(s || '').trim().toLocaleLowerCase('tr').replace(/\s+/g, ' '); };
     var sayiYaz = function (n) { return Number(n).toLocaleString('tr-TR', { maximumFractionDigits: 2 }); };
+    var sonucBirimi = function (b) { return String(b || '').replace(/\s*\/\s*(da|dekar)\s*$/i, '').trim(); };
 
     var urunBul = function (tur, ad) {
       var k = anahtar(ad);
@@ -116,18 +126,44 @@
       }
       return null;
     };
+    var cesitBul = function (urun, ad) {
+      var k = anahtar(ad);
+      if (!urun || !k) return null;
+      for (var i = 0; i < urun.cesitler.length; i++) if (anahtar(urun.cesitler[i].ad) === k) return urun.cesitler[i];
+      return null;
+    };
+    // Ürün + çeşit katmanlarından etkin varsayılanlar
+    var etkin = function (urun, cesitAd) {
+      var c = cesitBul(urun, cesitAd);
+      var normlar = {};
+      Object.keys(urun.normlar || {}).forEach(function (k) { normlar[k] = urun.normlar[k]; });
+      if (c) Object.keys(c.normlar || {}).forEach(function (k) { normlar[k] = c.normlar[k]; });
+      return { olcuBirimi: urun.olcuBirimi, ambalaj: (c && c.ambalaj) || urun.ambalaj || null, normlar: normlar };
+    };
 
-    var kalemGuncelle = function (blok, normlariDoldur) {
+    // "oto" işaretli alanlar katalogdan doldurulmuştur; kullanıcı elle değiştirince işaret kalkar
+    // ve sonraki ürün/çeşit seçimlerinde üzerine yazılmaz.
+    var doldurulabilir = function (el) { return el.value === '' || el.dataset.oto === '1'; };
+    var yaz = function (el, deger) { el.value = deger === undefined || deger === null ? '' : deger; el.dataset.oto = '1'; };
+    var seciliYap = function (select, deger) {
+      if (!deger) return;
+      var var_ = Array.prototype.some.call(select.options, function (o) { return o.value === deger; });
+      if (!var_) { var o = document.createElement('option'); o.textContent = deger; select.appendChild(o); }
+      select.value = deger;
+      select.dispatchEvent(new Event('change', { bubbles: true }));
+    };
+
+    var kalemGuncelle = function (blok, doldur) {
       var tur = blok.querySelector('.kalem-tur').value;
       var urunInput = blok.querySelector('.kalem-urun');
       var cesitInput = blok.querySelector('.kalem-cesit');
-      var idInput = blok.querySelector('.kalem-urun-id');
-      var durum = blok.querySelector('.kalem-durum');
       var turSira = veri.turler.indexOf(tur);
       urunInput.setAttribute('list', 'dl-urun-' + (turSira < 0 ? 0 : turSira));
 
       var urun = urunBul(tur, urunInput.value);
-      idInput.value = urun ? urun._id : '';
+      blok.querySelector('.kalem-urun-id').value = urun ? urun._id : '';
+      var cesit = cesitBul(urun, cesitInput.value);
+      var e = urun ? etkin(urun, cesitInput.value) : null;
 
       // Çeşit önerileri
       var dl = document.getElementById(cesitInput.getAttribute('list'));
@@ -135,48 +171,68 @@
         dl.innerHTML = '';
         (urun ? urun.cesitler : []).forEach(function (c) {
           var o = document.createElement('option');
-          o.value = c;
+          o.value = c.ad;
           dl.appendChild(o);
         });
       }
 
       // Durum etiketi
-      var etiket = '';
+      var durum = '';
       if (urunInput.value.trim() && !urun) {
-        etiket = '<span class="badge bg-yellow-lt"><i class="ti ti-sparkles me-1"></i>Yeni ürün · kaydedilince kataloğa eklenir</span>';
-      } else if (urun && cesitInput.value.trim() && !urun.cesitler.some(function (c) { return anahtar(c) === anahtar(cesitInput.value); })) {
-        etiket = '<span class="badge bg-yellow-lt"><i class="ti ti-sparkles me-1"></i>Yeni çeşit · kaydedilince kataloğa eklenir</span>';
+        durum = '<span class="badge bg-yellow-lt"><i class="ti ti-sparkles me-1"></i>Yeni ürün · kaydedilince kataloğa eklenir</span>';
+      } else if (urun && cesitInput.value.trim() && !cesit) {
+        durum = '<span class="badge bg-yellow-lt"><i class="ti ti-sparkles me-1"></i>Yeni çeşit · kaydedilince kataloğa eklenir</span>';
       } else if (urun) {
-        etiket = '<span class="text-secondary"><i class="ti ti-check me-1"></i>Katalogdan</span>';
+        durum = '<span class="text-secondary"><i class="ti ti-check me-1"></i>Katalogdan' + (cesit && Object.keys(cesit.normlar || {}).length ? ' · çeşide özel normlar' : '') + '</span>';
       }
-      durum.innerHTML = etiket;
+      blok.querySelector('.kalem-durum').innerHTML = durum;
 
-      // Normlar: kataloğun varsayılanı yer tutucu olarak görünür; boş ya da
-      // kendiliğinden doldurulmuş alanlar yeni ürün seçilince güncellenir.
-      blok.querySelectorAll('.kalem-norm').forEach(function (inp) {
-        var v = urun && urun.normlar ? urun.normlar[inp.getAttribute('data-norm')] : undefined;
-        inp.placeholder = v != null ? String(v) : '';
-        if (normlariDoldur && (inp.value === '' || inp.dataset.oto === '1')) {
-          inp.value = v != null ? v : '';
-          inp.dataset.oto = '1';
+      // Normlar: değer ve birim birlikte doldurulur.
+      blok.querySelectorAll('.norm-cifti').forEach(function (cift) {
+        var dEl = cift.querySelector('.norm-deger');
+        var bEl = cift.querySelector('.norm-birim');
+        var v = e ? e.normlar[dEl.getAttribute('data-norm')] : null;
+        dEl.placeholder = v ? String(v.deger) : '';
+        if (doldur && e && doldurulabilir(dEl)) {
+          yaz(dEl, v ? v.deger : '');
+          yaz(bEl, (v && v.birim) || bEl.getAttribute('data-varsayilan-birim'));
         }
       });
 
-      if (normlariDoldur && urun) {
+      if (doldur && e) {
         var olcu = blok.querySelector('.kalem-olcu');
-        if (Array.prototype.some.call(olcu.options, function (o) { return o.value === urun.olcuBirimi; })) olcu.value = urun.olcuBirimi;
+        if (olcu.dataset.oto !== '0') { seciliYap(olcu, e.olcuBirimi); olcu.dataset.oto = '1'; }
+        var aMiktar = blok.querySelector('.ambalaj-miktar');
+        var aBirim = blok.querySelector('.ambalaj-birim');
+        if (doldurulabilir(aMiktar)) {
+          yaz(aMiktar, e.ambalaj ? e.ambalaj.miktar : '');
+          if (e.ambalaj) { seciliYap(aBirim, e.ambalaj.birim); aBirim.dataset.oto = '1'; }
+        }
       }
-
       miktarIpucu(blok);
     };
 
-    // Toplam miktar boşsa alan × ekim normu ipucu olarak gösterilir.
+    // Toplam dağıtım boşsa hesaplanan değer ipucu olarak gösterilir.
     var miktarIpucu = function (blok) {
       var miktar = blok.querySelector('.kalem-miktar');
       var alan = parseFloat(blok.querySelector('.kalem-alan').value);
-      var ekim = veri.ekimKod ? blok.querySelector('.kalem-norm[data-norm="' + veri.ekimKod + '"]') : null;
-      var norm = ekim ? parseFloat(ekim.value !== '' ? ekim.value : ekim.placeholder) : NaN;
-      miktar.placeholder = (!isNaN(alan) && !isNaN(norm)) ? 'Hesap: ' + sayiYaz(alan * norm) : 'Hesaplanır';
+      var ekimCift = veri.ekimKod ? blok.querySelector('.norm-deger[data-norm="' + veri.ekimKod + '"]') : null;
+      var ipucu = 'Hesaplanır';
+      if (ekimCift) {
+        var cift = ekimCift.closest('.norm-cifti');
+        var norm = parseFloat(ekimCift.value !== '' ? ekimCift.value : ekimCift.placeholder);
+        var birim = sonucBirimi(cift.querySelector('.norm-birim').value || cift.querySelector('.norm-birim').placeholder);
+        var dagitim = blok.querySelector('.kalem-olcu').value;
+        if (!isNaN(alan) && !isNaN(norm)) {
+          var ihtiyac = alan * norm;
+          var aMiktar = parseFloat(blok.querySelector('.ambalaj-miktar').value);
+          var aBirim = blok.querySelector('.ambalaj-birim').value;
+          if (anahtar(birim) === anahtar(dagitim)) ipucu = 'Hesap: ' + sayiYaz(ihtiyac);
+          else if (!isNaN(aMiktar) && aMiktar > 0 && anahtar(aBirim) === anahtar(birim)) ipucu = 'Hesap: ' + sayiYaz(Math.ceil(ihtiyac / aMiktar));
+          else ipucu = 'İhtiyaç ' + sayiYaz(ihtiyac) + ' ' + birim;
+        }
+      }
+      miktar.placeholder = ipucu;
     };
 
     var form = document.getElementById('proje-formu');
@@ -185,14 +241,21 @@
     form.addEventListener('change', function (e) {
       var b = blokOf(e.target);
       if (!b) return;
-      if (e.target.matches('.kalem-tur, .kalem-urun')) kalemGuncelle(b, true);
+      if (e.isTrusted && e.target.matches('.kalem-olcu, .ambalaj-birim')) e.target.dataset.oto = '0';
+      if (e.target.matches('.kalem-tur, .kalem-urun, .kalem-cesit')) kalemGuncelle(b, true);
+      else miktarIpucu(b);
     });
     form.addEventListener('input', function (e) {
       var b = blokOf(e.target);
       if (!b) return;
-      if (e.target.matches('.kalem-norm')) e.target.dataset.oto = '0';
+      if (e.target.matches('.norm-deger, .norm-birim, .ambalaj-miktar')) {
+        e.target.dataset.oto = '0';
+        // Değer ya da birim elle değişince çift birlikte kilitlenir.
+        var cift = e.target.closest('.norm-cifti');
+        if (cift) cift.querySelectorAll('input').forEach(function (i) { i.dataset.oto = '0'; });
+      }
       if (e.target.matches('.kalem-urun, .kalem-cesit')) kalemGuncelle(b, false);
-      if (e.target.matches('.kalem-alan, .kalem-norm')) miktarIpucu(b);
+      else miktarIpucu(b);
     });
     form.addEventListener('satir-eklendi', function (e) {
       if (e.detail && e.detail.classList.contains('kalem-blok')) kalemGuncelle(e.detail, false);

@@ -1,13 +1,16 @@
     <footer class="footer footer-transparent d-print-none">
       <div class="container-xl">
         <div class="text-secondary small text-center">
-          <%= ayar.kurum %> · <%= config.uygulamaAdi %>
+          <%= config.uygulamaAdi %> · v<%= surum %>
         </div>
       </div>
     </footer>
   </div>
 </div>
-<script src="/vendor/tabler/js/tabler.min.js"></script>
-<script src="/public/js/uygulama.js"></script>
+<datalist id="dl-norm-birim">
+  <% sabitler.normBirimOnerileri.forEach(function (b) { %><option value="<%= b %>"></option><% }) %>
+</datalist>
+<script src="/vendor/tabler/js/tabler.min.js?v=<%= varlikSurumu %>"></script>
+<script src="/public/js/uygulama.js?v=<%= varlikSurumu %>"></script>
 </body>
 </html>

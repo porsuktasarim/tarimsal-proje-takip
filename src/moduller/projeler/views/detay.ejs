@@ -121,7 +121,10 @@
         <!-- Kalemler ve dağıtım miktarı -->
         <div class="card mb-3">
           <div class="card-header">
-            <h3 class="card-title">Kalemler</h3>
+            <div>
+              <h3 class="card-title">Kalemler ve dağıtım</h3>
+              <p class="card-subtitle">İhtiyaç = alan × <%= ekim ? ekim.ad.toLocaleLowerCase('tr') : 'ekim normu' %>; dağıtım birimi ambalajsa ambalaj içeriğine bölünür.</p>
+            </div>
           </div>
           <div class="table-responsive">
             <table class="table table-vcenter card-table">
@@ -129,8 +132,8 @@
                 <tr>
                   <th>Kalem</th>
                   <th class="tablo-sayi">Alan</th>
-                  <% if (ekim) { %><th class="tablo-sayi"><%= ekim.ad %></th><% } %>
-                  <th class="tablo-sayi">Toplam miktar</th>
+                  <% if (ekim) { %><th class="tablo-sayi"><%= ekim.ad %></th><th class="tablo-sayi">İhtiyaç</th><% } %>
+                  <th class="tablo-sayi">Dağıtılacak</th>
                 </tr>
               </thead>
               <tbody>
@@ -139,6 +142,7 @@
                     <td>
                       <span class="badge bg-green-lt me-1"><%= k.tur %></span>
                       <span class="fw-medium"><%= k.urun %></span><% if (k.cesit) { %> <span class="text-secondary">· <%= k.cesit %></span><% } %>
+                      <% if (h.ambalaj) { %><div class="text-secondary small"><i class="ti ti-package"></i> 1 <%= k.olcuBirimi %> = <%= y.sayi(h.ambalaj.miktar) %> <%= h.ambalaj.birim %></div><% } %>
                       <% if (k.aciklama) { %><div class="text-secondary small"><%= k.aciklama %></div><% } %>
                     </td>
                     <td class="tablo-sayi text-nowrap">
@@ -146,13 +150,20 @@
                       <% if (h.alanKaynak === 'proje') { %><div class="text-secondary small">ilçe toplamı</div><% } %>
                     </td>
                     <% if (ekim) { %>
-                      <td class="tablo-sayi text-nowrap"><%= h.ekimDegeri != null ? y.sayi(h.ekimDegeri) + ' ' + ekim.birim : '–' %></td>
+                      <td class="tablo-sayi text-nowrap"><%= h.ekimDegeri != null ? y.sayi(h.ekimDegeri) + ' ' + h.ekimBirimi : '–' %></td>
+                      <td class="tablo-sayi text-nowrap"><%= h.ihtiyac != null ? y.miktar(h.ihtiyac, h.ihtiyacBirimi) : '–' %></td>
                     <% } %>
                     <td class="tablo-sayi text-nowrap">
-                      <%= y.miktar(h.miktar, k.olcuBirimi) %>
+                      <span class="fw-medium"><%= y.miktar(h.miktar, k.olcuBirimi) %></span>
                       <% if (h.miktarKaynak === 'hesap') { %><div class="text-secondary small">hesaplanan</div><% } %>
+                      <% if (h.miktarKaynak === 'elle') { %><div class="text-secondary small">elle girildi</div><% } %>
                       <% if (h.miktarKaynak === 'elle' && h.hesaplananMiktar != null && Math.abs(h.hesaplananMiktar - h.miktar) > 0.0001) { %>
-                        <div class="text-warning small" title="Alan × <%= ekim.ad.toLocaleLowerCase('tr') %>">hesap: <%= y.miktar(h.hesaplananMiktar, k.olcuBirimi) %></div>
+                        <div class="text-warning small">hesap: <%= y.miktar(h.hesaplananMiktar, k.olcuBirimi) %></div>
+                      <% } %>
+                      <% if (h.birimUyumsuz && h.miktarKaynak !== 'elle') { %>
+                        <div class="text-warning small" title="İhtiyaç birimi (<%= h.ihtiyacBirimi %>) dağıtım birimiyle (<%= k.olcuBirimi %>) aynı değil; ambalaj içeriği <%= h.ihtiyacBirimi %> olarak girilmelidir.">
+                          <i class="ti ti-alert-triangle"></i> ambalaj içeriği gerekli
+                        </div>
                       <% } %>
                     </td>
                   </tr>
@@ -169,6 +180,12 @@
         </div>
 
         <!-- Hedef çıktılar -->
+        <%
+          var toplamMetni = function (t) {
+            var b = Object.keys(t);
+            return b.length ? b.map(function (k) { return y.miktar(t[k], k); }).join(' + ') : '–';
+          };
+        %>
         <div class="card mb-3">
           <div class="card-header">
             <div>
@@ -186,7 +203,7 @@
                 <thead>
                   <tr>
                     <th>Kalem</th>
-                    <% hesap.ciktiToplamlari.forEach(function (c) { if (c.toplam == null) return; %>
+                    <% hesap.ciktiToplamlari.forEach(function (c) { if (!c.var) return; %>
                       <th class="tablo-sayi"><%= c.norm.ad %></th>
                     <% }) %>
                   </tr>
@@ -195,11 +212,11 @@
                   <% hesap.kalemler.forEach(function (h) { %>
                     <tr>
                       <td><span class="fw-medium"><%= h.kalem.urun %></span><% if (h.kalem.cesit) { %> <span class="text-secondary">· <%= h.kalem.cesit %></span><% } %></td>
-                      <% hesap.ciktiToplamlari.forEach(function (c, ci) { if (c.toplam == null) return; var o = h.ciktilar[ci]; %>
+                      <% hesap.ciktiToplamlari.forEach(function (c, ci) { if (!c.var) return; var o = h.ciktilar[ci]; %>
                         <td class="tablo-sayi text-nowrap">
                           <% if (o.sonuc != null) { %>
                             <%= y.miktar(o.sonuc, o.birim) %>
-                            <div class="text-secondary small"><%= y.sayi(o.deger) %> <%= c.norm.birim %></div>
+                            <div class="text-secondary small"><%= y.sayi(o.deger) %> <%= o.normBirimi %></div>
                           <% } else { %><span class="text-secondary">–</span><% } %>
                         </td>
                       <% }) %>
@@ -209,8 +226,8 @@
                 <tfoot>
                   <tr class="fw-bold">
                     <td>Toplam</td>
-                    <% hesap.ciktiToplamlari.forEach(function (c) { if (c.toplam == null) return; %>
-                      <td class="tablo-sayi text-nowrap"><%= y.miktar(c.toplam, c.birim) %></td>
+                    <% hesap.ciktiToplamlari.forEach(function (c) { if (!c.var) return; %>
+                      <td class="tablo-sayi text-nowrap"><%= toplamMetni(c.toplamlar) %></td>
                     <% }) %>
                   </tr>
                 </tfoot>
@@ -231,8 +248,8 @@
                   <% proje.kalemler.forEach(function (k) { %>
                     <tr>
                       <td><%= k.urun %><% if (k.cesit) { %> <span class="text-secondary">· <%= k.cesit %></span><% } %></td>
-                      <% bilgiNormlari.forEach(function (n) { var v = y.mapDeger(k.normlar, n.kod); %>
-                        <td class="tablo-sayi"><%= v != null ? y.sayi(v) + ' ' + n.birim : '–' %></td>
+                      <% bilgiNormlari.forEach(function (n) { var v = y.normOku(k.normlar, n.kod); %>
+                        <td class="tablo-sayi"><%= v ? y.sayi(v.deger) + ' ' + (v.birim || n.birim) : '–' %></td>
                       <% }) %>
                     </tr>
                   <% }) %>

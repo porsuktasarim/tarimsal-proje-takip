@@ -1,0 +1,20 @@
+<%
+  // Bir normun değer + birim girdisi.
+  // Parametreler: onek (ör. 'normlar', 'cesitler[0][normlar]', 'kalemler[0][normlar]'),
+  //   n (norm tanımı), deger, birim, ytDeger / ytBirim (yer tutucular), kolon
+  var t = sabitler.normTipleri[n.tip] || {};
+  var dv = function (v) { return v !== undefined && v !== null ? v : ''; };
+%>
+<div class="<%= typeof kolon !== 'undefined' && kolon ? kolon : 'col-6 col-md-4 col-xl-3' %>">
+  <label class="form-label small mb-1 text-truncate d-block" title="<%= n.ad %> · <%= t.ad %>">
+    <span class="norm-nokta bg-<%= t.renk %>"></span><%= n.ad %>
+  </label>
+  <div class="input-group input-group-sm norm-cifti">
+    <input type="number" step="any" min="0" name="<%= onek %>[<%= n.kod %>][deger]" value="<%= dv(deger) %>"
+           placeholder="<%= dv(typeof ytDeger !== 'undefined' ? ytDeger : '') %>"
+           class="form-control text-end norm-deger" data-norm="<%= n.kod %>">
+    <input type="text" name="<%= onek %>[<%= n.kod %>][birim]" value="<%= dv(birim) %>"
+           placeholder="<%= dv(typeof ytBirim !== 'undefined' && ytBirim ? ytBirim : n.birim) %>"
+           class="form-control norm-birim" list="dl-norm-birim" data-varsayilan-birim="<%= n.birim %>" title="Birim">
+  </div>
+</div>

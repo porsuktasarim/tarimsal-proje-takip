@@ -1,6 +1,12 @@
 <%- include('_bas', {
       eylemler: '<a href="/ayarlar/urunler/yeni' + (tur ? '?tur=' + encodeURIComponent(tur) : '') + '" class="btn btn-primary"><i class="ti ti-plus me-1"></i> Ürün ekle</a>'
     }) %>
+<%
+  var normAdi = {};
+  ayar.normlar.forEach(function (n) { normAdi[n.kod] = n; });
+  function normMetni(kod, v) { var n = normAdi[kod]; return (n ? n.ad : kod) + ': ' + y.sayi(v.deger) + ' ' + (v.birim || (n && n.birim) || ''); }
+  function ambalajMetni(olcu, a) { return a ? '1 ' + olcu + ' = ' + y.sayi(a.miktar) + ' ' + a.birim : ''; }
+%>
 <div class="card">
   <div class="card-header">
     <div>
@@ -38,17 +44,24 @@
           <% urunler.forEach(function (u) { %>
             <tr>
               <% if (!tur) { %><td><span class="badge bg-green-lt"><%= u.tur %></span></td><% } %>
-              <td class="text-nowrap"><span class="fw-medium"><%= u.ad %></span> <span class="text-secondary small">(<%= u.olcuBirimi %>)</span></td>
+              <td class="text-nowrap">
+                <span class="fw-medium"><%= u.ad %></span> <span class="text-secondary small">(<%= u.olcuBirimi %>)</span>
+                <% if (u.ambalaj) { %><div class="text-secondary small"><i class="ti ti-package"></i> <%= ambalajMetni(u.olcuBirimi, u.ambalaj) %></div><% } %>
+              </td>
               <td>
-                <% if (u.cesitler && u.cesitler.length) { u.cesitler.forEach(function (c) { %>
-                  <span class="badge badge-outline text-secondary me-1 mb-1"><%= c %></span>
+                <% if (u.cesitler.length) { u.cesitler.forEach(function (c) {
+                     var ozel = Object.keys(c.normlar).map(function (k) { return normMetni(k, c.normlar[k]); });
+                     if (c.ambalaj) ozel.push(ambalajMetni(u.olcuBirimi, c.ambalaj)); %>
+                  <span class="badge badge-outline text-secondary me-1 mb-1" <% if (ozel.length) { %>title="<%= ozel.join('\n') %>"<% } %>>
+                    <%= c.ad %><% if (ozel.length) { %> <i class="ti ti-adjustments-horizontal text-primary" aria-label="Çeşide özel değerler"></i><% } %>
+                  </span>
                 <% }) } else { %><span class="text-secondary">–</span><% } %>
               </td>
               <td class="small">
-                <% var dolu = ayar.normlar.filter(function (n) { return u.normlar && u.normlar[n.kod] != null; }); %>
+                <% var dolu = ayar.normlar.filter(function (n) { return u.normlar[n.kod]; }); %>
                 <% if (!dolu.length) { %><span class="text-secondary">Girilmemiş</span><% } %>
-                <% dolu.forEach(function (n) { var t = sabitler.normTipleri[n.tip] || {}; %>
-                  <div class="text-nowrap"><span class="norm-nokta bg-<%= t.renk %>"></span><span class="text-secondary"><%= n.ad %>:</span> <%= y.sayi(u.normlar[n.kod]) %> <span class="text-secondary"><%= n.birim %></span></div>
+                <% dolu.forEach(function (n) { var t = sabitler.normTipleri[n.tip] || {}; var v = u.normlar[n.kod]; %>
+                  <div class="text-nowrap"><span class="norm-nokta bg-<%= t.renk %>"></span><span class="text-secondary"><%= n.ad %>:</span> <%= y.sayi(v.deger) %> <span class="text-secondary"><%= v.birim || n.birim %></span></div>
                 <% }) %>
               </td>
               <td class="tablo-sayi"><%= kullanim[u._id] || '–' %></td>
@@ -57,6 +70,9 @@
           <% }) %>
         </tbody>
       </table>
+    </div>
+    <div class="card-footer text-secondary small">
+      <i class="ti ti-adjustments-horizontal text-primary"></i> işaretli çeşitlerin kendine özel norm ya da ambalaj değeri vardır (üzerine gelince görünür).
     </div>
   <% } %>
 </div>

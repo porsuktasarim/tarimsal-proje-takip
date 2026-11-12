@@ -25,7 +25,8 @@ const ayarSema = new mongoose.Schema({
   ilceler: { type: [String], default: [] },
   kalemTurleri: { type: [String], default: [] },
   olcuBirimleri: { type: [String], default: [] },
-  normlar: { type: [normSema], default: [] }
+  normlar: { type: [normSema], default: [] },
+  gocSurumu: { type: Number, default: 0 }   // uygulanmış veri dönüşümlerinin sürümü (core/gocler.js)
 }, { collection: 'ayarlar', timestamps: { createdAt: false, updatedAt: 'guncellenme' } });
 
 module.exports = mongoose.models.Ayar || mongoose.model('Ayar', ayarSema);

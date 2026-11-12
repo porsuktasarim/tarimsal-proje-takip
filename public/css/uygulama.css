@@ -88,3 +88,8 @@
 .ilce-tablosu-kap tr.secili-degil input[type="number"] { opacity: .45; }
 
 .tablo-sayi { text-align: right; font-variant-numeric: tabular-nums; }
+
+/* Norm değer + birim çifti */
+.norm-cifti .norm-birim { flex: 0 0 5.75rem; max-width: 5.75rem; font-size: .75rem; }
+.ambalaj-girdi .ambalaj-birim { flex: 0 0 6rem; max-width: 6rem; }
+.ambalaj-girdi .ambalaj-etiket { min-width: 5.5rem; justify-content: flex-end; }

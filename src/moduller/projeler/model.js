@@ -3,19 +3,24 @@ const { projeDurumlari } = require('../../config/sabitler');
 
 // Projede dağıtılacak/desteklenecek her kalem. Ürün ve çeşit ayrı tutulur:
 // ör. tür "Tohum", ürün "Mısır", çeşit "ADA".
-// Normlar ürün kataloğundaki varsayılanlardan kopyalanır, proje içinde
-// değiştirilebilir; katalog sonradan değişse de proje etkilenmez.
+// Normlar ve ambalaj ürün kataloğundaki (ürün + çeşit) varsayılanlardan
+// kopyalanır, proje içinde değiştirilebilir; katalog sonradan değişse de
+// proje etkilenmez.
 const kalemSema = new mongoose.Schema({
   urunId: { type: mongoose.Schema.Types.ObjectId, ref: 'Urun' },
   tur: { type: String, required: true, trim: true },
   urun: { type: String, required: true, trim: true },
   cesit: { type: String, trim: true },
-  olcuBirimi: { type: String, required: true, trim: true },
-  alan: { type: Number, min: 0 },                    // bu kalemin uygulanacağı hedef alan (da)
-  normlar: { type: Map, of: Number, default: {} },   // norm kodu -> dekar başı değer
-  toplamMiktar: { type: Number, min: 0 },            // elle girilirse hesaplananın yerine geçer
+  olcuBirimi: { type: String, required: true, trim: true },   // dağıtım birimi (kg, torba, adet...)
+  ambalaj: {                                                  // 1 dağıtım birimi = miktar + birim
+    type: new mongoose.Schema({ miktar: { type: Number, min: 0 }, birim: { type: String, trim: true } }, { _id: false }),
+    default: undefined
+  },
+  alan: { type: Number, min: 0 },                             // bu kalemin hedef alanı (da)
+  normlar: { type: mongoose.Schema.Types.Mixed, default: {} },// { <kod>: { deger, birim } }
+  toplamMiktar: { type: Number, min: 0 },                     // elle girilirse hesaplananın yerine geçer
   aciklama: { type: String, trim: true }
-}, { _id: true });
+}, { _id: true, minimize: false });
 
 // İlçe bazlı hedef
 const ilceHedefSema = new mongoose.Schema({

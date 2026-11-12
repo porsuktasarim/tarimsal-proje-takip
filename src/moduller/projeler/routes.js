@@ -2,9 +2,10 @@ const express = require('express');
 const mongoose = require('mongoose');
 const Proje = require('./model');
 const Urun = require('../ayarlar/modeller/Urun');
+const katalog = require('../ayarlar/katalog');
 const { projeHesabi } = require('./hesap');
 const { projeDurumlari } = require('../../config/sabitler');
-const { sayiOku, diziyeCevir, tarihOku, anahtar, mapDeger } = require('../../core/yardimcilar');
+const { sayiOku, diziyeCevir, tarihOku, anahtar } = require('../../core/yardimcilar');
 
 const router = express.Router();
 const V = 'projeler/views/';
@@ -27,26 +28,20 @@ function formuOku(govde, ayar, mevcut) {
     bitisTarihi: tarihOku(govde.bitisTarihi),
     aciklama: metin(govde.aciklama) || undefined,
     kalemler: diziyeCevir(govde.kalemler)
-      .map((k) => {
-        const normlar = {};
-        ayar.normlar.forEach((n) => {
-          const d = sayiOku(k.normlar && k.normlar[n.kod]);
-          if (d !== undefined) normlar[n.kod] = d;
-        });
-        return {
-          // Mevcut kalemin kimliği korunur; sonraki modüller kaleme bu kimlikle bağlanır.
-          ...(mongoose.isValidObjectId(k._id) ? { _id: k._id } : {}),
-          urunId: mongoose.isValidObjectId(k.urunId) ? k.urunId : undefined,
-          tur: metin(k.tur),
-          urun: metin(k.urun),
-          cesit: metin(k.cesit) || undefined,
-          olcuBirimi: metin(k.olcuBirimi),
-          alan: sayiOku(k.alan),
-          normlar,
-          toplamMiktar: sayiOku(k.toplamMiktar),
-          aciklama: metin(k.aciklama) || undefined
-        };
-      })
+      .map((k) => ({
+        // Mevcut kalemin kimliği korunur; sonraki modüller kaleme bu kimlikle bağlanır.
+        ...(mongoose.isValidObjectId(k._id) ? { _id: k._id } : {}),
+        urunId: mongoose.isValidObjectId(k.urunId) ? k.urunId : undefined,
+        tur: metin(k.tur),
+        urun: metin(k.urun),
+        cesit: metin(k.cesit) || undefined,
+        olcuBirimi: metin(k.olcuBirimi),
+        ambalaj: katalog.ambalajFormuOku(k.ambalaj),
+        alan: sayiOku(k.alan),
+        normlar: katalog.normFormuOku(k.normlar, ayar.normlar, true),
+        toplamMiktar: sayiOku(k.toplamMiktar),
+        aciklama: metin(k.aciklama) || undefined
+      }))
       .filter((k) => k.urun || k.cesit || k.alan !== undefined || Object.keys(k.normlar).length),
     ilceler: diziyeCevir(govde.ilceler)
       .filter((i) => i && i.ilce && gecerliIlceler.has(i.ilce))
@@ -68,66 +63,76 @@ function formuOku(govde, ayar, mevcut) {
   veri.kalemler.forEach((k, i) => {
     if (!k.tur) hatalar.push(`${i + 1}. kalemin türü seçilmelidir.`);
     if (!k.urun) hatalar.push(`${i + 1}. kalemin ürün adı girilmelidir.`);
-    if (!k.olcuBirimi) hatalar.push(`${i + 1}. kalemin ölçü birimi seçilmelidir.`);
+    if (!k.olcuBirimi) hatalar.push(`${i + 1}. kalemin dağıtım birimi seçilmelidir.`);
   });
   if (veri.ilceler.length === 0) hatalar.push('Projenin uygulanacağı en az bir ilçe seçilmelidir.');
 
   return { veri, hatalar };
 }
 
-// Kalemleri ürün kataloğuyla eşleştirir. Katalogda olmayan ürün ya da çeşit
-// kataloğa eklenir; kalemde boş bırakılan normlar ürünün varsayılanıyla dolar.
+// Kalemleri ürün kataloğuyla eşleştirir.
+// - Katalogda olmayan ürün, kalemin değerleriyle kataloğa eklenir.
+// - Katalogda olmayan çeşit ürüne eklenir; kalemde ürününkinden farklı girilen
+//   norm ve ambalaj değerleri o çeşidin kendi değeri olarak saklanır.
+// - Kalemde boş bırakılan normlar (ve ambalaj) ürün + çeşit varsayılanıyla dolar.
 async function katalogaIsle(kalemler, ayar) {
   let eklenen = 0;
   for (const k of kalemler) {
-    let urun = k.urunId ? await Urun.findById(k.urunId) : null;
-    if (urun && (urun.tur !== k.tur || anahtar(urun.ad) !== anahtar(k.urun))) urun = null;
-    if (!urun) {
-      urun = (await Urun.find({ tur: k.tur })).find((u) => anahtar(u.ad) === anahtar(k.urun)) || null;
+    let belge = k.urunId ? await Urun.findById(k.urunId) : null;
+    if (belge && (belge.tur !== k.tur || anahtar(belge.ad) !== anahtar(k.urun))) belge = null;
+    if (!belge) {
+      belge = (await Urun.find({ tur: k.tur })).find((u) => anahtar(u.ad) === anahtar(k.urun)) || null;
     }
 
-    if (!urun) {
-      urun = await Urun.create({
+    if (!belge) {
+      belge = await Urun.create({
         tur: k.tur,
         ad: k.urun,
         olcuBirimi: k.olcuBirimi,
-        cesitler: k.cesit ? [k.cesit] : [],
-        normlar: k.normlar
+        ambalaj: k.ambalaj,
+        normlar: k.normlar,
+        cesitler: k.cesit ? [{ ad: k.cesit, normlar: {} }] : []
       });
       eklenen += 1;
     } else if (k.cesit) {
-      const varolan = urun.cesitler.find((c) => anahtar(c) === anahtar(k.cesit));
+      const urun = katalog.urunDuz(belge);
+      const varolan = katalog.cesitBul(urun, k.cesit);
       if (varolan) {
-        k.cesit = varolan;
+        k.cesit = varolan.ad;
       } else {
-        urun.cesitler.push(k.cesit);
-        await urun.save();
+        const temel = katalog.etkinVarsayilanlar(urun, null);
+        const yeniCesit = { ad: k.cesit, normlar: katalog.farkliNormlar(k.normlar, temel.normlar) };
+        if (k.ambalaj && k.olcuBirimi === urun.olcuBirimi && !katalog.ayniAmbalaj(k.ambalaj, temel.ambalaj)) {
+          yeniCesit.ambalaj = k.ambalaj;
+        }
+        belge.cesitler.push(yeniCesit);
+        belge.markModified('cesitler');
+        await belge.save();
         eklenen += 1;
       }
     }
 
+    const etkin = katalog.etkinVarsayilanlar(katalog.urunDuz(belge), k.cesit);
     ayar.normlar.forEach((n) => {
-      if (k.normlar[n.kod] === undefined) {
-        const d = mapDeger(urun.normlar, n.kod);
-        if (d != null) k.normlar[n.kod] = d;
+      if (!k.normlar[n.kod] && etkin.normlar[n.kod]) {
+        const v = etkin.normlar[n.kod];
+        k.normlar[n.kod] = { deger: v.deger, birim: v.birim || n.birim };
       }
     });
-    k.urunId = urun._id;
-    k.urun = urun.ad;
+    if (!k.ambalaj && etkin.ambalaj && k.olcuBirimi === etkin.olcuBirimi) k.ambalaj = etkin.ambalaj;
+    k.urunId = belge._id;
+    k.urun = belge.ad;
   }
   return eklenen;
 }
 
 async function katalogGetir() {
   const urunler = await Urun.find().sort({ ad: 1 }).lean();
-  return urunler.map((u) => ({
-    _id: String(u._id), tur: u.tur, ad: u.ad, olcuBirimi: u.olcuBirimi, cesitler: u.cesitler || [], normlar: u.normlar || {}
-  }));
+  return urunler.map(katalog.urunDuz);
 }
 
 async function formuGoster(res, durum, sablon) {
-  const katalog = await katalogGetir();
-  return res.status(durum).render(V + 'form', { ...sablon, katalog });
+  return res.status(durum).render(V + 'form', { ...sablon, katalog: await katalogGetir() });
 }
 
 async function projeBul(req, res, next) {

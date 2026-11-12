@@ -9,10 +9,10 @@
 ### Projeler
 
 - **Proje Başlat:** proje adı, kısa ad, yürütücü birim, dönem, başlangıç ve bitiş tarihleri, açıklama
-- **Kalemler:** tür (tohum, gübre…), ürün (Mısır, Macar fiği…), çeşit (AGA, ADA…), ölçü birimi, hedef alan (da), toplam miktar ve normlar
-  - Katalogdan seçilen ürünün normları kendiliğinden dolar, proje içinde değiştirilebilir
-  - Katalogda olmayan ürün ya da çeşit yazılırsa proje kaydedilince kataloğa eklenir
-  - Toplam miktar boş bırakılırsa alan × ekim normu olarak hesaplanır
+- **Kalemler:** tür (tohum, gübre…), ürün (Mısır, Yulaf…), çeşit (AGA, ADA…), hedef alan (da), dağıtım birimi (kg, torba, çuval…), ambalaj içeriği (1 torba = 25.000 adet), normlar (değer + birim) ve toplam dağıtım
+  - Katalogdan seçilen ürün ve çeşidin normları, birimleri ve ambalaj içeriği kendiliğinden dolar; proje içinde değiştirilebilir
+  - Katalogda olmayan ürün ya da çeşit yazılırsa proje kaydedilince kataloğa eklenir; yeni çeşitte ürününkinden farklı girilen değerler o çeşide özel olarak saklanır
+  - Toplam dağıtım boş bırakılırsa hesaplanır: ihtiyaç = alan × ekim normu; dağıtım birimi ambalajsa ihtiyaç ambalaj içeriğine bölünür (ör. 1.000 da × 7.500 adet/da = 7.500.000 adet → 300 torba)
 - **İlçe hedefleri:** projenin uygulanacağı ilçeler; ilçe bazında hedef çiftçi sayısı ve hedef dekar
 - **Hedef çıktılar:** kalem bazında alan × çıktı normu (ot verimi, tane verimi, silaj verimi…) ve proje toplamları
 - Proje listesi, arama, birim ve durum süzgeci
@@ -25,7 +25,7 @@
 | Genel | Kurum adı, il |
 | Yürütücü birimler | Projeleri yürüten birimler |
 | Dönemler | Dönem adı, başlangıç/bitiş, yeni projede seçili gelecek varsayılan dönem |
-| Ürün kataloğu | Türe göre ürünler, çeşitleri ve normların varsayılan değerleri |
+| Ürün kataloğu | Türe göre ürünler; dağıtım birimi, ambalaj içeriği, normların varsayılan değer ve birimleri; çeşitler ve çeşide özel değerler |
 | Hesaplama normları | Dekar başına tanımlanan değerler ve hesaptaki rolleri |
 | Kalem türleri, ölçü birimleri, ilçeler | Formlardaki seçim listeleri |
 
@@ -40,6 +40,8 @@
 | Ekim / uygulama normu | alan × norm = dağıtılacak miktar | Ekim normu 2,5 kg/da |
 | Çıktı (verim) | alan × norm = beklenen üretim | Kuru ot verimi 500 kg/da, tane verimi 300 kg/da |
 | Bilgi | hesaba girmez, kayıt amaçlı | Çiftçi başı azami alan 50 da |
+
+Normun birimi ürüne, çeşide ve kaleme göre değiştirilebilir (ör. ekim normu mısırda adet/da, yulafta kg/da). Çeşitte girilen değer ürünün değerinin yerine geçer; boş bırakılanlarda ürünün değeri geçerlidir.
 
 Normlar kaleme kopyalanarak saklanır; katalogda sonradan yapılan değişiklik eski projelerin hesaplarını etkilemez.
 
@@ -102,6 +104,7 @@ src/
     sabitler.js             İlk kurulum varsayılanları, norm rolleri, proje durumları
   core/
     ayarlar.js              Ayar servisi: önbellek, kullanım sayımı, yeniden adlandırma
+    gocler.js               Veri dönüşümleri (sürüm geçişleri)
     modulYukleyici.js       Modülleri otomatik yükler, menüyü oluşturur
     yardimcilar.js          Sayı, tarih, miktar biçimleme
   views/                    Ortak şablonlar (üst/alt bölüm, bildirimler, hata sayfası)
@@ -116,8 +119,10 @@ public/                     Uygulamaya özel CSS, JS, simge
 | Koleksiyon | İçerik |
 |---|---|
 | `ayarlar` | Tek belge (`_id: genel`): kurum, il, birimler, dönemler, ilçeler, kalem türleri, ölçü birimleri, norm tanımları |
-| `urunler` | Ürün kataloğu: tür, ad, ölçü birimi, çeşitler, varsayılan normlar |
-| `projeler` | Proje bilgileri, kalemler (ürün kimliği, ürün, çeşit, alan, normlar), ilçe hedefleri |
+| `urunler` | Ürün kataloğu: tür, ad, dağıtım birimi, ambalaj, normlar `{ kod: { deger, birim } }`, çeşitler (kendi normları ve ambalajıyla) |
+| `projeler` | Proje bilgileri, kalemler (ürün kimliği, ürün, çeşit, alan, dağıtım birimi, ambalaj, normlar), ilçe hedefleri |
+
+Veri biçimi değiştiğinde dönüşümler `src/core/gocler.js` içinde tanımlanır ve uygulama açılırken bir kez çalışır.
 
 ## Yeni modül eklemek
 

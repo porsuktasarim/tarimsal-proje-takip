@@ -27,7 +27,8 @@ const varsayilanlar = {
 
   kalemTurleri: ['Tohum', 'Fide', 'Fidan', 'Gübre', 'Ekipman', 'Diğer'],
 
-  olcuBirimleri: ['kg', 'adet', 'paket', 'litre', 'ton'],
+  // Kalemin çiftçiye dağıtıldığı birim (torba, çuval gibi ambalajlar dahil)
+  olcuBirimleri: ['kg', 'adet', 'torba', 'çuval', 'paket', 'litre', 'ton'],
 
   // tip: ekim  -> dekar başına verilecek kalem miktarı (dağıtım ihtiyacını hesaplar)
   //      cikti -> dekar başına beklenen üretim (hedef çıktıyı hesaplar)
@@ -40,6 +41,12 @@ const varsayilanlar = {
     { kod: 'silaj_verimi', ad: 'Silaj verimi', birim: 'kg/da', tip: 'cikti' }
   ]
 };
+
+// Norm birimi alanlarında öneri olarak gösterilir; elle başka birim de yazılabilir.
+const normBirimOnerileri = ['kg/da', 'adet/da', 'g/da', 'fide/da', 'litre/da', 'ton/da'];
+
+// Ambalaj içeriğinin birimi (1 torba = 25.000 adet, 1 çuval = 50 kg ...)
+const ambalajBirimleri = ['kg', 'adet', 'g', 'fide', 'litre'];
 
 const normTipleri = {
   ekim: { ad: 'Ekim / uygulama normu', aciklama: 'Dekar başına verilecek miktar; dağıtım ihtiyacı hesaplanır', renk: 'green' },
@@ -54,4 +61,4 @@ const projeDurumlari = {
   iptal: { ad: 'İptal', renk: 'red' }
 };
 
-module.exports = { varsayilanlar, normTipleri, projeDurumlari };
+module.exports = { varsayilanlar, normTipleri, normBirimOnerileri, ambalajBirimleri, projeDurumlari };

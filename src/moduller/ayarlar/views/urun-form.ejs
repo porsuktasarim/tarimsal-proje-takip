@@ -5,65 +5,96 @@
   if (urun.tur && turler.indexOf(urun.tur) < 0) turler.push(urun.tur);
   var olculer = ayar.olcuBirimleri.slice();
   if (urun.olcuBirimi && olculer.indexOf(urun.olcuBirimi) < 0) olculer.push(urun.olcuBirimi);
-  var normlar = urun.normlar || {};
+  var unormlar = urun.normlar || {};
+  var cesitler = urun.cesitler || [];
+
+  // Çeşit bloğu: ürün değerleri yer tutucu olarak görünür; boş bırakılan alanlarda ürünün değeri geçerlidir.
+  function cesitBlogu(i, c) {
+    return include('cesit-blok', { i: i, c: c, unormlar: unormlar, uambalaj: urun.ambalaj, olcu: urun.olcuBirimi });
+  }
 %>
-<form method="post" action="<%= eylem %>" class="card" autocomplete="off">
-  <div class="card-header">
-    <div>
-      <h3 class="card-title"><%= yeni ? 'Yeni ürün' : urun.ad %></h3>
-      <p class="card-subtitle">Normlar bu ürün için varsayılan değerlerdir; projeye eklenirken kaleme kopyalanır ve proje içinde değiştirilebilir.</p>
-    </div>
-  </div>
-  <div class="card-body">
-    <div class="row g-3">
-      <div class="col-md-4">
-        <label class="form-label required">Kalem türü</label>
-        <select name="tur" class="form-select" required>
-          <% turler.forEach(function (t) { %><option <%= urun.tur === t ? 'selected' : '' %>><%= t %></option><% }) %>
-        </select>
-      </div>
-      <div class="col-md-5">
-        <label class="form-label required">Ürün adı</label>
-        <input type="text" name="ad" value="<%= urun.ad || '' %>" class="form-control" placeholder="ör. Mısır, Macar fiği, DAP" required>
-      </div>
-      <div class="col-md-3">
-        <label class="form-label required">Ölçü birimi</label>
-        <select name="olcuBirimi" class="form-select" required>
-          <% olculer.forEach(function (b) { %><option <%= urun.olcuBirimi === b ? 'selected' : '' %>><%= b %></option><% }) %>
-        </select>
-      </div>
-      <div class="col-md-6">
-        <label class="form-label">Çeşitler</label>
-        <textarea name="cesitler" rows="5" class="form-control" placeholder="Her satıra bir çeşit&#10;ör. AGA&#10;ADA"><%= (urun.cesitler || []).join('\n') %></textarea>
-        <small class="form-hint">Her satıra bir çeşit yazılır. Projede yazılan yeni çeşitler buraya eklenir.</small>
-      </div>
-      <div class="col-md-6">
-        <label class="form-label">Açıklama</label>
-        <textarea name="aciklama" rows="5" class="form-control"><%= urun.aciklama || '' %></textarea>
+<form method="post" action="<%= eylem %>" autocomplete="off" data-ambalaj-kapsam>
+  <div class="card mb-3">
+    <div class="card-header">
+      <div>
+        <h3 class="card-title"><%= yeni ? 'Yeni ürün' : urun.ad %></h3>
+        <p class="card-subtitle">Buradaki değerler varsayılandır; projeye eklenirken kaleme kopyalanır ve proje içinde değiştirilebilir.</p>
       </div>
     </div>
-  </div>
-  <div class="card-body border-top">
-    <h4 class="subheader mb-3">Varsayılan normlar</h4>
-    <div class="row g-3">
-      <% ayar.normlar.forEach(function (n) { var t = sabitler.normTipleri[n.tip] || {}; %>
-        <div class="col-sm-6 col-md-4">
-          <label class="form-label"><%= n.ad %> <span class="badge bg-<%= t.renk %>-lt ms-1"><%= t.ad %></span></label>
-          <div class="input-group">
-            <input type="number" step="any" min="0" name="normlar[<%= n.kod %>]" value="<%= normlar[n.kod] != null ? normlar[n.kod] : '' %>" class="form-control text-end">
-            <span class="input-group-text"><%= n.birim %></span>
-          </div>
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-md-4">
+          <label class="form-label required">Kalem türü</label>
+          <select name="tur" class="form-select" required>
+            <% turler.forEach(function (t) { %><option <%= urun.tur === t ? 'selected' : '' %>><%= t %></option><% }) %>
+          </select>
         </div>
-      <% }) %>
+        <div class="col-md-8">
+          <label class="form-label required">Ürün adı</label>
+          <input type="text" name="ad" value="<%= urun.ad || '' %>" class="form-control" placeholder="ör. Mısır, Yulaf, DAP gübresi" required>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label required">Dağıtım birimi</label>
+          <select name="olcuBirimi" class="form-select dagitim-birimi" required>
+            <% olculer.forEach(function (b) { %><option <%= urun.olcuBirimi === b ? 'selected' : '' %>><%= b %></option><% }) %>
+          </select>
+          <small class="form-hint">Çiftçiye hangi birimle verildiği (kg, torba, adet...).</small>
+        </div>
+        <div class="col-md-8" id="urun-ambalaj">
+          <label class="form-label">Ambalaj içeriği</label>
+          <%- include('../../../views/partials/ambalaj-girdi', { onek: 'ambalaj', a: urun.ambalaj, etiket: '1 ' + (urun.olcuBirimi || 'ambalaj') + ' =' }) %>
+          <small class="form-hint">Dağıtım birimi torba, çuval gibi bir ambalajsa içeriği girilir (ör. 1 torba = 25.000 adet ya da 25 kg). Dağıtılacak ambalaj sayısı bundan hesaplanır.</small>
+        </div>
+        <div class="col-12">
+          <label class="form-label">Açıklama</label>
+          <textarea name="aciklama" rows="2" class="form-control"><%= urun.aciklama || '' %></textarea>
+        </div>
+      </div>
     </div>
-    <small class="form-hint mt-2">Bu ürün için geçerli olmayan normlar boş bırakılabilir. Norm eklemek için <a href="/ayarlar/normlar">Hesaplama normları</a>.</small>
   </div>
-  <div class="card-footer d-flex align-items-center gap-2">
+
+  <div class="card mb-3">
+    <div class="card-header">
+      <div>
+        <h3 class="card-title">Varsayılan normlar</h3>
+        <p class="card-subtitle">Birim ürüne göre değiştirilebilir (ör. mısırda ekim normu adet/da, yulafta kg/da). Geçerli olmayan normlar boş bırakılır.</p>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="row g-3">
+        <% ayar.normlar.forEach(function (n) { var v = unormlar[n.kod] || {}; %>
+          <%- include('../../../views/partials/norm-girdi', { onek: 'normlar', n: n, deger: v.deger, birim: v.birim || n.birim }) %>
+        <% }) %>
+      </div>
+      <small class="form-hint mt-2">Norm eklemek için <a href="/ayarlar/normlar">Hesaplama normları</a>.</small>
+    </div>
+  </div>
+
+  <div class="card mb-3">
+    <div class="card-header">
+      <div>
+        <h3 class="card-title">Çeşitler</h3>
+        <p class="card-subtitle">Çeşide göre farklı olan normlar ve ambalaj buraya girilir; boş bırakılan alanlarda ürünün değeri geçerlidir.</p>
+      </div>
+      <div class="card-actions">
+        <button type="button" class="btn btn-sm" data-satir-ekle="cesitler"><i class="ti ti-plus me-1"></i> Çeşit ekle</button>
+      </div>
+    </div>
+    <div class="card-body">
+      <div data-satirlar="cesitler">
+        <% cesitler.forEach(function (c, i) { %><%- cesitBlogu(i, c) %><% }) %>
+      </div>
+      <div class="d-none text-secondary text-center py-2" data-satir-bos="cesitler">Çeşit tanımlı değil. Projede yazılan yeni çeşitler buraya kendiliğinden eklenir.</div>
+    </div>
+    <template id="cesitler-sablon"><%- cesitBlogu('__i__', {}) %></template>
+  </div>
+
+  <div class="d-flex align-items-center gap-2 mb-4">
     <% if (!yeni) { %>
-      <% if (typeof kullanim !== 'undefined' && kullanim > 0) { %>
-        <span class="text-secondary small me-auto"><i class="ti ti-info-circle"></i> <%= kullanim %> projede kullanılıyor; ad değişirse projelerdeki kalemler de güncellenir.</span>
+      <% if (kullanim > 0) { %>
+        <span class="text-secondary small me-auto"><i class="ti ti-info-circle"></i> <%= kullanim %> projede kullanılıyor; ürün ya da çeşit adı değişirse projelerdeki kalemler de güncellenir.</span>
       <% } else { %>
-        <button type="submit" formaction="/ayarlar/urunler/<%= urun._id %>/sil" class="btn btn-ghost-danger me-auto"
+        <button type="submit" formaction="/ayarlar/urunler/<%= urun._id %>/sil" formnovalidate class="btn btn-ghost-danger me-auto"
                 data-onay-dugme="Bu ürün katalogdan silinecek. Devam edilsin mi?"><i class="ti ti-trash me-1"></i> Sil</button>
       <% } %>
     <% } %>

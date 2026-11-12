@@ -92,9 +92,10 @@
         </div>
         <div class="card-body">
           <p class="text-secondary">
-            Ürün kataloğundan seçilen ürünün normları kendiliğinden dolar ve değiştirilebilir. Katalogda olmayan bir ürün ya da çeşit yazılırsa proje kaydedilince
-            <a href="/ayarlar/urunler">Ürün kataloğu</a>na eklenir. Alan boş bırakılır ve projede tek kalem varsa ilçe hedeflerinin toplam dekarı kullanılır;
-            toplam miktar boş bırakılırsa alan × ekim normu olarak hesaplanır.
+            Katalogdan seçilen ürün ve çeşidin normları, birimleri ve ambalaj içeriği kendiliğinden dolar; hepsi proje içinde değiştirilebilir.
+            Katalogda olmayan bir ürün ya da çeşit yazılırsa proje kaydedilince <a href="/ayarlar/urunler">Ürün kataloğu</a>na eklenir.
+            Toplam dağıtım boş bırakılırsa alan × ekim normu olarak hesaplanır; dağıtım birimi torba, çuval gibi bir ambalajsa ambalaj içeriğine bölünür.
+            Alan boş bırakılır ve projede tek kalem varsa ilçe hedeflerinin toplam dekarı kullanılır.
           </p>
           <div data-satirlar="kalemler" class="kalem-listesi">
             <% kalemler.forEach(function (k, i) { %>
