@@ -5,12 +5,21 @@ const Ciftci = require('../ciftciler/model');
 const { ciftciFormuOku, ciftciDenetle } = require('../ciftciler/routes');
 const { talepHesabi, fiyatBirimi } = require('../projeler/hesap');
 const { normOku } = require('../ayarlar/katalog');
-const { talepDurumlari } = require('../../config/sabitler');
+const { talepDurumlari, BIN_DANE_KOD } = require('../../config/sabitler');
 const { sayiOku, diziyeCevir, anahtar, sonucBirimi, hayvanlariOku } = require('../../core/yardimcilar');
-const { calisilanIlceler, ilceKisitliMi } = require('../../core/yetki');
+const { calisilanIlceler, ilceKisitliMi, yetkiGerekli } = require('../../core/yetki');
 
 const router = express.Router();
 const V = 'talepler/views/';
+
+// Görüntüleme talep.gor; giriş/düzenleme talep.gir; durum talep.onayla; silme talep.sil
+router.use((req, res, next) => {
+  let gerek = 'talep.gor';
+  if (/\/durum$/.test(req.path)) gerek = 'talep.onayla';
+  else if (/\/sil$/.test(req.path)) gerek = 'talep.sil';
+  else if (req.method !== 'GET' || /\/(yeni|duzenle)$/.test(req.path)) gerek = 'talep.gir';
+  return yetkiGerekli(gerek)(req, res, next);
+});
 const sar = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
 const metin = (v) => (v === undefined || v === null ? '' : String(v).trim());
 const Proje = () => mongoose.model('Proje');
@@ -33,7 +42,8 @@ function kalemVerisi(proje, ayar) {
       olcuBirimi: k.olcuBirimi,
       ambalaj: k.ambalaj && k.ambalaj.miktar > 0 ? { miktar: k.ambalaj.miktar, birim: k.ambalaj.birim } : null,
       birimFiyat: k.birimFiyat != null ? k.birimFiyat : null,
-      fiyatBirimi: fiyatBirimi(k)
+      fiyatBirimi: fiyatBirimi(k),
+      binDane: (normOku(k.normlar, BIN_DANE_KOD) || {}).deger || null
     };
   });
 }
@@ -87,7 +97,7 @@ router.get('/', sar(async (req, res) => {
   const proje = await Proje().findById(projeId);
   if (!proje) return res.redirect('/talepler');
 
-  const kisitli = ilceKisitliMi(ben);
+  const kisitli = ilceKisitliMi(ben, ayar);
   const ilce = req.query.ilce !== undefined ? String(req.query.ilce) : (kisitli ? 'benim' : '');
   const filtre = { projeId: proje._id };
   if (ilce === 'benim' && kisitli) filtre.ilce = { $in: ben.ilceler };
@@ -165,7 +175,7 @@ async function kaydet(req, res, mevcutTalep) {
     izinliIlceler = [...ilceler, ciftci.ilce];
   }
   const hatalar = [...ciftciDenetle(ciftciVeri, izinliIlceler), ...satirlariDenetle(satirlar)];
-  if (ciftci && !ilceler.includes(ciftci.ilce) && ilceKisitliMi(ben)) {
+  if (ciftci && !ilceler.includes(ciftci.ilce) && ilceKisitliMi(ben, ayar)) {
     hatalar.push(`Bu çiftçi ${ciftci.ilce} ilçesinde kayıtlı; talebi ${ciftci.ilce} ilçesi personeli girmelidir.`);
   }
   if (ciftci) {

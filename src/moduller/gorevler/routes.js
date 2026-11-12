@@ -4,12 +4,23 @@ const Gorev = require('./model');
 const Kisi = require('../ayarlar/modeller/Kisi');
 const { gorevDurumlari, oncelikler } = require('../../config/sabitler');
 const { tarihOku } = require('../../core/yardimcilar');
+const { yetkiGerekli, yetkisizSayfa } = require('../../core/yetki');
 
 const router = express.Router();
 const V = 'gorevler/views/';
 const sar = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
 const metin = (v) => (v === undefined || v === null ? '' : String(v).trim());
-const ROLLER = ['yonetici', 'koordinator', 'yurutucu'];
+const rolVarMi = (ayar, kod) => !!(kod && ayar.rolHaritasi[kod]);
+
+// Görev kişiye ya da kişinin rolüne verilmişse ya da kişi görevi vermişse ilgilidir.
+function ilgiliMi(gorev, ben) {
+  if (!ben) return false;
+  const kisiId = gorev.atama.kisiId && (gorev.atama.kisiId._id || gorev.atama.kisiId);
+  const olusturan = gorev.olusturan && (gorev.olusturan._id || gorev.olusturan);
+  return (gorev.atama.tur === 'kisi' && String(kisiId) === String(ben._id))
+    || (gorev.atama.tur === 'rol' && gorev.atama.rol === ben.rol)
+    || String(olusturan) === String(ben._id);
+}
 
 const hareket = (ben, tur, ek = {}) => ({
   tarih: new Date(),
@@ -34,7 +45,7 @@ async function secenekler() {
   return { kisiler, projeler };
 }
 
-function formuOku(g) {
+function formuOku(g, ayar) {
   const tur = g.atamaTur === 'rol' ? 'rol' : 'kisi';
   return {
     baslik: metin(g.baslik),
@@ -42,7 +53,7 @@ function formuOku(g) {
     atama: {
       tur,
       kisiId: tur === 'kisi' && mongoose.isValidObjectId(g.kisiId) ? g.kisiId : undefined,
-      rol: tur === 'rol' && ROLLER.includes(g.rol) ? g.rol : undefined
+      rol: tur === 'rol' && rolVarMi(ayar, g.rol) ? g.rol : undefined
     },
     projeId: mongoose.isValidObjectId(g.projeId) ? g.projeId : undefined,
     ilce: metin(g.ilce) || undefined,
@@ -67,7 +78,8 @@ async function formGoster(res, durum, yerel) {
 
 router.get('/', sar(async (req, res) => {
   const ben = req.ben;
-  const gorunum = ['bana', 'tumu', 'verdigim'].includes(req.query.gorunum) ? req.query.gorunum : (ben ? 'bana' : 'tumu');
+  let gorunum = ['bana', 'tumu', 'verdigim'].includes(req.query.gorunum) ? req.query.gorunum : (ben ? 'bana' : 'tumu');
+  if (gorunum === 'tumu' && !req.izin('gorev.gor')) gorunum = 'bana';
   const durum = req.query.durum === 'tumu' || gorevDurumlari[req.query.durum] ? req.query.durum : 'acik';
 
   const kosullar = [];
@@ -87,20 +99,20 @@ router.get('/', sar(async (req, res) => {
     sayac.bana = await Gorev.countDocuments({ $and: [Gorev.kisiSorgusu(ben), { durum: { $in: ['bekliyor', 'suruyor'] } }] });
     sayac.verdigim = await Gorev.countDocuments({ olusturan: ben._id, durum: { $in: ['bekliyor', 'suruyor'] } });
   }
-  sayac.tumu = await Gorev.countDocuments({ durum: { $in: ['bekliyor', 'suruyor'] } });
+  if (req.izin('gorev.gor')) sayac.tumu = await Gorev.countDocuments({ durum: { $in: ['bekliyor', 'suruyor'] } });
 
   const projeler = await mongoose.model('Proje').find().select('ad kisaAd').sort({ olusturulma: -1 }).lean();
   res.render(V + 'liste', { baslik: 'Görevler', gorevler, gorunum, durum, sayac, projeler, seciliProje: req.query.proje || '' });
 }));
 
-router.get('/yeni', sar(async (req, res) => {
+router.get('/yeni', yetkiGerekli('gorev.ver'), sar(async (req, res) => {
   const q = req.query;
   return formGoster(res, 200, {
     baslik: 'Yeni görev',
     gorev: {
       atama: {
-        tur: ROLLER.includes(q.rol) ? 'rol' : 'kisi',
-        rol: ROLLER.includes(q.rol) ? q.rol : undefined,
+        tur: rolVarMi(res.locals.ayar, q.rol) ? 'rol' : 'kisi',
+        rol: rolVarMi(res.locals.ayar, q.rol) ? q.rol : undefined,
         kisiId: mongoose.isValidObjectId(q.kisi) ? q.kisi : undefined
       },
       projeId: mongoose.isValidObjectId(q.proje) ? q.proje : undefined,
@@ -113,8 +125,8 @@ router.get('/yeni', sar(async (req, res) => {
   });
 }));
 
-router.post('/', sar(async (req, res) => {
-  const veri = formuOku(req.body);
+router.post('/', yetkiGerekli('gorev.ver'), sar(async (req, res) => {
+  const veri = formuOku(req.body, res.locals.ayar);
   const hatalar = denetle(veri);
   if (hatalar.length) {
     return formGoster(res, 422, { baslik: 'Yeni görev', gorev: veri, hatalar, eylem: '/gorevler', geri: '/gorevler' });
@@ -132,16 +144,17 @@ async function gorevBul(req, res, next) {
 }
 
 router.get('/:id', sar(gorevBul), sar(async (req, res) => {
+  if (!req.izin('gorev.gor') && !ilgiliMi(req.gorev, req.ben)) return yetkisizSayfa(res);
   const gorev = await doldur(Gorev.findById(req.gorev._id));
   res.render(V + 'detay', { baslik: gorev.baslik, gorev });
 }));
 
-router.get('/:id/duzenle', sar(gorevBul), sar(async (req, res) => formGoster(res, 200, {
+router.get('/:id/duzenle', yetkiGerekli('gorev.ver'), sar(gorevBul), sar(async (req, res) => formGoster(res, 200, {
   baslik: 'Görevi düzenle', gorev: req.gorev.toObject(), hatalar: [], eylem: `/gorevler/${req.gorev._id}`, geri: `/gorevler/${req.gorev._id}`
 })));
 
-router.post('/:id', sar(gorevBul), sar(async (req, res) => {
-  const veri = formuOku(req.body);
+router.post('/:id', yetkiGerekli('gorev.ver'), sar(gorevBul), sar(async (req, res) => {
+  const veri = formuOku(req.body, res.locals.ayar);
   const hatalar = denetle(veri);
   if (hatalar.length) {
     veri._id = req.gorev._id;
@@ -154,6 +167,7 @@ router.post('/:id', sar(gorevBul), sar(async (req, res) => {
 }));
 
 router.post('/:id/durum', sar(gorevBul), sar(async (req, res) => {
+  if (!req.izin('gorev.ver') && !ilgiliMi(req.gorev, req.ben)) return yetkisizSayfa(res);
   const yeni = req.body.durum;
   const not = metin(req.body.not);
   if (gorevDurumlari[yeni] && yeni !== req.gorev.durum) {
@@ -170,6 +184,7 @@ router.post('/:id/durum', sar(gorevBul), sar(async (req, res) => {
 }));
 
 router.post('/:id/not', sar(gorevBul), sar(async (req, res) => {
+  if (!req.izin('gorev.ver') && !ilgiliMi(req.gorev, req.ben)) return yetkisizSayfa(res);
   const not = metin(req.body.metin);
   if (not) {
     req.gorev.hareketler.push(hareket(req.ben, 'not', { metin: not }));
@@ -178,7 +193,7 @@ router.post('/:id/not', sar(gorevBul), sar(async (req, res) => {
   return res.redirect(`/gorevler/${req.gorev._id}?bildirim=not-eklendi`);
 }));
 
-router.post('/:id/sil', sar(gorevBul), sar(async (req, res) => {
+router.post('/:id/sil', yetkiGerekli('gorev.ver'), sar(gorevBul), sar(async (req, res) => {
   await req.gorev.deleteOne();
   return res.redirect('/gorevler?bildirim=gorev-silindi');
 }));

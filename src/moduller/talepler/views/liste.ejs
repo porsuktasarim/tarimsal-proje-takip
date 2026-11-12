@@ -1,7 +1,7 @@
 <%- include('../../../views/partials/ust') %>
 <%- include('../../../views/partials/sayfa-basligi', {
       ustBaslik: proje ? (proje.kisaAd || proje.ad) : 'Projeler',
-      eylemler: proje ? '<a href="/talepler/yeni?proje=' + proje._id + '" class="btn btn-primary"><i class="ti ti-plus me-1"></i> Talep gir</a>' : ''
+      eylemler: proje && izin('talep.gir') ? '<a href="/talepler/yeni?proje=' + proje._id + '" class="btn btn-primary"><i class="ti ti-plus me-1"></i> Talep gir</a>' : ''
     }) %>
 <%
   var td = sabitler.talepDurumlari;

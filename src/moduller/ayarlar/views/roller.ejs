@@ -2,31 +2,33 @@
 <form method="post" action="/ayarlar/roller" class="card" autocomplete="off">
   <div class="card-header">
     <div>
-      <h3 class="card-title">Roller</h3>
-      <p class="card-subtitle">Sistemdeki üç rol sabittir; ekranlarda görünen adları ve açıklamaları değiştirilebilir. Kişiler <a href="/ayarlar/kisiler">Kişiler</a> sayfasından bu rollere atanır, görevler kişiye ya da role verilebilir.</p>
+      <h3 class="card-title">Roller ve yetkiler</h3>
+      <p class="card-subtitle">Her kişinin bir rolü vardır; kişi rolüne işaretlenen işlemleri yapabilir. Kişi kendisine ya da rolüne verilen görevleri her zaman görür ve durumunu günceller.</p>
+    </div>
+    <div class="card-actions">
+      <button type="button" class="btn btn-sm" data-satir-ekle="roller"><i class="ti ti-plus me-1"></i> Rol ekle</button>
     </div>
   </div>
   <div class="card-body">
-    <% roller.forEach(function (r) { %>
-      <div class="row g-3 align-items-start mb-3 pb-3 border-bottom">
-        <div class="col-md-1 pt-md-4">
-          <span class="avatar bg-<%= sabitler.rolRenkleri[r.kod] %>-lt"><i class="ti ti-id-badge-2"></i></span>
-        </div>
-        <div class="col-md-4">
-          <label class="form-label">Rol adı</label>
-          <input type="text" name="roller[<%= r.kod %>][ad]" value="<%= r.ad %>" class="form-control" required>
-          <small class="form-hint"><%= sayilar[r.kod] || 0 %> aktif kişi</small>
-        </div>
-        <div class="col-md-7">
-          <label class="form-label">Açıklama</label>
-          <textarea name="roller[<%= r.kod %>][aciklama]" rows="2" class="form-control"><%= r.aciklama || '' %></textarea>
-        </div>
-      </div>
-    <% }) %>
-    <div class="text-secondary small"><i class="ti ti-info-circle"></i> Şimdilik tüm roller tüm ekranları görür. Rollere göre ekran ve yetki ayrımı sonraki sürümlerde bu rollere bağlanacaktır.</div>
+    <div data-satirlar="roller">
+      <% roller.forEach(function (r, i) { %>
+        <%- include('rol-blok', { i: i, r: r, kullanim: kullanim[r.kod] }) %>
+      <% }) %>
+    </div>
+    <div class="text-secondary small mt-2">
+      <i class="ti ti-info-circle"></i> Sistem Yöneticisi atanana kadar yetki denetimi uygulanmaz. Giriş şifresiz olduğundan yetkiler bir güvenlik önlemi değil, iş bölümüdür.
+    </div>
   </div>
+  <template id="roller-sablon"><%- include('rol-blok', { i: '__i__', r: { renk: 'secondary', yetkiler: ['pano.gor', 'proje.gor'] }, kullanim: null }) %></template>
   <div class="card-footer text-end">
     <button type="submit" class="btn btn-primary"><i class="ti ti-device-floppy me-1"></i> Kaydet</button>
   </div>
 </form>
+<script>
+  document.addEventListener('change', function (e) {
+    if (!e.target.matches('.rol-renk')) return;
+    var on = e.target.closest('.rol-blok').querySelector('.rol-renk-onizleme');
+    on.className = 'badge bg-' + e.target.value + ' p-1 rol-renk-onizleme';
+  });
+</script>
 <%- include('_son') %>

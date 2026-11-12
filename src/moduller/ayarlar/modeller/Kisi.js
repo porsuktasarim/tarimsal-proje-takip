@@ -1,13 +1,13 @@
 const mongoose = require('mongoose');
 
-// Sistemi kullanan kişiler. Rol kodu: yonetici | koordinator | yurutucu
-// (rol adları Ayarlar > Roller'den değiştirilebilir).
+// Sistemi kullanan kişiler. Rol, Ayarlar > Roller ve yetkiler'de tanımlı bir
+// rolün kodudur; "admin" (Sistem Yöneticisi) tek kişiye verilir.
 // Şimdilik şifre yoktur; giriş ekranında kişi seçilir.
 
 const kisiSema = new mongoose.Schema({
   adSoyad: { type: String, required: true, trim: true },
   unvan: { type: String, trim: true },
-  rol: { type: String, required: true, enum: ['yonetici', 'koordinator', 'yurutucu'] },
+  rol: { type: String, required: true, trim: true },
   birim: { type: String, trim: true },
   ilceler: { type: [String], default: [] },   // sorumlu olduğu ilçeler (özellikle yürütücüler)
   telefon: { type: String, trim: true },

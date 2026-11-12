@@ -180,8 +180,11 @@
       <%
         var secKoor = (proje.koordinatorler || []).map(String);
         var secYur = (proje.yurutuculer || []).map(String);
-        var ekipListesi = function (rol, ad, secili) {
-          return kisiler.filter(function (k) { return k.rol === rol && (k.aktif || secili.indexOf(String(k._id)) >= 0); });
+        // Her listede aktif kişiler ile projede kayıtlı pasif kişiler; önerilen rol önce gelir
+        var ekipListesi = function (oncelikliRol, secili) {
+          return kisiler
+            .filter(function (k) { return k.aktif || secili.indexOf(String(k._id)) >= 0; })
+            .sort(function (a, b) { return (a.rol === oncelikliRol ? 0 : 1) - (b.rol === oncelikliRol ? 0 : 1) || a.adSoyad.localeCompare(b.adSoyad, 'tr'); });
         };
       %>
       <div class="card mb-3">
@@ -190,22 +193,26 @@
         </div>
         <div class="card-body">
           <div class="row g-4">
-            <% [['koordinator', 'koordinatorler', secKoor], ['yurutucu', 'yurutuculer', secYur]].forEach(function (g) {
-                 var liste = ekipListesi(g[0], g[1], g[2]); %>
+            <% [['Proje koordinatörleri', 'koordinator', 'koordinatorler', secKoor], ['Proje yürütücüleri', 'yurutucu', 'yurutuculer', secYur]].forEach(function (g) {
+                 var liste = ekipListesi(g[1], g[3]); %>
               <div class="col-md-6">
-                <div class="form-label"><%= ayar.rolAdlari[g[0]] %></div>
+                <div class="form-label"><%= g[0] %></div>
                 <% if (!liste.length) { %>
-                  <div class="text-secondary small">Bu rolde kişi tanımlı değil. <a href="/ayarlar/kisiler/yeni?rol=<%= g[0] %>">Kişi ekle</a></div>
+                  <div class="text-secondary small">Kişi tanımlı değil. <a href="/ayarlar/kisiler/yeni">Kişi ekle</a></div>
                 <% } %>
-                <% liste.forEach(function (k, i) { %>
-                  <label class="form-check">
-                    <input type="checkbox" class="form-check-input" name="<%= g[1] %>[<%= i %>]" value="<%= k._id %>" <%= g[2].indexOf(String(k._id)) >= 0 ? 'checked' : '' %>>
-                    <span class="form-check-label">
-                      <%= k.adSoyad %><% if (!k.aktif) { %> <span class="badge bg-secondary-lt">Pasif</span><% } %>
-                      <% if (k.ilceler && k.ilceler.length) { %><span class="text-secondary small"> · <%= k.ilceler.join(', ') %></span><% } %>
-                    </span>
-                  </label>
-                <% }) %>
+                <div class="ekip-listesi">
+                  <% liste.forEach(function (k, i) { %>
+                    <label class="form-check">
+                      <input type="checkbox" class="form-check-input" name="<%= g[2] %>[<%= i %>]" value="<%= k._id %>" <%= g[3].indexOf(String(k._id)) >= 0 ? 'checked' : '' %>>
+                      <span class="form-check-label">
+                        <%= k.adSoyad %>
+                        <span class="badge bg-<%= ayar.rolRenk[k.rol] || 'secondary' %>-lt ms-1"><%= ayar.rolAdlari[k.rol] || k.rol %></span>
+                        <% if (!k.aktif) { %><span class="badge bg-secondary-lt">Pasif</span><% } %>
+                        <% if (k.ilceler && k.ilceler.length) { %><span class="text-secondary small"> · <%= k.ilceler.join(', ') %></span><% } %>
+                      </span>
+                    </label>
+                  <% }) %>
+                </div>
               </div>
             <% }) %>
           </div>

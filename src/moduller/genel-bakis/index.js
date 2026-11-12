@@ -6,7 +6,7 @@ module.exports = {
   ad: 'Genel Bakış',
   sira: 5,
   menu: [
-    { ad: 'Genel Bakış', yol: '/genel-bakis', ikon: 'ti-chart-pie' }
+    { ad: 'Genel Bakış', yol: '/genel-bakis', ikon: 'ti-chart-pie', yetki: 'pano.gor' }
   ],
   router: require('./routes')
 };

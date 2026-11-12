@@ -5,7 +5,7 @@ module.exports = {
   ad: 'Talepler',
   sira: 20,
   menu: [
-    { ad: 'Çiftçi talepleri', yol: '/talepler', ikon: 'ti-clipboard-list' }
+    { ad: 'Çiftçi talepleri', yol: '/talepler', ikon: 'ti-clipboard-list', yetki: 'talep.gor' }
   ],
   router: require('./routes')
 };

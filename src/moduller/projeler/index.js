@@ -7,8 +7,8 @@ module.exports = {
   ad: 'Projeler',
   sira: 10,
   menu: [
-    { ad: 'Projeler', yol: '/projeler', ikon: 'ti-folders' },
-    { ad: 'Proje Başlat', yol: '/projeler/yeni', ikon: 'ti-circle-plus' }
+    { ad: 'Projeler', yol: '/projeler', ikon: 'ti-folders', yetki: 'proje.gor' },
+    { ad: 'Proje Başlat', yol: '/projeler/yeni', ikon: 'ti-circle-plus', yetki: 'proje.yonet' }
   ],
   router: require('./routes')
 };

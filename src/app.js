@@ -9,6 +9,7 @@ const ayarlar = require('./core/ayarlar');
 const { modulleriYukle } = require('./core/modulYukleyici');
 const { gocleriUygula } = require('./core/gocler');
 const { kimlikAraKatmani, kimlikRouter } = require('./core/kimlik');
+const { yetkiAraKatmani } = require('./core/yetki');
 
 const app = express();
 const KOK = path.join(__dirname, '..');
@@ -34,6 +35,8 @@ app.locals.varlikSurumu = `${app.locals.surum}-${Date.now().toString(36)}`;
 app.locals.sabitler = sabitler;
 app.locals.ben = null;          // kimlik ara katmanı doldurur
 app.locals.kurulumKipi = false;
+app.locals.adminVar = true;
+app.locals.izin = () => false;  // yetki ara katmanı doldurur
 app.locals.y = { ...yardimcilar, normOku: require('./moduller/ayarlar/katalog').normOku };
 
 app.use((req, res, next) => {
@@ -49,9 +52,10 @@ app.use((req, res, next) => {
 });
 
 app.use(kimlikAraKatmani);
+app.use(yetkiAraKatmani);
 app.use('/kimlik', kimlikRouter);
 
-app.get('/', (req, res) => res.redirect('/genel-bakis'));
+app.get('/', (req, res) => res.redirect(req.izin('pano.gor') ? '/genel-bakis' : '/gorevler'));
 
 modulleriYukle(app);
 

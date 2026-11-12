@@ -30,6 +30,8 @@ async function kimlikAraKatmani(req, res, next) {
     }
     req.ben = ben;
     res.locals.ben = ben;
+    // Sistem Yöneticisi atanmadıysa yetki denetimi uygulanmaz (ilk kurulum)
+    res.locals.adminVar = !!(await Kisi.exists({ rol: 'admin', aktif: true }));
 
     if (!ben) {
       const kisiSayisi = await Kisi.countDocuments({ aktif: true });

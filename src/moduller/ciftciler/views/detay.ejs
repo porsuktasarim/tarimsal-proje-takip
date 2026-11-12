@@ -2,7 +2,7 @@
 <%
   var c = ciftci;
   var td = sabitler.talepDurumlari;
-  var eylemler = '<a href="/ciftciler/' + c._id + '/duzenle" class="btn"><i class="ti ti-edit me-1"></i> Düzenle</a>';
+  var eylemler = izin('ciftci.yonet') ? '<a href="/ciftciler/' + c._id + '/duzenle" class="btn"><i class="ti ti-edit me-1"></i> Düzenle</a>' : '';
 %>
 <%- include('../../../views/partials/sayfa-basligi', { ustBaslik: 'Çiftçi icmali', eylemler: eylemler }) %>
 <div class="page-body">
@@ -24,7 +24,7 @@
             </dl>
             <% if (c.aciklama) { %><hr class="my-3"><div class="text-secondary" style="white-space: pre-line"><%= c.aciklama %></div><% } %>
           </div>
-          <% if (!satirlar.length) { %>
+          <% if (!satirlar.length && izin('ciftci.yonet')) { %>
             <div class="card-footer">
               <form method="post" action="/ciftciler/<%= c._id %>/sil" data-onay="Çiftçi kaydı silinecek. Devam edilsin mi?">
                 <button class="btn btn-ghost-danger btn-sm w-100"><i class="ti ti-trash me-1"></i> Kaydı sil</button>
@@ -59,7 +59,7 @@
               </div>
               <div class="card-actions">
                 <span class="badge bg-<%= d.renk %>-lt me-2"><%= d.ad %></span>
-                <a href="/talepler/<%= t._id %>" class="btn btn-sm">Talep</a>
+                <% if (izin('talep.gor')) { %><a href="/talepler/<%= t._id %>" class="btn btn-sm">Talep</a><% } %>
               </div>
             </div>
             <div class="table-responsive">

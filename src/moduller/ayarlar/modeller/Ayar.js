@@ -18,7 +18,10 @@ const normSema = new mongoose.Schema({
 const rolSema = new mongoose.Schema({
   kod: { type: String, required: true, trim: true },
   ad: { type: String, required: true, trim: true },
-  aciklama: { type: String, trim: true }
+  aciklama: { type: String, trim: true },
+  renk: { type: String, trim: true },
+  ilceKisitli: { type: Boolean, default: false },   // yalnızca kişinin sorumlu ilçelerinde çalışır
+  yetkiler: { type: [String], default: [] }
 }, { _id: false });
 
 const ayarSema = new mongoose.Schema({

@@ -19,7 +19,7 @@
     <% ayar.roller.forEach(function (r) {
          var liste = kisiler.filter(function (k) { return k.rol === r.kod; }); %>
       <div class="card-body border-bottom py-2 d-flex align-items-center">
-        <span class="badge bg-<%= sabitler.rolRenkleri[r.kod] %>-lt me-2"><%= r.ad %></span>
+        <span class="badge bg-<%= ayar.rolRenk[r.kod] %>-lt me-2"><%= r.ad %></span>
         <span class="text-secondary small"><%= liste.length %> kişi</span>
         <a href="/ayarlar/kisiler/yeni?rol=<%= r.kod %>" class="btn btn-ghost-secondary btn-sm ms-auto"><i class="ti ti-plus me-1"></i> Ekle</a>
       </div>
@@ -29,7 +29,7 @@
             <tbody>
               <% liste.forEach(function (k) { %>
                 <tr class="<%= k.aktif ? '' : 'opacity-50' %>">
-                  <td class="w-1"><span class="avatar avatar-sm bg-<%= sabitler.rolRenkleri[k.rol] %>-lt"><%= k.basHarfler %></span></td>
+                  <td class="w-1"><span class="avatar avatar-sm bg-<%= ayar.rolRenk[k.rol] %>-lt"><%= k.basHarfler %></span></td>
                   <td>
                     <div class="fw-medium"><%= k.adSoyad %><% if (!k.aktif) { %> <span class="badge bg-secondary-lt ms-1">Pasif</span><% } %><% if (ben && ben._id === String(k._id)) { %> <span class="badge bg-primary-lt ms-1">Siz</span><% } %></div>
                     <div class="text-secondary small"><%= [k.unvan, k.birim].filter(Boolean).join(' · ') || '–' %></div>

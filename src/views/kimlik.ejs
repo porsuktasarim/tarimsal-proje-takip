@@ -50,7 +50,7 @@
                 <% liste.forEach(function (k) { %>
                   <div class="col-sm-6 kimlik-oge" data-ad="<%= k.adSoyad.toLocaleLowerCase('tr') %>">
                     <button type="submit" name="kisi" value="<%= k._id %>" class="kimlik-kart w-100<%= seciliId === k._id ? ' secili' : '' %>">
-                      <span class="avatar avatar-sm bg-<%= sabitler.rolRenkleri[k.rol] %>-lt me-2"><%= k.basHarfler %></span>
+                      <span class="avatar avatar-sm bg-<%= ayar.rolRenk[k.rol] %>-lt me-2"><%= k.basHarfler %></span>
                       <span class="text-start flex-fill">
                         <span class="d-block fw-medium"><%= k.adSoyad %></span>
                         <span class="d-block text-secondary small"><%= k.unvan || ayar.rolAdlari[k.rol] %><% if (k.ilceler && k.ilceler.length) { %> · <%= k.ilceler.join(', ') %><% } %></span>

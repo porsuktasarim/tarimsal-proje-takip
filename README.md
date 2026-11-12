@@ -38,14 +38,15 @@
 
 ### Kişiler, roller ve görevler
 
-- **Roller:** İş Planı (yöneticiler; toplu istatistik ve son durum), Proje Koordinatörü (il müdürlüğü personeli), Proje Yürütücüsü (sahada çalışan personel). Rol adları ve açıklamaları Ayarlar'dan değiştirilebilir.
+- **Roller ve yetkiler:** roller Ayarlar > Roller ve yetkiler'den eklenir, adlandırılır, renklendirilir ve silinir (kişisi ya da görevi olan rol silinemez). Her role işaretlenerek yetki verilir: Genel Bakış, projeleri görme/yönetme, talep görme/girme/onaylama/silme, çiftçi görme/yönetme, tüm görevleri görme, görev verme, ayarlar (genel, katalog, kişi ve roller). "İlçe kısıtlı" roldeki kişiler yalnızca sorumlu oldukları ilçelerin çiftçisini ve talebini girer. Hazır roller: İş Planı, Proje Koordinatörü, Proje Yürütücüsü.
+- **Sistem Yöneticisi:** tüm yetkilere sahip sabit roldür ve yalnızca bir kişiye verilebilir. Sistem Yöneticisi atanana kadar yetki denetimi uygulanmaz (ilk kurulum) ve üstte uyarı görünür.
 - **Kişiler:** ad soyad, unvan, rol, birim, sorumlu ilçeler, iletişim; pasif yapılabilir.
 - **Giriş:** şifre yoktur. İlk kişi tanımlandıktan sonra sisteme girişte "Kimsiniz?" ekranında kişi seçilir; seçim tarayıcıda hatırlanır, üst çubuktaki menüden değiştirilebilir.
 - **Proje ekibi:** projeye koordinatör ve yürütücüler atanır.
 - **Görevler:** kişiye ya da role verilir; proje, ilçe, son tarih ve öncelik bağlanabilir. Role verilen görev o roldeki herkesin "Görevlerim" listesinde görünür. Durum (Bekliyor, Sürüyor, Tamamlandı, İptal) ve notlar kimin ne zaman yaptığıyla birlikte görev geçmişine yazılır. Son tarihi geçen açık görevler "gecikti" olarak işaretlenir.
 - **Genel Bakış:** ana sayfa. Proje sayısı, hedef alan, hedef çiftçi, açık/geciken görevler, toplam dağıtım ve hedef çıktılar, projelerin son durumu ve görev ilerlemesi; dönem süzgeci. Kişinin kendi açık görevleri yanda listelenir.
 
-> Şimdilik tüm roller tüm ekranları görür; rollere göre ekran ve yetki ayrımı sonraki sürümlerde eklenecektir.
+> Giriş şifresiz olduğundan yetkiler bir güvenlik önlemi değil, iş bölümüdür. Menüde ve sayfalarda yalnızca kişinin rolüne verilen işlemler görünür; yetkisiz adreslere girildiğinde "Yetkiniz yok" sayfası gösterilir. Kişi kendisine ya da rolüne verilen görevleri her zaman görür ve durumunu günceller.
 
 ### Ayarlar
 
@@ -53,7 +54,7 @@
 |---|---|
 | Genel | Kurum adı, il |
 | Kişiler | Sistemi kullanan kişiler, rolleri ve sorumlu ilçeleri |
-| Roller | Üç rolün ekranda görünen adları ve açıklamaları |
+| Roller ve yetkiler | Rol ekleme, silme, renk, ilçe kısıtı ve yetkiler; Sistem Yöneticisi |
 | Yürütücü birimler | Projeleri yürüten birimler |
 | Dönemler | Dönem adı, başlangıç/bitiş, yeni projede seçili gelecek varsayılan dönem |
 | Ürün kataloğu | Türe göre ürünler; dağıtım birimi, ambalaj içeriği, normların varsayılan değer ve birimleri; çeşitler ve çeşide özel değerler |
@@ -73,7 +74,7 @@
 | Çıktı (verim) | alan × norm = beklenen üretim | Kuru ot verimi 500 kg/da, tane verimi 300 kg/da |
 | Bilgi | hesaba girmez, kayıt amaçlı | Çiftçi başı azami alan 50 da |
 
-Normun birimi ürüne, çeşide ve kaleme göre değiştirilebilir (ör. ekim normu mısırda adet/da, yulafta kg/da). Çeşitte girilen değer ürünün değerinin yerine geçer; boş bırakılanlarda ürünün değeri geçerlidir.
+Normun birimi ürüne, çeşide ve kaleme göre değiştirilebilir (ör. ekim normu mısırda adet/da, yulafta kg/da). Ekim normu adet/da, ambalaj kg olduğunda dönüşüm **Bin dane ağırlığı (g)** normuyla yapılır: 1.000 da × 7.000 adet/da = 7.000.000 adet × 330 g / 1.000 = 2.310 kg → 93 çuval (25 kg). Çeşitte girilen değer ürünün değerinin yerine geçer; boş bırakılanlarda ürünün değeri geçerlidir.
 
 Normlar kaleme kopyalanarak saklanır; katalogda sonradan yapılan değişiklik eski projelerin hesaplarını etkilemez.
 
@@ -138,7 +139,7 @@ src/
     ayarlar.js              Ayar servisi: önbellek, kullanım sayımı, yeniden adlandırma
     gocler.js               Veri dönüşümleri (sürüm geçişleri)
     kimlik.js               "Kimsiniz?" girişi (kişi seçimi, çerez)
-    yetki.js                İlçe kuralları (yürütücünün çalıştığı ilçeler)
+    yetki.js                Rol yetkileri, yetki ara katmanı, ilçe kuralları
     modulYukleyici.js       Modülleri otomatik yükler, menüyü oluşturur
     yardimcilar.js          Sayı, tarih, miktar biçimleme
   views/                    Ortak şablonlar (üst/alt bölüm, bildirimler, hata sayfası)

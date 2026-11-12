@@ -4,7 +4,7 @@
   var d = td[talep.durum];
   var bas = proje.basvuru || {};
   var fin = proje.finansman || {};
-  var eylemler = '<a href="/talepler/' + talep._id + '/duzenle" class="btn"><i class="ti ti-edit me-1"></i> Düzenle</a>';
+  var eylemler = izin('talep.gir') ? '<a href="/talepler/' + talep._id + '/duzenle" class="btn"><i class="ti ti-edit me-1"></i> Düzenle</a>' : '';
 %>
 <%- include('../../../views/partials/sayfa-basligi', { ustBaslik: (proje.kisaAd || proje.ad) + ' · talep', eylemler: eylemler }) %>
 <div class="page-body">
@@ -94,14 +94,14 @@
           <div class="card-header"><h3 class="card-title">Durum</h3></div>
           <div class="card-body">
             <div class="mb-3"><span class="badge bg-<%= d.renk %>-lt"><i class="ti <%= d.ikon %> me-1"></i><%= d.ad %></span></div>
-            <form method="post" action="/talepler/<%= talep._id %>/durum" class="d-flex flex-wrap gap-2">
+            <form method="post" action="/talepler/<%= talep._id %>/durum" class="d-flex flex-wrap gap-2<%= izin('talep.onayla') ? '' : ' d-none' %>">
               <% Object.keys(td).forEach(function (k) { if (k === talep.durum) return; %>
                 <button name="durum" value="<%= k %>" class="btn btn-sm"><i class="ti <%= td[k].ikon %> me-1"></i><%= td[k].ad %></button>
               <% }) %>
             </form>
             <div class="text-secondary small mt-3">Kaydeden: <%= talep.kaydedenAd || '–' %> · <%= y.tarih(talep.olusturulma) %></div>
           </div>
-          <div class="card-footer">
+          <div class="card-footer<%= izin('talep.sil') ? '' : ' d-none' %>">
             <form method="post" action="/talepler/<%= talep._id %>/sil" data-onay="Talep silinecek (çiftçi kaydı kalır). Devam edilsin mi?">
               <button class="btn btn-ghost-danger btn-sm w-100"><i class="ti ti-trash me-1"></i> Talebi sil</button>
             </form>

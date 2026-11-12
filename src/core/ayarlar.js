@@ -12,9 +12,21 @@ function duzenle(belge) {
   a.donemAdlari = (a.donemler || []).map((d) => d.ad);
   a.ekimNormu = (a.normlar || []).find((n) => n.tip === 'ekim') || null;
   a.ciktiNormlari = (a.normlar || []).filter((n) => n.tip === 'cikti');
-  // Rol kodları sabittir; kayıtta eksik rol varsa varsayılanı eklenir.
-  a.roller = varsayilanlar.roller.map((v) => ({ ...v, ...((a.roller || []).find((r) => r.kod === v.kod) || {}) }));
-  a.rolAdlari = Object.fromEntries(a.roller.map((r) => [r.kod, r.ad]));
+  // Roller: kayıttakiler; Sistem Yöneticisi her zaman ilk sıradadır.
+  // Yetkileri tanımlanmamış eski rollere varsayılan yetkileri verilir.
+  const varsayilanRol = (kod) => varsayilanlar.roller.find((r) => r.kod === kod) || {};
+  let roller = (a.roller && a.roller.length ? a.roller : kopya(varsayilanlar.roller)).map((r) => ({
+    ...r,
+    renk: r.renk || varsayilanRol(r.kod).renk || 'secondary',
+    ilceKisitli: r.ilceKisitli !== undefined ? !!r.ilceKisitli : !!varsayilanRol(r.kod).ilceKisitli,
+    yetkiler: Array.isArray(r.yetkiler) ? r.yetkiler : (varsayilanRol(r.kod).yetkiler || [])
+  }));
+  const admin = roller.find((r) => r.kod === 'admin') || kopya(varsayilanRol('admin'));
+  roller = [{ ...admin, yetkiler: [] }, ...roller.filter((r) => r.kod !== 'admin')];
+  a.roller = roller;
+  a.rolHaritasi = Object.fromEntries(roller.map((r) => [r.kod, r]));
+  a.rolAdlari = Object.fromEntries(roller.map((r) => [r.kod, r.ad]));
+  a.rolRenk = Object.fromEntries(roller.map((r) => [r.kod, r.renk]));
   return a;
 }
 

@@ -41,6 +41,37 @@ const gocler = [
       if (yeni.length !== olcu.length) await Ayar.updateOne({ _id: 'genel' }, { $set: { olcuBirimleri: yeni } });
     }
   }
+  ,
+  {
+    no: 2,
+    aciklama: 'Rollere yetki, renk ve ilçe kısıtı eklenir; Sistem Yöneticisi rolü oluşturulur',
+    async uygula(db, ayar) {
+      const { varsayilanlar } = require('../config/sabitler');
+      const v = (kod) => varsayilanlar.roller.find((r) => r.kod === kod) || {};
+      const mevcut = ayar.roller && ayar.roller.length ? ayar.roller : varsayilanlar.roller;
+      const roller = mevcut.filter((r) => r.kod !== 'admin').map((r) => ({
+        kod: r.kod,
+        ad: r.ad,
+        aciklama: r.aciklama,
+        renk: r.renk || v(r.kod).renk || 'secondary',
+        ilceKisitli: r.ilceKisitli !== undefined ? r.ilceKisitli : !!v(r.kod).ilceKisitli,
+        yetkiler: Array.isArray(r.yetkiler) ? r.yetkiler : (v(r.kod).yetkiler || [])
+      }));
+      const admin = (ayar.roller || []).find((r) => r.kod === 'admin') || v('admin');
+      await Ayar.updateOne({ _id: 'genel' }, { $set: { roller: [admin, ...roller] } });
+    }
+  },
+  {
+    no: 3,
+    aciklama: 'Adet ↔ kg dönüşümü için "Bin dane ağırlığı" normu eklenir',
+    async uygula(db, ayar) {
+      const normlar = ayar.normlar || [];
+      if (normlar.some((n) => n.kod === 'bin_dane_agirligi')) return;
+      await Ayar.updateOne({ _id: 'genel' }, {
+        $set: { normlar: [...normlar, { kod: 'bin_dane_agirligi', ad: 'Bin dane ağırlığı', birim: 'g', tip: 'bilgi' }] }
+      });
+    }
+  }
 ];
 
 async function gocleriUygula() {

@@ -36,7 +36,7 @@
         <% if (ben) { %>
           <div class="nav-item dropdown">
             <a href="#" class="nav-link d-flex lh-1 text-reset p-0 px-2" data-bs-toggle="dropdown" aria-label="Kişi menüsü">
-              <span class="avatar avatar-sm bg-<%= sabitler.rolRenkleri[ben.rol] %>-lt"><%= ben.basHarfler %></span>
+              <span class="avatar avatar-sm bg-<%= ayar.rolRenk[ben.rol] %>-lt"><%= ben.basHarfler %></span>
               <div class="d-none d-xl-block ps-2">
                 <div><%= ben.adSoyad %></div>
                 <div class="mt-1 small text-secondary"><%= ayar.rolAdlari[ben.rol] %></div>
@@ -53,7 +53,7 @@
       </div>
       <div class="collapse navbar-collapse" id="sidebar-menu">
         <ul class="navbar-nav pt-lg-3">
-          <% menu.forEach(function (oge) { %>
+          <% menu.filter(function (oge) { return !oge.yetki || izin(oge.yetki); }).forEach(function (oge) { %>
             <li class="nav-item<%= aktifMenu === oge.yol ? ' active' : '' %>">
               <a class="nav-link" href="<%= oge.yol %>">
                 <span class="nav-link-icon d-md-none d-lg-inline-block"><i class="ti <%= oge.ikon %>"></i></span>
@@ -75,7 +75,7 @@
         <% if (ben) { %>
           <div class="nav-item dropdown">
             <a href="#" class="nav-link d-flex lh-1 text-reset p-0 px-2" data-bs-toggle="dropdown" aria-label="Kişi menüsü">
-              <span class="avatar avatar-sm bg-<%= sabitler.rolRenkleri[ben.rol] %>-lt"><%= ben.basHarfler %></span>
+              <span class="avatar avatar-sm bg-<%= ayar.rolRenk[ben.rol] %>-lt"><%= ben.basHarfler %></span>
               <div class="d-none d-xl-block ps-2">
                 <div><%= ben.adSoyad %></div>
                 <div class="mt-1 small text-secondary"><%= ayar.rolAdlari[ben.rol] %></div>
@@ -95,6 +95,14 @@
   </header>
 
   <div class="page-wrapper">
+    <% if (!kurulumKipi && !adminVar) { %>
+      <div class="container-xl pt-3">
+        <div class="alert alert-warning mb-0" role="alert">
+          <div class="alert-icon"><i class="ti ti-shield-exclamation"></i></div>
+          <div>Sistem Yöneticisi atanmadığı için yetki denetimi uygulanmıyor; herkes tüm işlemleri yapabilir. <a href="/ayarlar/kisiler">Ayarlar &gt; Kişiler</a>'den bir kişiye "Sistem Yöneticisi" rolü verildiğinde rollerin yetkileri geçerli olur.</div>
+        </div>
+      </div>
+    <% } %>
     <% if (typeof kurulumKipi !== 'undefined' && kurulumKipi) { %>
       <div class="container-xl pt-3">
         <div class="alert alert-info mb-0" role="alert">

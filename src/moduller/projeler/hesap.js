@@ -1,5 +1,6 @@
 const { sonucBirimi } = require('../../core/yardimcilar');
 const { normOku } = require('../ayarlar/katalog');
+const { BIN_DANE_KOD } = require('../../config/sabitler');
 
 // Proje kalemleri için norm tabanlı hesaplar.
 //
@@ -20,6 +21,22 @@ function birimiAyni(a, b) {
   return String(a || '').trim().toLocaleLowerCase('tr') === String(b || '').trim().toLocaleLowerCase('tr');
 }
 
+// Birim dönüşümü: g, kg, ton arasında; adet ile ağırlık arasında bin dane
+// ağırlığı (g) ile. Dönüştürülemiyorsa null.
+const AGIRLIK = { g: 1, kg: 1000, ton: 1000000 };
+function donustur(miktar, kaynak, hedef, binDane) {
+  const k = String(kaynak || '').trim().toLocaleLowerCase('tr');
+  const h = String(hedef || '').trim().toLocaleLowerCase('tr');
+  if (miktar == null || !k || !h) return null;
+  if (k === h) return miktar;
+  if (AGIRLIK[k] && AGIRLIK[h]) return miktar * AGIRLIK[k] / AGIRLIK[h];
+  if (binDane > 0) {
+    if (k === 'adet' && AGIRLIK[h]) return miktar * binDane / 1000 / AGIRLIK[h];
+    if (AGIRLIK[k] && h === 'adet') return miktar * AGIRLIK[k] * 1000 / binDane;
+  }
+  return null;
+}
+
 // Kalemin fiyatı hangi birim üzerinden: dağıtım birimi (TL/çuval) ya da
 // ambalaj içeriğinin birimi (TL/kg). Belirtilmemişse ambalaj varsa içerik birimi.
 function fiyatBirimi(k) {
@@ -37,15 +54,25 @@ function miktarHesabi(k, alan, ayar, proje, elleMiktar) {
   const ihtiyac = ekim && alan != null ? alan * ekim.deger : null;
 
   const ambalaj = k.ambalaj && k.ambalaj.miktar > 0 ? k.ambalaj : null;
+  const binDaneNorm = normOku(k.normlar, BIN_DANE_KOD);
+  const binDane = binDaneNorm ? binDaneNorm.deger : null;
   let hesaplananMiktar = null;
   let birimUyumsuz = false;
+  let donusum = null;   // ör. { miktar: 2310, birim: 'kg' } (adetten ağırlığa çevrildiyse)
   if (ihtiyac != null) {
     if (birimiAyni(ihtiyacBirimi, k.olcuBirimi)) {
       hesaplananMiktar = ihtiyac;
-    } else if (ambalaj && birimiAyni(ambalaj.birim, ihtiyacBirimi)) {
-      hesaplananMiktar = Math.ceil(ihtiyac / ambalaj.miktar - 1e-9);
+    } else if (ambalaj) {
+      const icerik = donustur(ihtiyac, ihtiyacBirimi, ambalaj.birim, binDane);
+      if (icerik != null) {
+        hesaplananMiktar = Math.ceil(icerik / ambalaj.miktar - 1e-9);
+        if (!birimiAyni(ihtiyacBirimi, ambalaj.birim)) donusum = { miktar: icerik, birim: ambalaj.birim };
+      } else {
+        birimUyumsuz = true;
+      }
     } else {
-      birimUyumsuz = true;
+      const d = donustur(ihtiyac, ihtiyacBirimi, k.olcuBirimi, binDane);
+      if (d != null) { hesaplananMiktar = d; donusum = { miktar: d, birim: k.olcuBirimi }; } else birimUyumsuz = true;
     }
   }
 
@@ -78,6 +105,8 @@ function miktarHesabi(k, alan, ayar, proje, elleMiktar) {
     ambalaj,
     hesaplananMiktar,
     birimUyumsuz,
+    donusum,
+    binDane,
     miktar,
     miktarKaynak,
     teslim,
@@ -233,4 +262,4 @@ function taleplerOzeti(talepler, proje, ayar) {
   };
 }
 
-module.exports = { projeHesabi, kalemHesabi, miktarHesabi, talepHesabi, taleplerOzeti, fiyatBirimi };
+module.exports = { projeHesabi, kalemHesabi, miktarHesabi, talepHesabi, taleplerOzeti, fiyatBirimi, donustur };

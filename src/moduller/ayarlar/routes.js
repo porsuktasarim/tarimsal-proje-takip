@@ -3,8 +3,11 @@ const mongoose = require('mongoose');
 const ayarlar = require('../../core/ayarlar');
 const Urun = require('./modeller/Urun');
 const Kisi = require('./modeller/Kisi');
-const { normTipleri, normBirimOnerileri, ambalajBirimleri } = require('../../config/sabitler');
+const {
+  normTipleri, normBirimOnerileri, ambalajBirimleri, yetkiGruplari, tumYetkiler, rolRenkSecenekleri, BIN_DANE_KOD
+} = require('../../config/sabitler');
 const katalog = require('./katalog');
+const { yetkisizSayfa } = require('../../core/yetki');
 const { diziyeCevir, tarihOku, anahtar, kodUret } = require('../../core/yardimcilar');
 
 const router = express.Router();
@@ -13,26 +16,31 @@ const sar = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catc
 
 // Ayarlar içindeki sekmeler (sol menü)
 const sekmeler = [
-  { yol: '/ayarlar/genel', ad: 'Genel', ikon: 'ti-building-community' },
-  { yol: '/ayarlar/kisiler', ad: 'Kişiler', ikon: 'ti-users' },
-  { yol: '/ayarlar/roller', ad: 'Roller', ikon: 'ti-id-badge-2' },
-  { yol: '/ayarlar/birimler', ad: 'Yürütücü birimler', ikon: 'ti-sitemap' },
-  { yol: '/ayarlar/donemler', ad: 'Dönemler', ikon: 'ti-calendar' },
-  { yol: '/ayarlar/urunler', ad: 'Ürün kataloğu', ikon: 'ti-seeding' },
-  { yol: '/ayarlar/normlar', ad: 'Hesaplama normları', ikon: 'ti-calculator' },
-  { yol: '/ayarlar/hayvan-turleri', ad: 'Hayvan türleri', ikon: 'ti-paw' },
-  { yol: '/ayarlar/kalem-turleri', ad: 'Kalem türleri', ikon: 'ti-category' },
-  { yol: '/ayarlar/olcu-birimleri', ad: 'Ölçü birimleri', ikon: 'ti-ruler-measure' },
-  { yol: '/ayarlar/ilceler', ad: 'İlçeler', ikon: 'ti-map-pin' }
+  { yol: '/ayarlar/genel', ad: 'Genel', ikon: 'ti-building-community', yetki: 'ayar.genel' },
+  { yol: '/ayarlar/kisiler', ad: 'Kişiler', ikon: 'ti-users', yetki: 'ayar.kisi' },
+  { yol: '/ayarlar/roller', ad: 'Roller ve yetkiler', ikon: 'ti-shield-lock', yetki: 'ayar.kisi' },
+  { yol: '/ayarlar/birimler', ad: 'Yürütücü birimler', ikon: 'ti-sitemap', yetki: 'ayar.genel' },
+  { yol: '/ayarlar/donemler', ad: 'Dönemler', ikon: 'ti-calendar', yetki: 'ayar.genel' },
+  { yol: '/ayarlar/urunler', ad: 'Ürün kataloğu', ikon: 'ti-seeding', yetki: 'ayar.katalog' },
+  { yol: '/ayarlar/normlar', ad: 'Hesaplama normları', ikon: 'ti-calculator', yetki: 'ayar.katalog' },
+  { yol: '/ayarlar/hayvan-turleri', ad: 'Hayvan türleri', ikon: 'ti-paw', yetki: 'ayar.katalog' },
+  { yol: '/ayarlar/kalem-turleri', ad: 'Kalem türleri', ikon: 'ti-category', yetki: 'ayar.katalog' },
+  { yol: '/ayarlar/olcu-birimleri', ad: 'Ölçü birimleri', ikon: 'ti-ruler-measure', yetki: 'ayar.katalog' },
+  { yol: '/ayarlar/ilceler', ad: 'İlçeler', ikon: 'ti-map-pin', yetki: 'ayar.genel' }
 ];
 
+// Her sekme kendi yetkisini ister; menüde yalnızca yetkili sekmeler görünür.
 router.use((req, res, next) => {
-  res.locals.sekmeler = sekmeler;
+  const izinli = sekmeler.filter((s) => req.izin(s.yetki));
+  res.locals.sekmeler = izinli;
   res.locals.aktifSekme = req.baseUrl + req.path.replace(/^(\/[^/]+).*$/, '$1');
-  next();
+  if (req.path === '/' || req.path === '') {
+    return izinli.length ? res.redirect(izinli[0].yol) : yetkisizSayfa(res);
+  }
+  const sekme = sekmeler.find((s) => s.yol === res.locals.aktifSekme);
+  if (sekme && !req.izin(sekme.yetki)) return yetkisizSayfa(res);
+  return next();
 });
-
-router.get('/', (req, res) => res.redirect('/ayarlar/genel'));
 
 // ---------------------------------------------------------------------------
 // Genel
@@ -179,6 +187,7 @@ router.post('/normlar', sar(async (req, res) => {
   }
 
   const silinenler = mevcut.filter((n) => !satirlar.some((s) => s.kod === n.kod));
+  if (silinenler.some((n) => n.kod === BIN_DANE_KOD)) hatalar.push('"Bin dane ağırlığı" adet ↔ kg dönüşümünde kullanıldığı için silinemez.');
   const kullanim = {};
   for (const n of mevcut) kullanim[n.kod] = await normKullanimi(n.kod);
   silinenler.forEach((n) => {
@@ -412,24 +421,62 @@ router.post('/hayvan-turleri', sar(async (req, res) => {
 }));
 
 // ---------------------------------------------------------------------------
-// Roller (kodlar sabit; ad ve açıklama değiştirilebilir)
+// Roller ve yetkiler
 // ---------------------------------------------------------------------------
-router.get('/roller', sar(async (req, res) => {
-  const sayilar = {};
-  for (const r of res.locals.ayar.roller) sayilar[r.kod] = await Kisi.countDocuments({ rol: r.kod, aktif: true });
-  res.render(V + 'roller', { baslik: 'Roller', roller: res.locals.ayar.roller, sayilar, hatalar: [] });
-}));
+async function rolKullanimi(kod) {
+  const kisi = await Kisi.countDocuments({ rol: kod });
+  const gorev = mongoose.modelNames().includes('Gorev') ? await mongoose.model('Gorev').countDocuments({ 'atama.tur': 'rol', 'atama.rol': kod }) : 0;
+  return { kisi, gorev };
+}
+
+async function rollerSayfasi(res, durum, roller, hatalar) {
+  const kullanim = {};
+  for (const r of roller) if (r.kod) kullanim[r.kod] = await rolKullanimi(r.kod);
+  return res.status(durum).render(V + 'roller', {
+    baslik: 'Roller ve yetkiler', roller, kullanim, hatalar, yetkiGruplari, rolRenkSecenekleri
+  });
+}
+
+router.get('/roller', sar(async (req, res) => rollerSayfasi(res, 200, res.locals.ayar.roller, [])));
 
 router.post('/roller', sar(async (req, res) => {
-  const gelen = req.body.roller || {};
+  const mevcut = res.locals.ayar.roller;
   const hatalar = [];
-  const roller = res.locals.ayar.roller.map((r) => {
-    const g = gelen[r.kod] || {};
-    const ad = (g.ad || '').trim();
-    if (!ad) hatalar.push(`"${r.ad}" rolünün adı boş bırakılamaz.`);
-    return { kod: r.kod, ad: ad || r.ad, aciklama: (g.aciklama || '').trim() };
+  const satirlar = diziyeCevir(req.body.roller).map((r) => ({
+    kod: (r.kod || '').trim(),
+    ad: (r.ad || '').trim(),
+    aciklama: (r.aciklama || '').trim(),
+    renk: rolRenkSecenekleri.includes(r.renk) ? r.renk : 'secondary',
+    ilceKisitli: r.ilceKisitli === 'on',
+    yetkiler: diziyeCevir(r.yetkiler).filter((y) => tumYetkiler.includes(y))
+  })).filter((r) => r.ad || r.kod);
+
+  // Sistem Yöneticisi her zaman vardır ve tüm yetkilere sahiptir (yalnız adı/açıklaması/rengi değişir).
+  const adminSatiri = satirlar.find((r) => r.kod === 'admin') || mevcut.find((r) => r.kod === 'admin');
+  const digerleri = satirlar.filter((r) => r.kod !== 'admin');
+
+  const kodlar = new Set(mevcut.map((r) => r.kod));
+  digerleri.forEach((r, i) => {
+    if (!r.ad) hatalar.push(`${i + 2}. rolün adı girilmelidir.`);
+    if (!r.kod) {
+      let kod = kodUret(r.ad);
+      let n = 2;
+      while (kodlar.has(kod) || kod === 'admin') kod = `${kodUret(r.ad)}_${n++}`;
+      r.kod = kod;
+    }
+    kodlar.add(r.kod);
   });
-  if (hatalar.length) return res.status(422).render(V + 'roller', { baslik: 'Roller', roller, sayilar: {}, hatalar });
+  const adlar = [adminSatiri, ...digerleri].map((r) => anahtar(r.ad));
+  if (new Set(adlar).size !== adlar.length) hatalar.push('Aynı adla birden fazla rol tanımlanamaz.');
+
+  for (const r of mevcut.filter((m) => m.kod !== 'admin' && !digerleri.some((d) => d.kod === m.kod))) {
+    const k = await rolKullanimi(r.kod);
+    if (k.kisi) hatalar.push(`"${r.ad}" rolünde ${k.kisi} kişi olduğu için silinemez; önce kişilerin rolü değiştirilmelidir.`);
+    if (k.gorev) hatalar.push(`"${r.ad}" rolüne verilmiş ${k.gorev} görev olduğu için silinemez.`);
+  }
+
+  const roller = [{ ...adminSatiri, kod: 'admin', ilceKisitli: false, yetkiler: [] }, ...digerleri];
+  if (hatalar.length) return rollerSayfasi(res, 422, roller, hatalar);
   await ayarlar.guncelle({ roller });
   return res.redirect('/ayarlar/roller?bildirim=kaydedildi');
 }));
@@ -437,7 +484,6 @@ router.post('/roller', sar(async (req, res) => {
 // ---------------------------------------------------------------------------
 // Kişiler
 // ---------------------------------------------------------------------------
-const ROL_KODLARI = ['yonetici', 'koordinator', 'yurutucu'];
 
 async function kisiKullanimi(id) {
   let n = 0;
@@ -451,11 +497,12 @@ async function kisiKullanimi(id) {
 }
 
 function kisiFormuOku(govde, ayar) {
+  const rolGecerli = !!ayar.rolHaritasi[govde.rol];
   const ilceler = diziyeCevir(govde.ilceler).filter((i) => ayar.ilceler.includes(i));
   return {
     adSoyad: (govde.adSoyad || '').trim().replace(/\s+/g, ' '),
     unvan: (govde.unvan || '').trim() || undefined,
-    rol: ROL_KODLARI.includes(govde.rol) ? govde.rol : '',
+    rol: rolGecerli ? govde.rol : '',
     birim: (govde.birim || '').trim() || undefined,
     ilceler,
     telefon: (govde.telefon || '').trim() || undefined,
@@ -465,10 +512,15 @@ function kisiFormuOku(govde, ayar) {
   };
 }
 
-function kisiDenetle(veri) {
+// Sistem Yöneticisi tek kişidir.
+async function kisiDenetle(veri, id) {
   const hatalar = [];
   if (!veri.adSoyad) hatalar.push('Ad soyad girilmelidir.');
   if (!veri.rol) hatalar.push('Rol seçilmelidir.');
+  if (veri.rol === 'admin') {
+    const diger = await Kisi.findOne({ rol: 'admin', ...(id ? { _id: { $ne: id } } : {}) });
+    if (diger) hatalar.push(`Sistem Yöneticisi tek kişi olabilir; şu an ${diger.adSoyad} bu roldedir. Önce onun rolü değiştirilmelidir.`);
+  }
   return hatalar;
 }
 
@@ -480,14 +532,14 @@ router.get('/kisiler', sar(async (req, res) => {
 router.get('/kisiler/yeni', (req, res) => {
   res.render(V + 'kisi-form', {
     baslik: 'Yeni kişi',
-    kisi: { rol: ROL_KODLARI.includes(req.query.rol) ? req.query.rol : 'yurutucu', aktif: true, ilceler: [] },
+    kisi: { rol: res.locals.ayar.rolHaritasi[req.query.rol] ? req.query.rol : '', aktif: true, ilceler: [] },
     hatalar: [], eylem: '/ayarlar/kisiler', kullanim: 0
   });
 });
 
 router.post('/kisiler', sar(async (req, res) => {
   const veri = kisiFormuOku(req.body, res.locals.ayar);
-  const hatalar = kisiDenetle(veri);
+  const hatalar = await kisiDenetle(veri);
   if (hatalar.length) {
     return res.status(422).render(V + 'kisi-form', { baslik: 'Yeni kişi', kisi: veri, hatalar, eylem: '/ayarlar/kisiler', kullanim: 0 });
   }
@@ -510,7 +562,7 @@ router.get('/kisiler/:id/duzenle', sar(kisiBul), sar(async (req, res) => {
 
 router.post('/kisiler/:id', sar(kisiBul), sar(async (req, res) => {
   const veri = kisiFormuOku(req.body, res.locals.ayar);
-  const hatalar = kisiDenetle(veri);
+  const hatalar = await kisiDenetle(veri, req.kisi._id);
   if (hatalar.length) {
     veri._id = req.kisi._id;
     return res.status(422).render(V + 'kisi-form', {

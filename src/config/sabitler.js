@@ -38,7 +38,9 @@ const varsayilanlar = {
     { kod: 'yesil_ot_verimi', ad: 'Yeşil ot verimi', birim: 'kg/da', tip: 'cikti' },
     { kod: 'kuru_ot_verimi', ad: 'Kuru ot verimi', birim: 'kg/da', tip: 'cikti' },
     { kod: 'tane_verimi', ad: 'Tane verimi', birim: 'kg/da', tip: 'cikti' },
-    { kod: 'silaj_verimi', ad: 'Silaj verimi', birim: 'kg/da', tip: 'cikti' }
+    { kod: 'silaj_verimi', ad: 'Silaj verimi', birim: 'kg/da', tip: 'cikti' },
+    // Adet ile ağırlık arasında dönüşüm için (ekim normu adet/da, ambalaj kg ise)
+    { kod: 'bin_dane_agirligi', ad: 'Bin dane ağırlığı', birim: 'g', tip: 'bilgi' }
   ],
 
   // Talep değerlendirmesinde yardımcı bilgi olarak girilen hayvan varlığı
@@ -48,20 +50,76 @@ const varsayilanlar = {
     { kod: 'ari', ad: 'Arı', birim: 'koloni' }
   ],
 
-  // Rol kodları sabittir (yetki ve ekranlar bunlara bağlanır); ad ve açıklama
-  // Ayarlar > Roller'den değiştirilebilir.
+  // Roller Ayarlar > Roller'den eklenip düzenlenir. "admin" (Sistem Yöneticisi)
+  // sabittir: tek kişiye verilir ve tüm yetkilere sahiptir.
   roller: [
-    { kod: 'yonetici', ad: 'İş Planı', aciklama: 'Yöneticiler. Projelerin toplu istatistiklerini ve son durumunu izler.' },
-    { kod: 'koordinator', ad: 'Proje Koordinatörü', aciklama: 'İşi yürüten il müdürlüğü personeli.' },
-    { kod: 'yurutucu', ad: 'Proje Yürütücüsü', aciklama: 'Sahada çalışan personel.' }
+    { kod: 'admin', ad: 'Sistem Yöneticisi', aciklama: 'Tüm yetkilere sahiptir; tek kişiye verilir.', renk: 'red', ilceKisitli: false, yetkiler: [] },
+    {
+      kod: 'yonetici', ad: 'İş Planı', aciklama: 'Yöneticiler. Projelerin toplu istatistiklerini ve son durumunu izler.', renk: 'purple', ilceKisitli: false,
+      yetkiler: ['pano.gor', 'proje.gor', 'talep.gor', 'ciftci.gor', 'gorev.gor', 'gorev.ver']
+    },
+    {
+      kod: 'koordinator', ad: 'Proje Koordinatörü', aciklama: 'İşi yürüten il müdürlüğü personeli.', renk: 'blue', ilceKisitli: false,
+      yetkiler: ['pano.gor', 'proje.gor', 'proje.yonet', 'talep.gor', 'talep.gir', 'talep.onayla', 'talep.sil',
+        'ciftci.gor', 'ciftci.yonet', 'gorev.gor', 'gorev.ver', 'ayar.genel', 'ayar.katalog']
+    },
+    {
+      kod: 'yurutucu', ad: 'Proje Yürütücüsü', aciklama: 'Sahada çalışan personel.', renk: 'green', ilceKisitli: true,
+      yetkiler: ['pano.gor', 'proje.gor', 'talep.gor', 'talep.gir', 'ciftci.gor', 'ciftci.yonet']
+    }
   ]
 };
+
+// Rollere verilebilecek yetkiler. Sistem Yöneticisi hepsine sahiptir.
+// Kişi kendisine ya da rolüne verilen görevleri her zaman görür ve durumunu günceller.
+const yetkiGruplari = [
+  {
+    ad: 'Genel Bakış ve projeler',
+    yetkiler: [
+      { kod: 'pano.gor', ad: 'Genel Bakış panosunu görür' },
+      { kod: 'proje.gor', ad: 'Projeleri görür' },
+      { kod: 'proje.yonet', ad: 'Proje başlatır, düzenler, durumunu değiştirir' }
+    ]
+  },
+  {
+    ad: 'Çiftçiler ve talepler',
+    yetkiler: [
+      { kod: 'talep.gor', ad: 'Çiftçi taleplerini görür' },
+      { kod: 'talep.gir', ad: 'Talep girer ve düzenler' },
+      { kod: 'talep.onayla', ad: 'Talebi onaylar, reddeder, teslim edildi yapar' },
+      { kod: 'talep.sil', ad: 'Talep siler' },
+      { kod: 'ciftci.gor', ad: 'Çiftçi kayıtlarını ve icmalini görür' },
+      { kod: 'ciftci.yonet', ad: 'Çiftçi kaydı ekler, düzenler, siler' }
+    ]
+  },
+  {
+    ad: 'Görevler',
+    yetkiler: [
+      { kod: 'gorev.gor', ad: 'Tüm görevleri görür' },
+      { kod: 'gorev.ver', ad: 'Görev verir, düzenler, siler' }
+    ]
+  },
+  {
+    ad: 'Ayarlar',
+    yetkiler: [
+      { kod: 'ayar.genel', ad: 'Genel, birimler, dönemler, ilçeler' },
+      { kod: 'ayar.katalog', ad: 'Ürün kataloğu, normlar, hayvan türleri, kalem türleri, ölçü birimleri' },
+      { kod: 'ayar.kisi', ad: 'Kişiler ve roller' }
+    ]
+  }
+];
+const tumYetkiler = yetkiGruplari.flatMap((g) => g.yetkiler.map((y) => y.kod));
+
+const rolRenkSecenekleri = ['blue', 'azure', 'indigo', 'purple', 'pink', 'red', 'orange', 'yellow', 'lime', 'green', 'teal', 'cyan', 'secondary'];
 
 // Norm birimi alanlarında öneri olarak gösterilir; elle başka birim de yazılabilir.
 const normBirimOnerileri = ['kg/da', 'adet/da', 'g/da', 'fide/da', 'litre/da', 'ton/da'];
 
 // Ambalaj içeriğinin birimi (1 torba = 25.000 adet, 1 çuval = 50 kg ...)
 const ambalajBirimleri = ['kg', 'adet', 'g', 'fide', 'litre'];
+
+// Bu kodlu norm adet ↔ kg dönüşümünde kullanılır (bin danenin gram cinsinden ağırlığı).
+const BIN_DANE_KOD = 'bin_dane_agirligi';
 
 const normTipleri = {
   ekim: { ad: 'Ekim / uygulama normu', aciklama: 'Dekar başına verilecek miktar; dağıtım ihtiyacı hesaplanır', renk: 'green' },
@@ -76,7 +134,6 @@ const projeDurumlari = {
   iptal: { ad: 'İptal', renk: 'red' }
 };
 
-const rolRenkleri = { yonetici: 'purple', koordinator: 'blue', yurutucu: 'green' };
 
 const gorevDurumlari = {
   bekliyor: { ad: 'Bekliyor', renk: 'secondary', ikon: 'ti-clock' },
@@ -101,5 +158,5 @@ const oncelikler = {
 
 module.exports = {
   varsayilanlar, normTipleri, normBirimOnerileri, ambalajBirimleri, projeDurumlari,
-  rolRenkleri, gorevDurumlari, oncelikler, talepDurumlari
+  gorevDurumlari, oncelikler, talepDurumlari, yetkiGruplari, tumYetkiler, rolRenkSecenekleri, BIN_DANE_KOD
 };

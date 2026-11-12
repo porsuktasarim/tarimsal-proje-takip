@@ -122,3 +122,5 @@
 .talep-satirlari .form-select { min-width: 6.5rem; }
 .talep-satirlari .talep-kalem { min-width: 8rem; }
 .talep-ozet { position: sticky; top: 1rem; }
+
+.ekip-listesi { max-height: 18rem; overflow-y: auto; }

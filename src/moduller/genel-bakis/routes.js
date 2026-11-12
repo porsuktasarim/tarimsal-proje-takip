@@ -3,7 +3,10 @@ const mongoose = require('mongoose');
 const { projeHesabi, taleplerOzeti } = require('../projeler/hesap');
 const { projeDurumlari } = require('../../config/sabitler');
 
+const { yetkiGerekli } = require('../../core/yetki');
+
 const router = express.Router();
+router.use(yetkiGerekli('pano.gor'));
 const sar = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
 
 const ACIK = ['bekliyor', 'suruyor'];

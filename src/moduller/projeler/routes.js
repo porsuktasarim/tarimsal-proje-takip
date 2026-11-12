@@ -5,11 +5,18 @@ const Urun = require('../ayarlar/modeller/Urun');
 const Kisi = require('../ayarlar/modeller/Kisi');
 const katalog = require('../ayarlar/katalog');
 const { projeHesabi, taleplerOzeti } = require('./hesap');
+const { yetkiGerekli } = require('../../core/yetki');
 const { projeDurumlari } = require('../../config/sabitler');
 const { sayiOku, diziyeCevir, tarihOku, anahtar } = require('../../core/yardimcilar');
 
 const router = express.Router();
 const V = 'projeler/views/';
+
+// Görüntüleme proje.gor, başlatma/düzenleme/durum/silme proje.yonet ister.
+router.use((req, res, next) => {
+  const goruntuleme = req.method === 'GET' && !/\/(yeni|duzenle)$/.test(req.path);
+  return yetkiGerekli(goruntuleme ? 'proje.gor' : 'proje.yonet')(req, res, next);
+});
 const sar = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
 const metin = (v) => (v === undefined || v === null ? '' : String(v).trim());
 
@@ -151,7 +158,7 @@ async function katalogGetir() {
 }
 
 async function formuGoster(res, durum, sablon) {
-  const kisiler = await Kisi.find({ rol: { $in: ['koordinator', 'yurutucu'] } }).sort({ adSoyad: 1 }).lean();
+  const kisiler = await Kisi.find().sort({ adSoyad: 1 }).lean();
   return res.status(durum).render(V + 'form', { ...sablon, katalog: await katalogGetir(), kisiler });
 }
 

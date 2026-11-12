@@ -2,7 +2,7 @@
 <%
   var gd = sabitler.gorevDurumlari, on = sabitler.oncelikler;
   var d = gd[gorev.durum];
-  var eylemler = '<a href="/gorevler/' + gorev._id + '/duzenle" class="btn"><i class="ti ti-edit me-1"></i> Düzenle</a>';
+  var eylemler = izin('gorev.ver') ? '<a href="/gorevler/' + gorev._id + '/duzenle" class="btn"><i class="ti ti-edit me-1"></i> Düzenle</a>' : '';
   var atananAd = gorev.atama.tur === 'rol'
     ? (ayar.rolAdlari[gorev.atama.rol] || gorev.atama.rol) + ' (rol)'
     : (gorev.atama.kisiId ? gorev.atama.kisiId.adSoyad : '–');
@@ -75,7 +75,7 @@
               <% if (gorev.tamamlanma) { %><dt class="col-5">Tamamlanma</dt><dd class="col-7"><%= y.tarih(gorev.tamamlanma) %></dd><% } %>
             </dl>
           </div>
-          <div class="card-footer">
+          <div class="card-footer<%= izin('gorev.ver') ? '' : ' d-none' %>">
             <form method="post" action="/gorevler/<%= gorev._id %>/sil" data-onay="Bu görev ve geçmişi silinecek. Devam edilsin mi?">
               <button class="btn btn-ghost-danger btn-sm w-100"><i class="ti ti-trash me-1"></i> Görevi sil</button>
             </form>

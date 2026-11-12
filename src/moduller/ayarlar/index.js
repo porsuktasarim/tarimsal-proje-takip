@@ -6,7 +6,7 @@ module.exports = {
   ad: 'Ayarlar',
   sira: 90,
   menu: [
-    { ad: 'Ayarlar', yol: '/ayarlar', ikon: 'ti-settings' }
+    { ad: 'Ayarlar', yol: '/ayarlar', ikon: 'ti-settings', yetki: ['ayar.genel', 'ayar.katalog', 'ayar.kisi'] }
   ],
   router: require('./routes')
 };

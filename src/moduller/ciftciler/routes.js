@@ -4,10 +4,17 @@ const Ciftci = require('./model');
 const Talep = require('../talepler/model');
 const { talepHesabi } = require('../projeler/hesap');
 const { tcGecerliMi, anahtar } = require('../../core/yardimcilar');
-const { calisilanIlceler, ilceKisitliMi } = require('../../core/yetki');
+const { calisilanIlceler, ilceKisitliMi, yetkiGerekli } = require('../../core/yetki');
 
 const router = express.Router();
 const V = 'ciftciler/views/';
+
+// Görüntüleme ciftci.gor; ekleme/düzenleme/silme ciftci.yonet. T.C. sorgusu talep girenlere de açık.
+router.use((req, res, next) => {
+  if (/^\/tc\//.test(req.path)) return yetkiGerekli('ciftci.gor', 'talep.gir')(req, res, next);
+  const goruntuleme = req.method === 'GET' && !/\/(yeni|duzenle)$/.test(req.path);
+  return yetkiGerekli(goruntuleme ? 'ciftci.gor' : 'ciftci.yonet')(req, res, next);
+});
 const sar = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
 const metin = (v) => (v === undefined || v === null ? '' : String(v).trim());
 
@@ -49,7 +56,7 @@ async function talepOzetleri(ciftciIdleri) {
 
 router.get('/', sar(async (req, res) => {
   const ben = req.ben;
-  const kisitli = ilceKisitliMi(ben);
+  const kisitli = ilceKisitliMi(ben, res.locals.ayar);
   const ilce = req.query.ilce !== undefined ? String(req.query.ilce) : (kisitli ? 'benim' : '');
   const filtre = {};
   if (ilce === 'benim' && kisitli) filtre.ilce = { $in: ben.ilceler };
