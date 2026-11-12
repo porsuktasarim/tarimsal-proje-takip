@@ -1,0 +1,69 @@
+<%- include('../../../views/partials/ust') %>
+<%- include('../../../views/partials/sayfa-basligi', {
+      ustBaslik: ben ? ben.adSoyad : 'Görevler',
+      eylemler: '<a href="/gorevler/yeni" class="btn btn-primary"><i class="ti ti-plus me-1"></i> Görev ver</a>'
+    }) %>
+<%
+  var adres = function (deg) {
+    var p = { gorunum: gorunum, durum: durum, proje: seciliProje };
+    Object.keys(deg).forEach(function (k) { p[k] = deg[k]; });
+    return '/gorevler?' + Object.keys(p).filter(function (k) { return p[k]; }).map(function (k) { return k + '=' + encodeURIComponent(p[k]); }).join('&');
+  };
+  var sekmeler = [];
+  if (ben) sekmeler.push(['bana', 'Görevlerim', sayac.bana]);
+  sekmeler.push(['tumu', 'Tüm görevler', sayac.tumu]);
+  if (ben) sekmeler.push(['verdigim', 'Verdiğim görevler', sayac.verdigim]);
+%>
+<div class="page-body">
+  <div class="container-xl">
+    <%- include('../../../views/partials/bildirim') %>
+    <div class="card">
+      <div class="card-header">
+        <ul class="nav nav-tabs card-header-tabs">
+          <% sekmeler.forEach(function (s) { %>
+            <li class="nav-item">
+              <a href="<%= adres({ gorunum: s[0] }) %>" class="nav-link<%= gorunum === s[0] ? ' active' : '' %>">
+                <%= s[1] %> <span class="badge bg-secondary-lt ms-2"><%= s[2] %></span>
+              </a>
+            </li>
+          <% }) %>
+        </ul>
+      </div>
+      <div class="card-body border-bottom py-2">
+        <form method="get" action="/gorevler" class="row g-2 align-items-center">
+          <input type="hidden" name="gorunum" value="<%= gorunum %>">
+          <div class="col-auto">
+            <select name="durum" class="form-select form-select-sm" onchange="this.form.submit()">
+              <option value="acik" <%= durum === 'acik' ? 'selected' : '' %>>Açık görevler</option>
+              <% Object.keys(sabitler.gorevDurumlari).forEach(function (k) { %>
+                <option value="<%= k %>" <%= durum === k ? 'selected' : '' %>><%= sabitler.gorevDurumlari[k].ad %></option>
+              <% }) %>
+              <option value="tumu" <%= durum === 'tumu' ? 'selected' : '' %>>Tümü</option>
+            </select>
+          </div>
+          <div class="col-auto">
+            <select name="proje" class="form-select form-select-sm" onchange="this.form.submit()">
+              <option value="">Tüm projeler</option>
+              <% projeler.forEach(function (p) { %>
+                <option value="<%= p._id %>" <%= String(p._id) === seciliProje ? 'selected' : '' %>><%= p.kisaAd || p.ad %></option>
+              <% }) %>
+            </select>
+          </div>
+          <% if (gorunum === 'bana' && ben) { %>
+            <div class="col text-secondary small text-end">Size ve <strong><%= ayar.rolAdlari[ben.rol] %></strong> rolüne verilen görevler</div>
+          <% } %>
+        </form>
+      </div>
+      <% if (!gorevler.length) { %>
+        <div class="empty">
+          <div class="empty-icon"><i class="ti ti-checklist" style="font-size:3rem"></i></div>
+          <p class="empty-title">Görev yok</p>
+          <p class="empty-subtitle text-secondary">Bu görünümde listelenecek görev bulunmuyor.</p>
+        </div>
+      <% } else { %>
+        <%- include('../../../views/partials/gorev-tablosu', { gorevler: gorevler, geri: adres({}) }) %>
+      <% } %>
+    </div>
+  </div>
+</div>
+<%- include('../../../views/partials/alt') %>

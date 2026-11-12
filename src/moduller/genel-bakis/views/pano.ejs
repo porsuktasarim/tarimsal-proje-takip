@@ -1,0 +1,185 @@
+<%- include('../../../views/partials/ust') %>
+<%
+  var pd = sabitler.projeDurumlari;
+  var birimli = function (t) {
+    var b = Object.keys(t || {});
+    return b.length ? b.map(function (k) { return y.miktar(t[k], k); }).join(' · ') : '–';
+  };
+  var donemSecimi = '<form method="get" class="d-inline-block"><select name="donem" class="form-select" onchange="this.form.submit()">'
+    + '<option value="">Tüm dönemler</option>'
+    + ayar.donemAdlari.map(function (d) { return '<option' + (d === donem ? ' selected' : '') + '>' + d + '</option>'; }).join('')
+    + '</select></form>';
+  var ciktiVar = ozet.ciktilar.some(function (c) { return Object.keys(c.toplamlar).length; });
+%>
+<%- include('../../../views/partials/sayfa-basligi', {
+      ustBaslik: ayar.il + ' geneli' + (ben ? ' · ' + ben.adSoyad : ''),
+      eylemler: donemSecimi
+    }) %>
+<div class="page-body">
+  <div class="container-xl">
+    <%- include('../../../views/partials/bildirim') %>
+
+    <!-- Özet göstergeler -->
+    <div class="row row-cards mb-3">
+      <div class="col-sm-6 col-lg-3">
+        <div class="card card-sm"><div class="card-body">
+          <div class="d-flex align-items-center">
+            <span class="avatar bg-green-lt me-3"><i class="ti ti-folders"></i></span>
+            <div>
+              <div class="h2 mb-0"><%= ozet.projeSayisi %> <span class="fs-4 text-secondary fw-normal">proje</span></div>
+              <div class="text-secondary small"><%= ozet.durumlar.aktif %> yürütülüyor · <%= ozet.durumlar.taslak %> taslak · <%= ozet.durumlar.tamamlandi %> tamamlandı</div>
+            </div>
+          </div>
+        </div></div>
+      </div>
+      <div class="col-sm-6 col-lg-3">
+        <div class="card card-sm"><div class="card-body">
+          <div class="d-flex align-items-center">
+            <span class="avatar bg-blue-lt me-3"><i class="ti ti-map-2"></i></span>
+            <div>
+              <div class="h2 mb-0"><%= y.sayi(ozet.hedefDekar) %> <span class="fs-4 text-secondary fw-normal">da</span></div>
+              <div class="text-secondary small">hedef alan · <%= ozet.ilceSayisi %> ilçe</div>
+            </div>
+          </div>
+        </div></div>
+      </div>
+      <div class="col-sm-6 col-lg-3">
+        <div class="card card-sm"><div class="card-body">
+          <div class="d-flex align-items-center">
+            <span class="avatar bg-orange-lt me-3"><i class="ti ti-users"></i></span>
+            <div>
+              <div class="h2 mb-0"><%= y.sayi(ozet.hedefCiftci) %></div>
+              <div class="text-secondary small">hedef çiftçi</div>
+            </div>
+          </div>
+        </div></div>
+      </div>
+      <div class="col-sm-6 col-lg-3">
+        <a href="/gorevler?gorunum=tumu" class="card card-sm card-link"><div class="card-body">
+          <div class="d-flex align-items-center">
+            <span class="avatar bg-<%= gorevOzeti.geciken ? 'red' : 'purple' %>-lt me-3"><i class="ti ti-checklist"></i></span>
+            <div>
+              <div class="h2 mb-0"><%= gorevOzeti.acik %> <span class="fs-4 text-secondary fw-normal">açık görev</span></div>
+              <div class="small <%= gorevOzeti.geciken ? 'text-red' : 'text-secondary' %>"><%= gorevOzeti.geciken %> geciken · <%= gorevOzeti.tamam %> tamamlandı</div>
+            </div>
+          </div>
+        </div></a>
+      </div>
+    </div>
+
+    <div class="row row-cards">
+      <div class="<%= ben ? 'col-lg-8' : 'col-12' %>">
+        <!-- Dağıtım ve hedef çıktılar -->
+        <div class="card mb-3">
+          <div class="card-header">
+            <div>
+              <h3 class="card-title">Dağıtım ve hedef çıktılar</h3>
+              <p class="card-subtitle">İptal edilenler dışındaki projelerin toplamı</p>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="datagrid">
+              <div class="datagrid-item">
+                <div class="datagrid-title">Dağıtılacak</div>
+                <div class="datagrid-content fw-medium"><%= birimli(ozet.dagitim) %></div>
+              </div>
+              <% ozet.ciktilar.forEach(function (c) { if (!Object.keys(c.toplamlar).length) return; %>
+                <div class="datagrid-item">
+                  <div class="datagrid-title"><%= c.norm.ad %></div>
+                  <div class="datagrid-content fw-medium"><%= birimli(c.toplamlar) %></div>
+                </div>
+              <% }) %>
+              <% if (!ciktiVar) { %>
+                <div class="datagrid-item">
+                  <div class="datagrid-title">Hedef çıktı</div>
+                  <div class="datagrid-content text-secondary">Kalemlerde çıktı normu girilmemiş</div>
+                </div>
+              <% } %>
+            </div>
+          </div>
+        </div>
+
+        <!-- Projelerin son durumu -->
+        <div class="card mb-3">
+          <div class="card-header">
+            <h3 class="card-title">Projelerin son durumu</h3>
+          </div>
+          <% if (!satirlar.length) { %>
+            <div class="card-body text-secondary">Henüz proje yok. <a href="/projeler/yeni">Proje başlat</a></div>
+          <% } else { %>
+            <div class="table-responsive">
+              <table class="table table-vcenter card-table">
+                <thead>
+                  <tr>
+                    <th>Proje</th>
+                    <th class="tablo-sayi">İlçe</th>
+                    <th class="tablo-sayi">Hedef alan</th>
+                    <th class="tablo-sayi">Dağıtım</th>
+                    <th style="min-width: 9rem">Görevler</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <% satirlar.forEach(function (s) { var p = s.proje; var d = pd[p.durum]; var g = s.gorev;
+                       var oran = g.toplam ? Math.round(100 * g.tamam / g.toplam) : 0; %>
+                    <tr>
+                      <td>
+                        <a href="/projeler/<%= p._id %>" class="text-reset fw-medium"><%= p.kisaAd || p.ad %></a>
+                        <div class="small"><span class="badge bg-<%= d.renk %>-lt"><%= d.ad %></span> <span class="text-secondary"><%= p.donem || '' %></span></div>
+                      </td>
+                      <td class="tablo-sayi"><%= p.ilceler.length %></td>
+                      <td class="tablo-sayi text-nowrap"><%= y.sayi(s.hesap.toplamDekar) %> da</td>
+                      <td class="tablo-sayi text-nowrap small"><%= birimli(s.hesap.miktarToplamlari) %></td>
+                      <td>
+                        <% if (g.toplam) { %>
+                          <div class="d-flex align-items-center small mb-1">
+                            <span><%= g.tamam %>/<%= g.toplam %></span>
+                            <% if (g.geciken) { %><span class="text-red ms-auto"><%= g.geciken %> geciken</span><% } %>
+                          </div>
+                          <div class="progress progress-sm"><div class="progress-bar bg-green" style="width: <%= oran %>%"></div></div>
+                        <% } else { %><span class="text-secondary small">Görev yok</span><% } %>
+                      </td>
+                    </tr>
+                  <% }) %>
+                </tbody>
+              </table>
+            </div>
+          <% } %>
+        </div>
+      </div>
+
+      <% if (ben) { %>
+        <div class="col-lg-4">
+          <div class="card mb-3">
+            <div class="card-header">
+              <div>
+                <h3 class="card-title">Görevlerim</h3>
+                <p class="card-subtitle">Size ve <%= ayar.rolAdlari[ben.rol] %> rolüne verilen açık görevler</p>
+              </div>
+              <div class="card-actions"><a href="/gorevler?gorunum=bana" class="btn btn-sm btn-ghost-secondary">Tümü</a></div>
+            </div>
+            <% if (!benimGorevlerim.length) { %>
+              <div class="card-body text-secondary">Açık göreviniz yok.</div>
+            <% } else { %>
+              <div class="list-group list-group-flush">
+                <% benimGorevlerim.slice(0, 8).forEach(function (g) { var gd = sabitler.gorevDurumlari[g.durum]; %>
+                  <a href="/gorevler/<%= g._id %>" class="list-group-item list-group-item-action">
+                    <div class="d-flex align-items-center">
+                      <span class="badge bg-<%= gd.renk %> badge-blink-off me-2" title="<%= gd.ad %>"></span>
+                      <span class="fw-medium text-truncate"><%= g.baslik %></span>
+                    </div>
+                    <div class="small text-secondary ms-3">
+                      <% if (g.sonTarih) { %><span class="<%= g.gecikti ? 'text-red' : '' %>"><i class="ti ti-calendar"></i> <%= y.tarih(g.sonTarih) %></span><% } %>
+                      <% if (g.projeId) { %> · <%= g.projeId.kisaAd || g.projeId.ad %><% } %>
+                      <% if (g.atama.tur === 'rol') { %> · role verildi<% } %>
+                    </div>
+                  </a>
+                <% }) %>
+              </div>
+            <% } %>
+          </div>
+        </div>
+      <% } %>
+    </div>
+  </div>
+</div>
+<%- include('../../../views/partials/alt') %>

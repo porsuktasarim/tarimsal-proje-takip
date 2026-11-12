@@ -2,6 +2,7 @@ const express = require('express');
 const mongoose = require('mongoose');
 const ayarlar = require('../../core/ayarlar');
 const Urun = require('./modeller/Urun');
+const Kisi = require('./modeller/Kisi');
 const { normTipleri, normBirimOnerileri, ambalajBirimleri } = require('../../config/sabitler');
 const katalog = require('./katalog');
 const { diziyeCevir, tarihOku, anahtar, kodUret } = require('../../core/yardimcilar');
@@ -13,6 +14,8 @@ const sar = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catc
 // Ayarlar içindeki sekmeler (sol menü)
 const sekmeler = [
   { yol: '/ayarlar/genel', ad: 'Genel', ikon: 'ti-building-community' },
+  { yol: '/ayarlar/kisiler', ad: 'Kişiler', ikon: 'ti-users' },
+  { yol: '/ayarlar/roller', ad: 'Roller', ikon: 'ti-id-badge-2' },
   { yol: '/ayarlar/birimler', ad: 'Yürütücü birimler', ikon: 'ti-sitemap' },
   { yol: '/ayarlar/donemler', ad: 'Dönemler', ikon: 'ti-calendar' },
   { yol: '/ayarlar/urunler', ad: 'Ürün kataloğu', ikon: 'ti-seeding' },
@@ -359,6 +362,124 @@ router.post('/urunler/:id/sil', sar(urunBul), sar(async (req, res) => {
   if (n > 0) return res.redirect(`/ayarlar/urunler/${req.urun._id}/duzenle?bildirim=urun-kullaniliyor`);
   await req.urun.deleteOne();
   return res.redirect('/ayarlar/urunler?bildirim=urun-silindi');
+}));
+
+// ---------------------------------------------------------------------------
+// Roller (kodlar sabit; ad ve açıklama değiştirilebilir)
+// ---------------------------------------------------------------------------
+router.get('/roller', sar(async (req, res) => {
+  const sayilar = {};
+  for (const r of res.locals.ayar.roller) sayilar[r.kod] = await Kisi.countDocuments({ rol: r.kod, aktif: true });
+  res.render(V + 'roller', { baslik: 'Roller', roller: res.locals.ayar.roller, sayilar, hatalar: [] });
+}));
+
+router.post('/roller', sar(async (req, res) => {
+  const gelen = req.body.roller || {};
+  const hatalar = [];
+  const roller = res.locals.ayar.roller.map((r) => {
+    const g = gelen[r.kod] || {};
+    const ad = (g.ad || '').trim();
+    if (!ad) hatalar.push(`"${r.ad}" rolünün adı boş bırakılamaz.`);
+    return { kod: r.kod, ad: ad || r.ad, aciklama: (g.aciklama || '').trim() };
+  });
+  if (hatalar.length) return res.status(422).render(V + 'roller', { baslik: 'Roller', roller, sayilar: {}, hatalar });
+  await ayarlar.guncelle({ roller });
+  return res.redirect('/ayarlar/roller?bildirim=kaydedildi');
+}));
+
+// ---------------------------------------------------------------------------
+// Kişiler
+// ---------------------------------------------------------------------------
+const ROL_KODLARI = ['yonetici', 'koordinator', 'yurutucu'];
+
+async function kisiKullanimi(id) {
+  let n = 0;
+  if (mongoose.modelNames().includes('Proje')) {
+    n += await mongoose.model('Proje').countDocuments({ $or: [{ koordinatorler: id }, { yurutuculer: id }] });
+  }
+  if (mongoose.modelNames().includes('Gorev')) {
+    n += await mongoose.model('Gorev').countDocuments({ $or: [{ 'atama.kisiId': id }, { olusturan: id }] });
+  }
+  return n;
+}
+
+function kisiFormuOku(govde, ayar) {
+  const ilceler = diziyeCevir(govde.ilceler).filter((i) => ayar.ilceler.includes(i));
+  return {
+    adSoyad: (govde.adSoyad || '').trim().replace(/\s+/g, ' '),
+    unvan: (govde.unvan || '').trim() || undefined,
+    rol: ROL_KODLARI.includes(govde.rol) ? govde.rol : '',
+    birim: (govde.birim || '').trim() || undefined,
+    ilceler,
+    telefon: (govde.telefon || '').trim() || undefined,
+    eposta: (govde.eposta || '').trim() || undefined,
+    aktif: govde.aktif === 'on' || govde.aktif === 'true' || govde.aktif === '1',
+    aciklama: (govde.aciklama || '').trim() || undefined
+  };
+}
+
+function kisiDenetle(veri) {
+  const hatalar = [];
+  if (!veri.adSoyad) hatalar.push('Ad soyad girilmelidir.');
+  if (!veri.rol) hatalar.push('Rol seçilmelidir.');
+  return hatalar;
+}
+
+router.get('/kisiler', sar(async (req, res) => {
+  const kisiler = await Kisi.find().sort({ aktif: -1, adSoyad: 1 });
+  res.render(V + 'kisiler', { baslik: 'Kişiler', kisiler });
+}));
+
+router.get('/kisiler/yeni', (req, res) => {
+  res.render(V + 'kisi-form', {
+    baslik: 'Yeni kişi',
+    kisi: { rol: ROL_KODLARI.includes(req.query.rol) ? req.query.rol : 'yurutucu', aktif: true, ilceler: [] },
+    hatalar: [], eylem: '/ayarlar/kisiler', kullanim: 0
+  });
+});
+
+router.post('/kisiler', sar(async (req, res) => {
+  const veri = kisiFormuOku(req.body, res.locals.ayar);
+  const hatalar = kisiDenetle(veri);
+  if (hatalar.length) {
+    return res.status(422).render(V + 'kisi-form', { baslik: 'Yeni kişi', kisi: veri, hatalar, eylem: '/ayarlar/kisiler', kullanim: 0 });
+  }
+  await Kisi.create(veri);
+  return res.redirect('/ayarlar/kisiler?bildirim=kaydedildi');
+}));
+
+async function kisiBul(req, res, next) {
+  if (!mongoose.isValidObjectId(req.params.id)) return next('route');
+  req.kisi = await Kisi.findById(req.params.id);
+  return req.kisi ? next() : next('route');
+}
+
+router.get('/kisiler/:id/duzenle', sar(kisiBul), sar(async (req, res) => {
+  res.render(V + 'kisi-form', {
+    baslik: 'Kişiyi düzenle', kisi: req.kisi.toObject(), hatalar: [],
+    eylem: `/ayarlar/kisiler/${req.kisi._id}`, kullanim: await kisiKullanimi(req.kisi._id)
+  });
+}));
+
+router.post('/kisiler/:id', sar(kisiBul), sar(async (req, res) => {
+  const veri = kisiFormuOku(req.body, res.locals.ayar);
+  const hatalar = kisiDenetle(veri);
+  if (hatalar.length) {
+    veri._id = req.kisi._id;
+    return res.status(422).render(V + 'kisi-form', {
+      baslik: 'Kişiyi düzenle', kisi: veri, hatalar, eylem: `/ayarlar/kisiler/${req.kisi._id}`, kullanim: await kisiKullanimi(req.kisi._id)
+    });
+  }
+  req.kisi.set(veri);
+  await req.kisi.save();
+  return res.redirect('/ayarlar/kisiler?bildirim=kaydedildi');
+}));
+
+// Görev ya da projede adı geçen kişi silinmez; pasif yapılır.
+router.post('/kisiler/:id/sil', sar(kisiBul), sar(async (req, res) => {
+  if ((await kisiKullanimi(req.kisi._id)) > 0) return res.redirect(`/ayarlar/kisiler/${req.kisi._id}/duzenle?bildirim=kisi-kullaniliyor`);
+  await req.kisi.deleteOne();
+  return res.redirect('/ayarlar/kisiler?bildirim=kisi-silindi');
 }));
 
 module.exports = router;

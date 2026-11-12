@@ -39,6 +39,14 @@ const varsayilanlar = {
     { kod: 'kuru_ot_verimi', ad: 'Kuru ot verimi', birim: 'kg/da', tip: 'cikti' },
     { kod: 'tane_verimi', ad: 'Tane verimi', birim: 'kg/da', tip: 'cikti' },
     { kod: 'silaj_verimi', ad: 'Silaj verimi', birim: 'kg/da', tip: 'cikti' }
+  ],
+
+  // Rol kodları sabittir (yetki ve ekranlar bunlara bağlanır); ad ve açıklama
+  // Ayarlar > Roller'den değiştirilebilir.
+  roller: [
+    { kod: 'yonetici', ad: 'İş Planı', aciklama: 'Yöneticiler. Projelerin toplu istatistiklerini ve son durumunu izler.' },
+    { kod: 'koordinator', ad: 'Proje Koordinatörü', aciklama: 'İşi yürüten il müdürlüğü personeli.' },
+    { kod: 'yurutucu', ad: 'Proje Yürütücüsü', aciklama: 'Sahada çalışan personel.' }
   ]
 };
 
@@ -61,4 +69,23 @@ const projeDurumlari = {
   iptal: { ad: 'İptal', renk: 'red' }
 };
 
-module.exports = { varsayilanlar, normTipleri, normBirimOnerileri, ambalajBirimleri, projeDurumlari };
+const rolRenkleri = { yonetici: 'purple', koordinator: 'blue', yurutucu: 'green' };
+
+const gorevDurumlari = {
+  bekliyor: { ad: 'Bekliyor', renk: 'secondary', ikon: 'ti-clock' },
+  suruyor: { ad: 'Sürüyor', renk: 'blue', ikon: 'ti-progress' },
+  tamamlandi: { ad: 'Tamamlandı', renk: 'green', ikon: 'ti-circle-check' },
+  iptal: { ad: 'İptal', renk: 'red', ikon: 'ti-circle-x' }
+};
+
+const oncelikler = {
+  dusuk: { ad: 'Düşük', renk: 'secondary' },
+  normal: { ad: 'Normal', renk: 'blue' },
+  yuksek: { ad: 'Yüksek', renk: 'orange' },
+  acil: { ad: 'Acil', renk: 'red' }
+};
+
+module.exports = {
+  varsayilanlar, normTipleri, normBirimOnerileri, ambalajBirimleri, projeDurumlari,
+  rolRenkleri, gorevDurumlari, oncelikler
+};

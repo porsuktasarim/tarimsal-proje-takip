@@ -18,11 +18,24 @@
 - Proje listesi, arama, birim ve durum süzgeci
 - Proje durumu: Taslak, Yürütülüyor, Tamamlandı, İptal (yalnızca taslaklar silinebilir)
 
+### Kişiler, roller ve görevler
+
+- **Roller:** İş Planı (yöneticiler; toplu istatistik ve son durum), Proje Koordinatörü (il müdürlüğü personeli), Proje Yürütücüsü (sahada çalışan personel). Rol adları ve açıklamaları Ayarlar'dan değiştirilebilir.
+- **Kişiler:** ad soyad, unvan, rol, birim, sorumlu ilçeler, iletişim; pasif yapılabilir.
+- **Giriş:** şifre yoktur. İlk kişi tanımlandıktan sonra sisteme girişte "Kimsiniz?" ekranında kişi seçilir; seçim tarayıcıda hatırlanır, üst çubuktaki menüden değiştirilebilir.
+- **Proje ekibi:** projeye koordinatör ve yürütücüler atanır.
+- **Görevler:** kişiye ya da role verilir; proje, ilçe, son tarih ve öncelik bağlanabilir. Role verilen görev o roldeki herkesin "Görevlerim" listesinde görünür. Durum (Bekliyor, Sürüyor, Tamamlandı, İptal) ve notlar kimin ne zaman yaptığıyla birlikte görev geçmişine yazılır. Son tarihi geçen açık görevler "gecikti" olarak işaretlenir.
+- **Genel Bakış:** ana sayfa. Proje sayısı, hedef alan, hedef çiftçi, açık/geciken görevler, toplam dağıtım ve hedef çıktılar, projelerin son durumu ve görev ilerlemesi; dönem süzgeci. Kişinin kendi açık görevleri yanda listelenir.
+
+> Şimdilik tüm roller tüm ekranları görür; rollere göre ekran ve yetki ayrımı sonraki sürümlerde eklenecektir.
+
 ### Ayarlar
 
 | Bölüm | İçerik |
 |---|---|
 | Genel | Kurum adı, il |
+| Kişiler | Sistemi kullanan kişiler, rolleri ve sorumlu ilçeleri |
+| Roller | Üç rolün ekranda görünen adları ve açıklamaları |
 | Yürütücü birimler | Projeleri yürüten birimler |
 | Dönemler | Dönem adı, başlangıç/bitiş, yeni projede seçili gelecek varsayılan dönem |
 | Ürün kataloğu | Türe göre ürünler; dağıtım birimi, ambalaj içeriği, normların varsayılan değer ve birimleri; çeşitler ve çeşide özel değerler |
@@ -105,12 +118,15 @@ src/
   core/
     ayarlar.js              Ayar servisi: önbellek, kullanım sayımı, yeniden adlandırma
     gocler.js               Veri dönüşümleri (sürüm geçişleri)
+    kimlik.js               "Kimsiniz?" girişi (kişi seçimi, çerez)
     modulYukleyici.js       Modülleri otomatik yükler, menüyü oluşturur
     yardimcilar.js          Sayı, tarih, miktar biçimleme
   views/                    Ortak şablonlar (üst/alt bölüm, bildirimler, hata sayfası)
   moduller/
+    genel-bakis/            Toplu istatistik ve son durum panosu
     projeler/               Proje modeli, norm hesapları (hesap.js), sayfalar
-    ayarlar/                Ayar ve Ürün modelleri, ayar sayfaları
+    gorevler/               Görev modeli ve sayfaları
+    ayarlar/                Ayar, Ürün ve Kişi modelleri, ayar sayfaları
 public/                     Uygulamaya özel CSS, JS, simge
 ```
 
@@ -120,7 +136,9 @@ public/                     Uygulamaya özel CSS, JS, simge
 |---|---|
 | `ayarlar` | Tek belge (`_id: genel`): kurum, il, birimler, dönemler, ilçeler, kalem türleri, ölçü birimleri, norm tanımları |
 | `urunler` | Ürün kataloğu: tür, ad, dağıtım birimi, ambalaj, normlar `{ kod: { deger, birim } }`, çeşitler (kendi normları ve ambalajıyla) |
-| `projeler` | Proje bilgileri, kalemler (ürün kimliği, ürün, çeşit, alan, dağıtım birimi, ambalaj, normlar), ilçe hedefleri |
+| `projeler` | Proje bilgileri, kalemler (ürün kimliği, ürün, çeşit, alan, dağıtım birimi, ambalaj, normlar), ilçe hedefleri, proje ekibi |
+| `kisiler` | Kişiler: ad soyad, unvan, rol kodu, birim, ilçeler, aktiflik |
+| `gorevler` | Görevler: atama (kişi ya da rol), proje, ilçe, son tarih, öncelik, durum, hareket geçmişi |
 
 Veri biçimi değiştiğinde dönüşümler `src/core/gocler.js` içinde tanımlanır ve uygulama açılırken bir kez çalışır.
 
@@ -149,7 +167,7 @@ Yeni bir ayar listesi başka kayıtlarda kullanılacaksa `src/core/ayarlar.js` i
 - Teslim tutanakları
 - Gerçekleşen verimlerin girilmesi ve hedeflerle karşılaştırılması
 - Raporlar ve Excel/PDF çıktıları
-- Kullanıcı ve ilçe yetkilendirmesi
+- Rollere göre ekranlar ve yetkiler; isteğe bağlı şifreli giriş
 
 ## Lisans
 

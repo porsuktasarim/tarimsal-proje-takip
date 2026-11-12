@@ -1,0 +1,49 @@
+<%- include('_bas', {
+      eylemler: '<a href="/ayarlar/kisiler/yeni" class="btn btn-primary"><i class="ti ti-user-plus me-1"></i> Kişi ekle</a>'
+    }) %>
+<div class="card">
+  <div class="card-header">
+    <div>
+      <h3 class="card-title">Kişiler</h3>
+      <p class="card-subtitle">Sisteme girişte "Kimsiniz?" ekranında listelenen kişiler. Görevler kişilere ya da rollere verilir.</p>
+    </div>
+  </div>
+  <% if (!kisiler.length) { %>
+    <div class="empty">
+      <div class="empty-icon"><i class="ti ti-users" style="font-size:3rem"></i></div>
+      <p class="empty-title">Henüz kişi eklenmedi</p>
+      <p class="empty-subtitle text-secondary">İlk kişi eklendikten sonra sisteme girişte kişi seçimi istenecektir. Önce kendinizi eklemeniz önerilir.</p>
+      <div class="empty-action"><a href="/ayarlar/kisiler/yeni" class="btn btn-primary"><i class="ti ti-user-plus me-1"></i> Kişi ekle</a></div>
+    </div>
+  <% } else { %>
+    <% ayar.roller.forEach(function (r) {
+         var liste = kisiler.filter(function (k) { return k.rol === r.kod; }); %>
+      <div class="card-body border-bottom py-2 d-flex align-items-center">
+        <span class="badge bg-<%= sabitler.rolRenkleri[r.kod] %>-lt me-2"><%= r.ad %></span>
+        <span class="text-secondary small"><%= liste.length %> kişi</span>
+        <a href="/ayarlar/kisiler/yeni?rol=<%= r.kod %>" class="btn btn-ghost-secondary btn-sm ms-auto"><i class="ti ti-plus me-1"></i> Ekle</a>
+      </div>
+      <% if (liste.length) { %>
+        <div class="table-responsive">
+          <table class="table table-vcenter card-table mb-0">
+            <tbody>
+              <% liste.forEach(function (k) { %>
+                <tr class="<%= k.aktif ? '' : 'opacity-50' %>">
+                  <td class="w-1"><span class="avatar avatar-sm bg-<%= sabitler.rolRenkleri[k.rol] %>-lt"><%= k.basHarfler %></span></td>
+                  <td>
+                    <div class="fw-medium"><%= k.adSoyad %><% if (!k.aktif) { %> <span class="badge bg-secondary-lt ms-1">Pasif</span><% } %><% if (ben && ben._id === String(k._id)) { %> <span class="badge bg-primary-lt ms-1">Siz</span><% } %></div>
+                    <div class="text-secondary small"><%= [k.unvan, k.birim].filter(Boolean).join(' · ') || '–' %></div>
+                  </td>
+                  <td class="text-secondary small"><%= k.ilceler.length ? k.ilceler.join(', ') : '' %></td>
+                  <td class="text-secondary small text-nowrap"><%= k.telefon || '' %></td>
+                  <td class="w-1"><a href="/ayarlar/kisiler/<%= k._id %>/duzenle" class="btn btn-ghost-secondary btn-icon" title="Düzenle"><i class="ti ti-edit"></i></a></td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      <% } %>
+    <% }) %>
+  <% } %>
+</div>
+<%- include('_son') %>

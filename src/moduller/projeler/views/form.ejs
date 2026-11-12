@@ -146,6 +146,42 @@
         </div>
       </div>
 
+      <!-- 4. Proje ekibi -->
+      <%
+        var secKoor = (proje.koordinatorler || []).map(String);
+        var secYur = (proje.yurutuculer || []).map(String);
+        var ekipListesi = function (rol, ad, secili) {
+          return kisiler.filter(function (k) { return k.rol === rol && (k.aktif || secili.indexOf(String(k._id)) >= 0); });
+        };
+      %>
+      <div class="card mb-3">
+        <div class="card-header">
+          <h3 class="card-title"><span class="badge bg-primary-lt me-2">4</span> Proje ekibi</h3>
+        </div>
+        <div class="card-body">
+          <div class="row g-4">
+            <% [['koordinator', 'koordinatorler', secKoor], ['yurutucu', 'yurutuculer', secYur]].forEach(function (g) {
+                 var liste = ekipListesi(g[0], g[1], g[2]); %>
+              <div class="col-md-6">
+                <div class="form-label"><%= ayar.rolAdlari[g[0]] %></div>
+                <% if (!liste.length) { %>
+                  <div class="text-secondary small">Bu rolde kişi tanımlı değil. <a href="/ayarlar/kisiler/yeni?rol=<%= g[0] %>">Kişi ekle</a></div>
+                <% } %>
+                <% liste.forEach(function (k, i) { %>
+                  <label class="form-check">
+                    <input type="checkbox" class="form-check-input" name="<%= g[1] %>[<%= i %>]" value="<%= k._id %>" <%= g[2].indexOf(String(k._id)) >= 0 ? 'checked' : '' %>>
+                    <span class="form-check-label">
+                      <%= k.adSoyad %><% if (!k.aktif) { %> <span class="badge bg-secondary-lt">Pasif</span><% } %>
+                      <% if (k.ilceler && k.ilceler.length) { %><span class="text-secondary small"> · <%= k.ilceler.join(', ') %></span><% } %>
+                    </span>
+                  </label>
+                <% }) %>
+              </div>
+            <% }) %>
+          </div>
+        </div>
+      </div>
+
       <div class="d-flex justify-content-end gap-2 mb-4">
         <a href="<%= yeni ? '/projeler' : '/projeler/' + proje._id %>" class="btn btn-ghost-secondary">Vazgeç</a>
         <button type="submit" class="btn btn-primary">

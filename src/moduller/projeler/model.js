@@ -39,7 +39,10 @@ const projeSema = new mongoose.Schema({
   aciklama: { type: String, trim: true },
   durum: { type: String, enum: Object.keys(projeDurumlari), default: 'taslak' },
   kalemler: { type: [kalemSema], default: [] },
-  ilceler: { type: [ilceHedefSema], default: [] }
+  ilceler: { type: [ilceHedefSema], default: [] },
+  // Proje ekibi (Ayarlar > Kişiler)
+  koordinatorler: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Kisi' }],
+  yurutuculer: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Kisi' }]
 }, { collection: 'projeler', timestamps: { createdAt: 'olusturulma', updatedAt: 'guncellenme' } });
 
 projeSema.virtual('toplamHedefDekar').get(function () {

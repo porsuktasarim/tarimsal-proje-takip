@@ -12,6 +12,9 @@ function duzenle(belge) {
   a.donemAdlari = (a.donemler || []).map((d) => d.ad);
   a.ekimNormu = (a.normlar || []).find((n) => n.tip === 'ekim') || null;
   a.ciktiNormlari = (a.normlar || []).filter((n) => n.tip === 'cikti');
+  // Rol kodları sabittir; kayıtta eksik rol varsa varsayılanı eklenir.
+  a.roller = varsayilanlar.roller.map((v) => ({ ...v, ...((a.roller || []).find((r) => r.kod === v.kod) || {}) }));
+  a.rolAdlari = Object.fromEntries(a.roller.map((r) => [r.kod, r.ad]));
   return a;
 }
 
@@ -53,16 +56,21 @@ async function guncelle(degisiklik) {
 // Bir değer yeniden adlandırılınca bu kayıtlar da güncellenir; kullanılan bir
 // değer silinemez.
 // ---------------------------------------------------------------------------
+// dizi: nesne dizisi içindeki alan; liste: düz metin dizisi (ör. kişinin ilçeleri)
 const baglar = {
-  birimler: [{ model: 'Proje', alan: 'birim' }],
+  birimler: [{ model: 'Proje', alan: 'birim' }, { model: 'Kisi', alan: 'birim' }],
   donemler: [{ model: 'Proje', alan: 'donem' }],
-  ilceler: [{ model: 'Proje', dizi: 'ilceler', alan: 'ilce' }],
+  ilceler: [
+    { model: 'Proje', dizi: 'ilceler', alan: 'ilce' },
+    { model: 'Kisi', liste: 'ilceler' },
+    { model: 'Gorev', alan: 'ilce' }
+  ],
   kalemTurleri: [{ model: 'Urun', alan: 'tur' }, { model: 'Proje', dizi: 'kalemler', alan: 'tur' }],
   olcuBirimleri: [{ model: 'Urun', alan: 'olcuBirimi' }, { model: 'Proje', dizi: 'kalemler', alan: 'olcuBirimi' }]
 };
 
 const modelVarMi = (ad) => mongoose.modelNames().includes(ad);
-const yol = (b) => (b.dizi ? `${b.dizi}.${b.alan}` : b.alan);
+const yol = (b) => (b.liste || (b.dizi ? `${b.dizi}.${b.alan}` : b.alan));
 
 async function kullanimSay(liste, deger) {
   let toplam = 0;
@@ -84,6 +92,14 @@ async function yenidenAdlandir(liste, eski, yeni) {
   for (const b of baglar[liste] || []) {
     if (!modelVarMi(b.model)) continue;
     const Model = mongoose.model(b.model);
+    if (b.liste) {
+      const belgeler = await Model.find({ [b.liste]: eski });
+      for (const belge of belgeler) {
+        belge[b.liste] = belge[b.liste].map((d) => (d === eski ? yeni : d));
+        await belge.save({ validateBeforeSave: false });
+      }
+      continue;
+    }
     if (!b.dizi) {
       await Model.updateMany({ [b.alan]: eski }, { $set: { [b.alan]: yeni } });
       continue;

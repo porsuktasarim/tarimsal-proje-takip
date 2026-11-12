@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="tr" data-bs-theme="<%= config.varsayilanTema %>">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Kimsiniz? · <%= config.uygulamaAdi %></title>
+  <script>
+    (function () {
+      var tema = '<%= config.varsayilanTema %>';
+      try { tema = localStorage.getItem('tpts-tema') || tema; } catch (e) {}
+      document.documentElement.setAttribute('data-bs-theme', tema);
+    })();
+  </script>
+  <link rel="icon" href="/public/favicon.svg" type="image/svg+xml">
+  <link href="/vendor/tabler/css/tabler.min.css?v=<%= varlikSurumu %>" rel="stylesheet">
+  <link href="/vendor/tabler-icons/tabler-icons.min.css?v=<%= varlikSurumu %>" rel="stylesheet">
+  <link href="/public/css/uygulama.css?v=<%= varlikSurumu %>" rel="stylesheet">
+</head>
+<body class="d-flex flex-column">
+<div class="page page-center">
+  <div class="container container-tight py-4" style="max-width: 46rem">
+    <div class="text-center mb-4">
+      <div class="uygulama-marka justify-content-center">
+        <span class="uygulama-logo"><i class="ti ti-plant-2"></i></span>
+        <span class="uygulama-ad">Tarımsal Proje<br>Takip Sistemi</span>
+      </div>
+      <div class="text-secondary small mt-2"><%= ayar.kurum %></div>
+    </div>
+
+    <div class="card card-md">
+      <div class="card-body">
+        <h2 class="h2 text-center mb-1">Kimsiniz?</h2>
+        <p class="text-secondary text-center mb-4">Devam etmek için listeden adınızı seçin.</p>
+
+        <div class="mb-3">
+          <div class="input-icon">
+            <span class="input-icon-addon"><i class="ti ti-search"></i></span>
+            <input type="search" class="form-control" placeholder="Ad ara" data-kisi-ara autofocus>
+          </div>
+        </div>
+
+        <form method="post" action="/kimlik">
+          <input type="hidden" name="geri" value="<%= geri %>">
+          <% ayar.roller.forEach(function (r) {
+               var liste = kisiler.filter(function (k) { return k.rol === r.kod; });
+               if (!liste.length) return; %>
+            <div class="kimlik-grup mb-3">
+              <div class="subheader mb-2"><%= r.ad %></div>
+              <div class="row g-2">
+                <% liste.forEach(function (k) { %>
+                  <div class="col-sm-6 kimlik-oge" data-ad="<%= k.adSoyad.toLocaleLowerCase('tr') %>">
+                    <button type="submit" name="kisi" value="<%= k._id %>" class="kimlik-kart w-100<%= seciliId === k._id ? ' secili' : '' %>">
+                      <span class="avatar avatar-sm bg-<%= sabitler.rolRenkleri[k.rol] %>-lt me-2"><%= k.basHarfler %></span>
+                      <span class="text-start flex-fill">
+                        <span class="d-block fw-medium"><%= k.adSoyad %></span>
+                        <span class="d-block text-secondary small"><%= k.unvan || ayar.rolAdlari[k.rol] %><% if (k.ilceler && k.ilceler.length) { %> · <%= k.ilceler.join(', ') %><% } %></span>
+                      </span>
+                      <i class="ti ti-chevron-right text-secondary"></i>
+                    </button>
+                  </div>
+                <% }) %>
+              </div>
+            </div>
+          <% }) %>
+        </form>
+      </div>
+    </div>
+    <div class="text-center text-secondary small mt-3">
+      Listede adınız yoksa sistem sorumlusuna başvurunuz. · v<%= surum %>
+    </div>
+  </div>
+</div>
+<script>
+  (function () {
+    var ara = document.querySelector('[data-kisi-ara]');
+    ara.addEventListener('input', function () {
+      var q = ara.value.trim().toLocaleLowerCase('tr');
+      document.querySelectorAll('.kimlik-oge').forEach(function (el) {
+        el.classList.toggle('d-none', q && el.getAttribute('data-ad').indexOf(q) < 0);
+      });
+      document.querySelectorAll('.kimlik-grup').forEach(function (g) {
+        g.classList.toggle('d-none', !g.querySelector('.kimlik-oge:not(.d-none)'));
+      });
+    });
+  })();
+</script>
+</body>
+</html>

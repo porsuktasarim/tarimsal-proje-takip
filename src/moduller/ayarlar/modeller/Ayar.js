@@ -15,6 +15,12 @@ const normSema = new mongoose.Schema({
   tip: { type: String, enum: ['ekim', 'cikti', 'bilgi'], default: 'cikti' }
 }, { _id: false });
 
+const rolSema = new mongoose.Schema({
+  kod: { type: String, required: true, trim: true },
+  ad: { type: String, required: true, trim: true },
+  aciklama: { type: String, trim: true }
+}, { _id: false });
+
 const ayarSema = new mongoose.Schema({
   _id: { type: String, default: 'genel' },
   kurum: { type: String, trim: true },
@@ -26,6 +32,7 @@ const ayarSema = new mongoose.Schema({
   kalemTurleri: { type: [String], default: [] },
   olcuBirimleri: { type: [String], default: [] },
   normlar: { type: [normSema], default: [] },
+  roller: { type: [rolSema], default: undefined },
   gocSurumu: { type: Number, default: 0 }   // uygulanmış veri dönüşümlerinin sürümü (core/gocler.js)
 }, { collection: 'ayarlar', timestamps: { createdAt: false, updatedAt: 'guncellenme' } });
 

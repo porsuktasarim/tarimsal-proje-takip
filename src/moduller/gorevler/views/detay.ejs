@@ -1,0 +1,88 @@
+<%- include('../../../views/partials/ust') %>
+<%
+  var gd = sabitler.gorevDurumlari, on = sabitler.oncelikler;
+  var d = gd[gorev.durum];
+  var eylemler = '<a href="/gorevler/' + gorev._id + '/duzenle" class="btn"><i class="ti ti-edit me-1"></i> Düzenle</a>';
+  var atananAd = gorev.atama.tur === 'rol'
+    ? (ayar.rolAdlari[gorev.atama.rol] || gorev.atama.rol) + ' (rol)'
+    : (gorev.atama.kisiId ? gorev.atama.kisiId.adSoyad : '–');
+  var hareketAdi = { olusturma: 'görevi oluşturdu', durum: 'durumu değiştirdi', not: 'not ekledi', duzenleme: 'görevi düzenledi' };
+%>
+<%- include('../../../views/partials/sayfa-basligi', { ustBaslik: 'Görev', eylemler: eylemler }) %>
+<div class="page-body">
+  <div class="container-xl">
+    <%- include('../../../views/partials/bildirim') %>
+    <div class="row row-cards">
+      <div class="col-lg-8">
+        <div class="card mb-3">
+          <div class="card-body">
+            <div class="d-flex align-items-center mb-2">
+              <span class="badge bg-<%= d.renk %>-lt me-2"><i class="ti <%= d.ikon %> me-1"></i><%= d.ad %></span>
+              <span class="badge bg-<%= on[gorev.oncelik].renk %>-lt"><%= on[gorev.oncelik].ad %> öncelik</span>
+              <% if (gorev.gecikti) { %><span class="badge bg-red ms-2">Gecikti</span><% } %>
+            </div>
+            <% if (gorev.aciklama) { %>
+              <div style="white-space: pre-line"><%= gorev.aciklama %></div>
+            <% } else { %>
+              <div class="text-secondary">Açıklama girilmemiş.</div>
+            <% } %>
+          </div>
+        </div>
+
+        <div class="card mb-3">
+          <div class="card-header"><h3 class="card-title">Durum ve notlar</h3></div>
+          <div class="card-body">
+            <form method="post" action="/gorevler/<%= gorev._id %>/durum">
+              <textarea name="not" rows="2" class="form-control mb-2" placeholder="Not (isteğe bağlı): yapılanlar, karşılaşılan sorunlar..."></textarea>
+              <div class="d-flex flex-wrap gap-2">
+                <% Object.keys(gd).forEach(function (k) { if (k === gorev.durum) return; %>
+                  <button name="durum" value="<%= k %>" class="btn btn-sm btn-outline-<%= gd[k].renk === 'secondary' ? 'secondary' : gd[k].renk %>">
+                    <i class="ti <%= gd[k].ikon %> me-1"></i><%= gd[k].ad %>
+                  </button>
+                <% }) %>
+                <button name="durum" value="<%= gorev.durum %>" class="btn btn-sm ms-auto"><i class="ti ti-message-plus me-1"></i> Yalnızca not ekle</button>
+              </div>
+            </form>
+          </div>
+          <ul class="hareket-listesi card-body pt-0">
+            <% gorev.hareketler.slice().reverse().forEach(function (h) { %>
+              <li class="d-flex">
+                <span class="avatar avatar-xs me-2 mt-1"><i class="ti <%= h.tur === 'not' ? 'ti-message' : (h.tur === 'durum' ? gd[h.durum].ikon : (h.tur === 'olusturma' ? 'ti-plus' : 'ti-edit')) %>"></i></span>
+                <div class="flex-fill">
+                  <div>
+                    <strong><%= h.kisiAd || '–' %></strong> <%= hareketAdi[h.tur] %><% if (h.tur === 'durum') { %>: <span class="badge bg-<%= gd[h.durum].renk %>-lt"><%= gd[h.durum].ad %></span><% } %>
+                  </div>
+                  <% if (h.metin) { %><div class="mt-1" style="white-space: pre-line"><%= h.metin %></div><% } %>
+                  <div class="text-secondary small"><%= new Date(h.tarih).toLocaleString('tr-TR', { dateStyle: 'short', timeStyle: 'short' }) %></div>
+                </div>
+              </li>
+            <% }) %>
+          </ul>
+        </div>
+      </div>
+
+      <div class="col-lg-4">
+        <div class="card mb-3">
+          <div class="card-body">
+            <dl class="row mb-0">
+              <dt class="col-5">Atanan</dt><dd class="col-7"><%= atananAd %></dd>
+              <dt class="col-5">Veren</dt><dd class="col-7"><%= gorev.olusturan ? gorev.olusturan.adSoyad : '–' %></dd>
+              <dt class="col-5">Proje</dt>
+              <dd class="col-7"><% if (gorev.projeId) { %><a href="/projeler/<%= gorev.projeId._id %>"><%= gorev.projeId.kisaAd || gorev.projeId.ad %></a><% } else { %>–<% } %></dd>
+              <dt class="col-5">İlçe</dt><dd class="col-7"><%= gorev.ilce || '–' %></dd>
+              <dt class="col-5">Son tarih</dt><dd class="col-7 <%= gorev.gecikti ? 'gorev-gecikti' : '' %>"><%= y.tarih(gorev.sonTarih) %></dd>
+              <dt class="col-5">Oluşturulma</dt><dd class="col-7"><%= y.tarih(gorev.olusturulma) %></dd>
+              <% if (gorev.tamamlanma) { %><dt class="col-5">Tamamlanma</dt><dd class="col-7"><%= y.tarih(gorev.tamamlanma) %></dd><% } %>
+            </dl>
+          </div>
+          <div class="card-footer">
+            <form method="post" action="/gorevler/<%= gorev._id %>/sil" data-onay="Bu görev ve geçmişi silinecek. Devam edilsin mi?">
+              <button class="btn btn-ghost-danger btn-sm w-100"><i class="ti ti-trash me-1"></i> Görevi sil</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<%- include('../../../views/partials/alt') %>

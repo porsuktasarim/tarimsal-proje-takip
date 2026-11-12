@@ -31,8 +31,25 @@
           <span class="uygulama-ad">Tarımsal Proje<br>Takip Sistemi</span>
         </a>
       </div>
-      <div class="navbar-nav flex-row d-lg-none">
-        <a href="#" class="nav-link px-0 tema-degistir" title="Temayı değiştir"><i class="ti ti-moon tema-ikon-koyu"></i><i class="ti ti-sun tema-ikon-acik"></i></a>
+      <div class="navbar-nav flex-row d-lg-none align-items-center">
+        <a href="#" class="nav-link px-2 tema-degistir" title="Temayı değiştir"><i class="ti ti-moon tema-ikon-koyu"></i><i class="ti ti-sun tema-ikon-acik"></i></a>
+        <% if (ben) { %>
+          <div class="nav-item dropdown">
+            <a href="#" class="nav-link d-flex lh-1 text-reset p-0 px-2" data-bs-toggle="dropdown" aria-label="Kişi menüsü">
+              <span class="avatar avatar-sm bg-<%= sabitler.rolRenkleri[ben.rol] %>-lt"><%= ben.basHarfler %></span>
+              <div class="d-none d-xl-block ps-2">
+                <div><%= ben.adSoyad %></div>
+                <div class="mt-1 small text-secondary"><%= ayar.rolAdlari[ben.rol] %></div>
+              </div>
+            </a>
+            <div class="dropdown-menu dropdown-menu-end dropdown-menu-arrow">
+              <span class="dropdown-header"><%= ben.adSoyad %><br><span class="fw-normal"><%= ayar.rolAdlari[ben.rol] %></span></span>
+              <a href="/gorevler?gorunum=bana" class="dropdown-item"><i class="ti ti-checklist me-2"></i>Görevlerim</a>
+              <div class="dropdown-divider"></div>
+              <a href="/kimlik/degistir" class="dropdown-item"><i class="ti ti-switch-horizontal me-2"></i>Kişi değiştir</a>
+            </div>
+          </div>
+        <% } %>
       </div>
       <div class="collapse navbar-collapse" id="sidebar-menu">
         <ul class="navbar-nav pt-lg-3">
@@ -51,13 +68,38 @@
 
   <header class="navbar navbar-expand-md d-none d-lg-flex d-print-none">
     <div class="container-xl">
-      <div class="navbar-nav flex-row order-md-last">
+      <div class="navbar-nav flex-row order-md-last align-items-center">
         <a href="#" class="nav-link px-2 tema-degistir" title="Temayı değiştir">
           <i class="ti ti-moon tema-ikon-koyu"></i><i class="ti ti-sun tema-ikon-acik"></i>
         </a>
+        <% if (ben) { %>
+          <div class="nav-item dropdown">
+            <a href="#" class="nav-link d-flex lh-1 text-reset p-0 px-2" data-bs-toggle="dropdown" aria-label="Kişi menüsü">
+              <span class="avatar avatar-sm bg-<%= sabitler.rolRenkleri[ben.rol] %>-lt"><%= ben.basHarfler %></span>
+              <div class="d-none d-xl-block ps-2">
+                <div><%= ben.adSoyad %></div>
+                <div class="mt-1 small text-secondary"><%= ayar.rolAdlari[ben.rol] %></div>
+              </div>
+            </a>
+            <div class="dropdown-menu dropdown-menu-end dropdown-menu-arrow">
+              <span class="dropdown-header"><%= ben.adSoyad %><br><span class="fw-normal"><%= ayar.rolAdlari[ben.rol] %></span></span>
+              <a href="/gorevler?gorunum=bana" class="dropdown-item"><i class="ti ti-checklist me-2"></i>Görevlerim</a>
+              <div class="dropdown-divider"></div>
+              <a href="/kimlik/degistir" class="dropdown-item"><i class="ti ti-switch-horizontal me-2"></i>Kişi değiştir</a>
+            </div>
+          </div>
+        <% } %>
       </div>
       <div class="text-secondary small"><%= ayar.kurum %></div>
     </div>
   </header>
 
   <div class="page-wrapper">
+    <% if (typeof kurulumKipi !== 'undefined' && kurulumKipi) { %>
+      <div class="container-xl pt-3">
+        <div class="alert alert-info mb-0" role="alert">
+          <div class="alert-icon"><i class="ti ti-users"></i></div>
+          <div>Henüz kişi tanımlanmadı. <a href="/ayarlar/kisiler">Ayarlar &gt; Kişiler</a>'den kişiler eklendiğinde sisteme girişte "Kimsiniz?" seçimi istenecektir.</div>
+        </div>
+      </div>
+    <% } %>

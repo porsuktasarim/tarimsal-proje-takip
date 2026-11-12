@@ -1,0 +1,106 @@
+<%- include('../../../views/partials/ust') %>
+<%
+  var yeni = !gorev._id;
+  var atama = gorev.atama || { tur: 'kisi' };
+  var secKisi = atama.kisiId ? String(atama.kisiId._id || atama.kisiId) : '';
+  var secProje = gorev.projeId ? String(gorev.projeId._id || gorev.projeId) : '';
+%>
+<%- include('../../../views/partials/sayfa-basligi', { ustBaslik: 'Görevler', eylemler: '' }) %>
+<div class="page-body">
+  <div class="container-xl">
+    <%- include('../../../views/partials/hatalar') %>
+    <form method="post" action="<%= eylem %>" class="card" autocomplete="off" style="max-width: 56rem">
+      <div class="card-header"><h3 class="card-title"><%= yeni ? 'Yeni görev' : 'Görevi düzenle' %></h3></div>
+      <div class="card-body">
+        <div class="row g-3">
+          <div class="col-12">
+            <label class="form-label required">Görev</label>
+            <input type="text" name="baslik" value="<%= gorev.baslik || '' %>" class="form-control" required placeholder="ör. Beykoz ilçesi çiftçi listesinin tamamlanması">
+          </div>
+          <div class="col-12">
+            <label class="form-label">Açıklama</label>
+            <textarea name="aciklama" rows="3" class="form-control"><%= gorev.aciklama || '' %></textarea>
+          </div>
+
+          <div class="col-12">
+            <label class="form-label required">Kime verilecek?</label>
+            <div class="form-selectgroup mb-2">
+              <label class="form-selectgroup-item">
+                <input type="radio" name="atamaTur" value="kisi" class="form-selectgroup-input" <%= atama.tur !== 'rol' ? 'checked' : '' %> data-atama-tur>
+                <span class="form-selectgroup-label"><i class="ti ti-user me-1"></i> Kişiye</span>
+              </label>
+              <label class="form-selectgroup-item">
+                <input type="radio" name="atamaTur" value="rol" class="form-selectgroup-input" <%= atama.tur === 'rol' ? 'checked' : '' %> data-atama-tur>
+                <span class="form-selectgroup-label"><i class="ti ti-users-group me-1"></i> Role</span>
+              </label>
+            </div>
+            <div data-atama="kisi" class="<%= atama.tur === 'rol' ? 'd-none' : '' %>">
+              <select name="kisiId" class="form-select">
+                <option value="">Kişi seçiniz</option>
+                <% ayar.roller.forEach(function (r) { var liste = kisiler.filter(function (k) { return k.rol === r.kod; }); if (!liste.length) return; %>
+                  <optgroup label="<%= r.ad %>">
+                    <% liste.forEach(function (k) { %>
+                      <option value="<%= k._id %>" <%= secKisi === String(k._id) ? 'selected' : '' %>><%= k.adSoyad %><%= k.ilceler && k.ilceler.length ? ' (' + k.ilceler.join(', ') + ')' : '' %></option>
+                    <% }) %>
+                  </optgroup>
+                <% }) %>
+              </select>
+              <% if (!kisiler.length) { %><small class="form-hint">Kişi tanımlı değil; <a href="/ayarlar/kisiler">Ayarlar &gt; Kişiler</a>.</small><% } %>
+            </div>
+            <div data-atama="rol" class="<%= atama.tur === 'rol' ? '' : 'd-none' %>">
+              <select name="rol" class="form-select">
+                <% ayar.roller.forEach(function (r) { %>
+                  <option value="<%= r.kod %>" <%= atama.rol === r.kod ? 'selected' : '' %>><%= r.ad %></option>
+                <% }) %>
+              </select>
+              <small class="form-hint">Role verilen görev, o roldeki herkesin "Görevlerim" listesinde görünür.</small>
+            </div>
+          </div>
+
+          <div class="col-md-6">
+            <label class="form-label">Proje</label>
+            <select name="projeId" class="form-select">
+              <option value="">Projeye bağlı değil</option>
+              <% projeler.forEach(function (p) { %>
+                <option value="<%= p._id %>" <%= secProje === String(p._id) ? 'selected' : '' %>><%= p.kisaAd || p.ad %></option>
+              <% }) %>
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">İlçe</label>
+            <select name="ilce" class="form-select">
+              <option value="">–</option>
+              <% ayar.ilceler.forEach(function (i) { %><option <%= gorev.ilce === i ? 'selected' : '' %>><%= i %></option><% }) %>
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Son tarih</label>
+            <input type="date" name="sonTarih" value="<%= y.inputTarih(gorev.sonTarih) %>" class="form-control">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Öncelik</label>
+            <select name="oncelik" class="form-select">
+              <% Object.keys(sabitler.oncelikler).forEach(function (k) { %>
+                <option value="<%= k %>" <%= (gorev.oncelik || 'normal') === k ? 'selected' : '' %>><%= sabitler.oncelikler[k].ad %></option>
+              <% }) %>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="card-footer d-flex justify-content-end gap-2">
+        <a href="<%= geri %>" class="btn btn-ghost-secondary">Vazgeç</a>
+        <button type="submit" class="btn btn-primary"><i class="ti ti-device-floppy me-1"></i> <%= yeni ? 'Görevi ver' : 'Kaydet' %></button>
+      </div>
+    </form>
+  </div>
+</div>
+<script>
+  document.querySelectorAll('[data-atama-tur]').forEach(function (r) {
+    r.addEventListener('change', function () {
+      document.querySelectorAll('[data-atama]').forEach(function (el) {
+        el.classList.toggle('d-none', el.getAttribute('data-atama') !== r.value);
+      });
+    });
+  });
+</script>
+<%- include('../../../views/partials/alt') %>

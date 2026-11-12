@@ -70,6 +70,26 @@
         </div>
 
         <div class="card mb-3">
+          <div class="card-header"><h3 class="card-title">Proje ekibi</h3></div>
+          <div class="card-body">
+            <% [['koordinator', koordinatorler], ['yurutucu', yurutuculer]].forEach(function (g, gi) { %>
+              <div class="subheader mb-2<%= gi ? ' mt-3' : '' %>"><%= ayar.rolAdlari[g[0]] %></div>
+              <% if (!g[1].length) { %><div class="text-secondary small">Atanmadı</div><% } %>
+              <% g[1].forEach(function (k) { %>
+                <div class="d-flex align-items-center mb-2">
+                  <span class="avatar avatar-sm bg-<%= sabitler.rolRenkleri[k.rol] %>-lt me-2"><%= k.adSoyad.split(/\s+/).map(function (p) { return p[0]; }).slice(0, 2).join('').toLocaleUpperCase('tr') %></span>
+                  <div class="flex-fill">
+                    <div><%= k.adSoyad %></div>
+                    <div class="text-secondary small"><%= [k.unvan, (k.ilceler || []).join(', ')].filter(Boolean).join(' · ') %></div>
+                  </div>
+                  <a href="/gorevler/yeni?kisi=<%= k._id %>&proje=<%= proje._id %>&geri=/projeler/<%= proje._id %>" class="btn btn-ghost-secondary btn-icon btn-sm" title="Görev ver"><i class="ti ti-checklist"></i></a>
+                </div>
+              <% }) %>
+            <% }) %>
+          </div>
+        </div>
+
+        <div class="card mb-3">
           <div class="card-header"><h3 class="card-title">Durum</h3></div>
           <div class="card-body">
             <form method="post" action="/projeler/<%= proje._id %>/durum" class="d-flex gap-2">
@@ -233,6 +253,28 @@
                 </tfoot>
               </table>
             </div>
+          <% } %>
+        </div>
+
+        <!-- Görevler -->
+        <%
+          var acikGorev = gorevler.filter(function (g) { return g.acik; }).length;
+          var bitenGorev = gorevler.filter(function (g) { return g.durum === 'tamamlandi'; }).length;
+        %>
+        <div class="card mb-3">
+          <div class="card-header">
+            <div>
+              <h3 class="card-title">Görevler</h3>
+              <p class="card-subtitle"><%= gorevler.length %> görev · <%= acikGorev %> açık · <%= bitenGorev %> tamamlandı</p>
+            </div>
+            <div class="card-actions">
+              <a href="/gorevler/yeni?proje=<%= proje._id %>&geri=/projeler/<%= proje._id %>" class="btn btn-sm"><i class="ti ti-plus me-1"></i> Görev ver</a>
+            </div>
+          </div>
+          <% if (gorevler.length) { %>
+            <%- include('../../../views/partials/gorev-tablosu', { gorevler: gorevler, geri: '/projeler/' + proje._id, projeGizle: true }) %>
+          <% } else { %>
+            <div class="card-body text-secondary">Bu projeye bağlı görev yok.</div>
           <% } %>
         </div>
 

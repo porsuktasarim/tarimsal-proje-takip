@@ -93,3 +93,25 @@
 .norm-cifti .norm-birim { flex: 0 0 5.75rem; max-width: 5.75rem; font-size: .75rem; }
 .ambalaj-girdi .ambalaj-birim { flex: 0 0 6rem; max-width: 6rem; }
 .ambalaj-girdi .ambalaj-etiket { min-width: 5.5rem; justify-content: flex-end; }
+
+/* "Kimsiniz?" ekranı */
+.kimlik-kart {
+  display: flex;
+  align-items: center;
+  padding: .6rem .75rem;
+  border: 1px solid var(--tblr-border-color);
+  border-radius: var(--tblr-border-radius);
+  background: var(--tblr-bg-surface);
+  color: inherit;
+  text-align: left;
+  transition: border-color .15s, background .15s;
+}
+.kimlik-kart:hover { border-color: var(--tblr-primary); background: rgba(var(--tblr-primary-rgb), .04); }
+.kimlik-kart.secili { border-color: var(--tblr-primary); }
+
+/* Görev listesi */
+.gorev-gecikti { color: var(--tblr-red); font-weight: 500; }
+.gorev-satiri.tamam .gorev-baslik { text-decoration: line-through; color: var(--tblr-secondary); }
+.hareket-listesi { list-style: none; padding: 0; margin: 0; }
+.hareket-listesi li { padding: .6rem 0; border-bottom: 1px solid var(--tblr-border-color); }
+.hareket-listesi li:last-child { border-bottom: 0; }

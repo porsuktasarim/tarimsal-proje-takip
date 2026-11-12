@@ -2,6 +2,7 @@ const express = require('express');
 const mongoose = require('mongoose');
 const Proje = require('./model');
 const Urun = require('../ayarlar/modeller/Urun');
+const Kisi = require('../ayarlar/modeller/Kisi');
 const katalog = require('../ayarlar/katalog');
 const { projeHesabi } = require('./hesap');
 const { projeDurumlari } = require('../../config/sabitler');
@@ -45,7 +46,9 @@ function formuOku(govde, ayar, mevcut) {
       .filter((k) => k.urun || k.cesit || k.alan !== undefined || Object.keys(k.normlar).length),
     ilceler: diziyeCevir(govde.ilceler)
       .filter((i) => i && i.ilce && gecerliIlceler.has(i.ilce))
-      .map((i) => ({ ilce: i.ilce, hedefCiftci: sayiOku(i.hedefCiftci), hedefDekar: sayiOku(i.hedefDekar) }))
+      .map((i) => ({ ilce: i.ilce, hedefCiftci: sayiOku(i.hedefCiftci), hedefDekar: sayiOku(i.hedefDekar) })),
+    koordinatorler: diziyeCevir(govde.koordinatorler).filter((id) => mongoose.isValidObjectId(id)),
+    yurutuculer: diziyeCevir(govde.yurutuculer).filter((id) => mongoose.isValidObjectId(id))
   };
 
   const hatalar = [];
@@ -132,7 +135,8 @@ async function katalogGetir() {
 }
 
 async function formuGoster(res, durum, sablon) {
-  return res.status(durum).render(V + 'form', { ...sablon, katalog: await katalogGetir() });
+  const kisiler = await Kisi.find({ rol: { $in: ['koordinator', 'yurutucu'] } }).sort({ adSoyad: 1 }).lean();
+  return res.status(durum).render(V + 'form', { ...sablon, katalog: await katalogGetir(), kisiler });
 }
 
 async function projeBul(req, res, next) {
@@ -186,15 +190,26 @@ router.post('/', sar(async (req, res) => {
   return res.redirect(`/projeler/${proje._id}?bildirim=olusturuldu${eklenen ? '&katalog=' + eklenen : ''}`);
 }));
 
-router.get('/:id', sar(projeBul), (req, res) => {
+router.get('/:id', sar(projeBul), sar(async (req, res) => {
   const hesap = projeHesabi(req.proje, res.locals.ayar);
+  const Gorev = mongoose.model('Gorev');
+  const [ekip, gorevler] = await Promise.all([
+    Kisi.find({ _id: { $in: [...req.proje.koordinatorler, ...req.proje.yurutuculer] } }).lean(),
+    Gorev.find({ projeId: req.proje._id })
+      .populate('atama.kisiId', 'adSoyad rol').populate('projeId', 'ad kisaAd')
+      .sort({ sonTarih: 1, olusturulma: -1 })
+  ]);
+  const kisiBul = (id) => ekip.find((k) => String(k._id) === String(id));
   res.render(V + 'detay', {
     baslik: req.proje.ad,
     proje: req.proje,
     hesap,
+    koordinatorler: req.proje.koordinatorler.map(kisiBul).filter(Boolean),
+    yurutuculer: req.proje.yurutuculer.map(kisiBul).filter(Boolean),
+    gorevler,
     katalogEklenen: parseInt(req.query.katalog, 10) || 0
   });
-});
+}));
 
 router.get('/:id/duzenle', sar(projeBul), sar(async (req, res) => formuGoster(res, 200, {
   baslik: 'Projeyi Düzenle', proje: duzOlarak(req.proje), hatalar: [], eylem: `/projeler/${req.proje._id}`

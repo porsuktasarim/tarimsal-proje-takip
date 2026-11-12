@@ -8,6 +8,7 @@ const yardimcilar = require('./core/yardimcilar');
 const ayarlar = require('./core/ayarlar');
 const { modulleriYukle } = require('./core/modulYukleyici');
 const { gocleriUygula } = require('./core/gocler');
+const { kimlikAraKatmani, kimlikRouter } = require('./core/kimlik');
 
 const app = express();
 const KOK = path.join(__dirname, '..');
@@ -31,6 +32,8 @@ app.locals.config = config;
 app.locals.surum = require('../package.json').version;
 app.locals.varlikSurumu = `${app.locals.surum}-${Date.now().toString(36)}`;
 app.locals.sabitler = sabitler;
+app.locals.ben = null;          // kimlik ara katmanı doldurur
+app.locals.kurulumKipi = false;
 app.locals.y = { ...yardimcilar, normOku: require('./moduller/ayarlar/katalog').normOku };
 
 app.use((req, res, next) => {
@@ -45,7 +48,10 @@ app.use((req, res, next) => {
   next();
 });
 
-app.get('/', (req, res) => res.redirect('/projeler'));
+app.use(kimlikAraKatmani);
+app.use('/kimlik', kimlikRouter);
+
+app.get('/', (req, res) => res.redirect('/genel-bakis'));
 
 modulleriYukle(app);
 

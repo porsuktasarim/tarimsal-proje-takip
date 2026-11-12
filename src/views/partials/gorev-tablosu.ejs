@@ -1,0 +1,55 @@
+<%
+  // Parametreler: gorevler (doldurulmuş), geri (işlem sonrası dönülecek adres), projeGizle
+  var gd = sabitler.gorevDurumlari, on = sabitler.oncelikler;
+  var gizleProje = !!locals.projeGizle;
+  function atananMetni(g) {
+    if (g.atama.tur === 'rol') return { ikon: 'ti-users-group', ad: ayar.rolAdlari[g.atama.rol] || g.atama.rol, rol: true };
+    return { ikon: 'ti-user', ad: g.atama.kisiId ? g.atama.kisiId.adSoyad : '–', rol: false };
+  }
+%>
+<div class="table-responsive">
+  <table class="table table-vcenter card-table">
+    <thead>
+      <tr>
+        <th>Görev</th>
+        <th>Atanan</th>
+        <th class="text-nowrap">Son tarih</th>
+        <th>Durum</th>
+        <th class="w-1"></th>
+      </tr>
+    </thead>
+    <tbody>
+      <% gorevler.forEach(function (g) { var a = atananMetni(g); var d = gd[g.durum]; %>
+        <tr class="gorev-satiri<%= g.durum === 'tamamlandi' ? ' tamam' : '' %>">
+          <td>
+            <a href="/gorevler/<%= g._id %>" class="text-reset fw-medium gorev-baslik"><%= g.baslik %></a>
+            <% if (g.oncelik !== 'normal') { %><span class="badge bg-<%= on[g.oncelik].renk %>-lt ms-1"><%= on[g.oncelik].ad %></span><% } %>
+            <div class="text-secondary small">
+              <% if (!gizleProje && g.projeId) { %><i class="ti ti-folder"></i> <%= g.projeId.kisaAd || g.projeId.ad %><% } %>
+              <% if (g.ilce) { %><span class="ms-1"><i class="ti ti-map-pin"></i> <%= g.ilce %></span><% } %>
+            </div>
+          </td>
+          <td class="text-nowrap">
+            <i class="ti <%= a.ikon %> text-secondary"></i> <%= a.ad %>
+            <% if (a.rol) { %><div class="text-secondary small">role verildi</div><% } %>
+          </td>
+          <td class="text-nowrap <%= g.gecikti ? 'gorev-gecikti' : 'text-secondary' %>">
+            <%= g.sonTarih ? y.tarih(g.sonTarih) : '–' %><% if (g.gecikti) { %><div class="small">gecikti</div><% } %>
+          </td>
+          <td><span class="badge bg-<%= d.renk %>-lt"><i class="ti <%= d.ikon %> me-1"></i><%= d.ad %></span></td>
+          <td class="text-nowrap">
+            <% if (g.acik) { %>
+              <form method="post" action="/gorevler/<%= g._id %>/durum" class="d-inline">
+                <input type="hidden" name="geri" value="<%= geri %>">
+                <% if (g.durum === 'bekliyor') { %>
+                  <button name="durum" value="suruyor" class="btn btn-sm btn-ghost-blue" title="Başlandı olarak işaretle"><i class="ti ti-player-play"></i></button>
+                <% } %>
+                <button name="durum" value="tamamlandi" class="btn btn-sm btn-ghost-green" title="Tamamlandı olarak işaretle"><i class="ti ti-check"></i></button>
+              </form>
+            <% } %>
+          </td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+</div>
