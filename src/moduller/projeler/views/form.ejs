@@ -4,6 +4,21 @@
   var kalemler = (proje.kalemler && proje.kalemler.length) ? proje.kalemler : [{}];
   var ilceHedefleri = {};
   (proje.ilceler || []).forEach(function (h) { ilceHedefleri[h.ilce] = h; });
+
+  // Ayarlardan kaldırılmış ama projede kayıtlı değerler de seçenek olarak kalır.
+  var ekle = function (liste, deger) { var l = liste.slice(); if (deger && l.indexOf(deger) < 0) l.push(deger); return l; };
+  var birimler = ekle(ayar.birimler, proje.birim);
+  var donemler = ekle(ayar.donemAdlari, proje.donem);
+  var ilceler = ayar.ilceler.slice();
+  (proje.ilceler || []).forEach(function (h) { if (ilceler.indexOf(h.ilce) < 0) ilceler.push(h.ilce); });
+  var turler = ayar.kalemTurleri.slice();
+  var olculer = ayar.olcuBirimleri.slice();
+
+  var istemciVerisi = {
+    turler: turler,
+    ekimKod: ayar.ekimNormu ? ayar.ekimNormu.kod : null,
+    urunler: katalog
+  };
 %>
 <%- include('../../../views/partials/sayfa-basligi', {
       ustBaslik: yeni ? 'Yeni proje' : proje.ad,
@@ -12,17 +27,9 @@
 
 <div class="page-body">
   <div class="container-xl">
-    <% if (hatalar.length) { %>
-      <div class="alert alert-danger" role="alert">
-        <div class="alert-icon"><i class="ti ti-alert-circle"></i></div>
-        <div>
-          <h4 class="alert-heading">Kayıt yapılamadı</h4>
-          <ul class="mb-0"><% hatalar.forEach(function (h) { %><li><%= h %></li><% }) %></ul>
-        </div>
-      </div>
-    <% } %>
+    <%- include('../../../views/partials/hatalar') %>
 
-    <form method="post" action="<%= eylem %>" autocomplete="off">
+    <form method="post" action="<%= eylem %>" autocomplete="off" id="proje-formu">
       <!-- 1. Genel bilgiler -->
       <div class="card mb-3">
         <div class="card-header">
@@ -44,14 +51,20 @@
               <label class="form-label required">Yürütücü birim</label>
               <select name="birim" class="form-select" required>
                 <option value="">Seçiniz</option>
-                <% sabitler.birimler.forEach(function (b) { %>
+                <% birimler.forEach(function (b) { %>
                   <option <%= proje.birim === b ? 'selected' : '' %>><%= b %></option>
                 <% }) %>
               </select>
+              <small class="form-hint">Liste <a href="/ayarlar/birimler">Ayarlar</a>'dan yönetilir.</small>
             </div>
             <div class="col-md-4">
               <label class="form-label">Dönem</label>
-              <input type="text" name="donem" value="<%= proje.donem || '' %>" class="form-control" placeholder="ör. 2026 Güzlük">
+              <select name="donem" class="form-select">
+                <option value="">Seçiniz</option>
+                <% donemler.forEach(function (d) { %>
+                  <option <%= proje.donem === d ? 'selected' : '' %>><%= d %></option>
+                <% }) %>
+              </select>
             </div>
             <div class="col-md-4">
               <label class="form-label">Başlangıç tarihi</label>
@@ -77,39 +90,33 @@
             <button type="button" class="btn btn-sm" data-satir-ekle="kalemler"><i class="ti ti-plus me-1"></i> Kalem ekle</button>
           </div>
         </div>
-        <div class="card-body pb-0">
-          <p class="text-secondary mb-0">Projede dağıtılacak tohum, fide, gübre vb. her kalem ayrı satır olarak girilmelidir. Dekar başı miktar, çiftçiye verilecek miktarın hesabında kullanılır.</p>
+        <div class="card-body">
+          <p class="text-secondary">
+            Ürün kataloğundan seçilen ürünün normları kendiliğinden dolar ve değiştirilebilir. Katalogda olmayan bir ürün ya da çeşit yazılırsa proje kaydedilince
+            <a href="/ayarlar/urunler">Ürün kataloğu</a>na eklenir. Alan boş bırakılır ve projede tek kalem varsa ilçe hedeflerinin toplam dekarı kullanılır;
+            toplam miktar boş bırakılırsa alan × ekim normu olarak hesaplanır.
+          </p>
+          <div data-satirlar="kalemler" class="kalem-listesi">
+            <% kalemler.forEach(function (k, i) { %>
+              <%- include('kalem-blok', { i: i, u: 's' + i, k: k, turler: turler, olculer: olculer }) %>
+            <% }) %>
+          </div>
+          <div class="d-none text-secondary text-center py-3" data-satir-bos="kalemler">Henüz kalem eklenmedi.</div>
         </div>
-        <div class="table-responsive">
-          <table class="table table-vcenter card-table satir-tablosu" data-satirlar="kalemler">
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>Tür</th>
-                <th>Kalem adı / çeşit</th>
-                <th>Ölçü</th>
-                <th class="text-end">Dekar başı</th>
-                <th class="text-end">Toplam miktar</th>
-                <th>Not</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              <% kalemler.forEach(function (k, i) { %>
-                <%- include('kalem-satiri', { i: i, k: k }) %>
-              <% }) %>
-            </tbody>
-          </table>
-          <div class="satir-bos d-none text-secondary text-center py-3">Henüz kalem eklenmedi.</div>
-        </div>
-        <template id="kalemler-sablon"><%- include('kalem-satiri', { i: '__i__', k: {} }) %></template>
+        <template id="kalemler-sablon"><%- include('kalem-blok', { i: '__i__', u: '__u__', k: {}, turler: turler, olculer: olculer }) %></template>
+        <% turler.forEach(function (t, ti) { %>
+          <datalist id="dl-urun-<%= ti %>">
+            <% katalog.filter(function (u) { return u.tur === t; }).forEach(function (u) { %><option value="<%= u.ad %>"></option><% }) %>
+          </datalist>
+        <% }) %>
+        <script type="application/json" id="urun-katalogu"><%- JSON.stringify(istemciVerisi).replace(/</g, '\\u003c') %></script>
       </div>
 
       <!-- 3. İlçeler -->
       <div class="card mb-3">
         <div class="card-header">
           <h3 class="card-title"><span class="badge bg-primary-lt me-2">3</span> Uygulanacak ilçeler ve hedefler</h3>
-          <div class="card-actions text-secondary"><span data-ilce-sayac>0</span> / <%= sabitler.ilceler.length %> ilçe seçili</div>
+          <div class="card-actions text-secondary"><span data-ilce-sayac>0</span> / <%= ilceler.length %> ilçe seçili</div>
         </div>
         <div class="card-body pb-0">
           <p class="text-secondary mb-0">Projenin uygulanacağı ilçeler işaretlenmelidir. Hedef çiftçi sayısı ve dekar alanı bilinmiyorsa boş bırakılabilir; sonradan düzenlenebilir.</p>
@@ -125,7 +132,7 @@
               </tr>
             </thead>
             <tbody>
-              <% sabitler.ilceler.forEach(function (ilce, i) { var h = ilceHedefleri[ilce]; %>
+              <% ilceler.forEach(function (ilce, i) { var h = ilceHedefleri[ilce]; %>
                 <tr>
                   <td><input type="checkbox" class="form-check-input m-0 ilce-sec" name="ilceler[<%= i %>][ilce]" value="<%= ilce %>" id="ilce-<%= i %>" <%= h ? 'checked' : '' %>></td>
                   <td><label for="ilce-<%= i %>" class="mb-0"><%= ilce %></label></td>

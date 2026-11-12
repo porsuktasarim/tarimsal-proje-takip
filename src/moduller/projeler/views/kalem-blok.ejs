@@ -1,0 +1,73 @@
+<%
+  // Parametreler: i (sıra), u (benzersiz kimlik), k (kalem), turler, olculer
+  var nm = function (alan) { return 'kalemler[' + i + '][' + alan + ']'; };
+  var normlar = k.normlar || {};
+  var turSira = turler.indexOf(k.tur);
+  var kOlculer = olculer.slice();
+  if (k.olcuBirimi && kOlculer.indexOf(k.olcuBirimi) < 0) kOlculer.push(k.olcuBirimi);
+  var kTurler = turler.slice();
+  if (k.tur && kTurler.indexOf(k.tur) < 0) kTurler.push(k.tur);
+  var dv = function (v) { return v !== undefined && v !== null ? v : ''; };
+%>
+<div class="kalem-blok" data-satir>
+  <div class="d-flex align-items-center mb-2">
+    <span class="badge bg-primary-lt me-2">Kalem <span class="satir-no"></span></span>
+    <span class="kalem-durum small"></span>
+    <button type="button" class="btn btn-ghost-danger btn-sm ms-auto" data-satir-sil><i class="ti ti-trash me-1"></i> Kaldır</button>
+  </div>
+  <% if (k._id) { %><input type="hidden" name="<%= nm('_id') %>" value="<%= k._id %>"><% } %>
+  <input type="hidden" name="<%= nm('urunId') %>" value="<%= dv(k.urunId) %>" class="kalem-urun-id">
+
+  <div class="row g-2">
+    <div class="col-6 col-md-2">
+      <label class="form-label small mb-1">Tür</label>
+      <select name="<%= nm('tur') %>" class="form-select kalem-tur" required>
+        <% kTurler.forEach(function (t) { %><option <%= (k.tur || kTurler[0]) === t ? 'selected' : '' %>><%= t %></option><% }) %>
+      </select>
+    </div>
+    <div class="col-6 col-md-3">
+      <label class="form-label small mb-1">Ürün / kalem adı</label>
+      <input type="text" name="<%= nm('urun') %>" value="<%= dv(k.urun) %>" class="form-control kalem-urun"
+             list="dl-urun-<%= turSira < 0 ? 0 : turSira %>" placeholder="ör. Mısır" required>
+    </div>
+    <div class="col-6 col-md-2">
+      <label class="form-label small mb-1">Çeşit</label>
+      <input type="text" name="<%= nm('cesit') %>" value="<%= dv(k.cesit) %>" class="form-control kalem-cesit"
+             list="dl-cesit-<%= u %>" placeholder="ör. ADA">
+      <datalist id="dl-cesit-<%= u %>"></datalist>
+    </div>
+    <div class="col-6 col-md-1">
+      <label class="form-label small mb-1">Ölçü</label>
+      <select name="<%= nm('olcuBirimi') %>" class="form-select kalem-olcu px-2" required>
+        <% kOlculer.forEach(function (b) { %><option <%= (k.olcuBirimi || 'kg') === b ? 'selected' : '' %>><%= b %></option><% }) %>
+      </select>
+    </div>
+    <div class="col-6 col-md-2">
+      <label class="form-label small mb-1">Alan (da)</label>
+      <input type="number" step="any" min="0" name="<%= nm('alan') %>" value="<%= dv(k.alan) %>" class="form-control text-end kalem-alan">
+    </div>
+    <div class="col-6 col-md-2">
+      <label class="form-label small mb-1">Toplam miktar</label>
+      <input type="number" step="any" min="0" name="<%= nm('toplamMiktar') %>" value="<%= dv(k.toplamMiktar) %>" class="form-control text-end kalem-miktar" placeholder="Hesaplanır">
+    </div>
+  </div>
+
+  <div class="row g-2 mt-1">
+    <% ayar.normlar.forEach(function (n) { var t = sabitler.normTipleri[n.tip] || {}; %>
+      <div class="col-6 col-md-2">
+        <label class="form-label small mb-1 text-truncate" title="<%= n.ad %> (<%= n.birim %>)">
+          <span class="norm-nokta bg-<%= t.renk %>"></span><%= n.ad %>
+        </label>
+        <div class="input-group input-group-sm">
+          <input type="number" step="any" min="0" name="<%= nm('normlar') %>[<%= n.kod %>]" value="<%= dv(normlar[n.kod]) %>"
+                 class="form-control text-end kalem-norm" data-norm="<%= n.kod %>">
+          <span class="input-group-text"><%= n.birim %></span>
+        </div>
+      </div>
+    <% }) %>
+    <div class="col-12 col-md">
+      <label class="form-label small mb-1">Not</label>
+      <input type="text" name="<%= nm('aciklama') %>" value="<%= dv(k.aciklama) %>" class="form-control form-control-sm">
+    </div>
+  </div>
+</div>

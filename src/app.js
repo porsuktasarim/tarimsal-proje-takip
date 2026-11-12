@@ -5,6 +5,7 @@ const mongoose = require('mongoose');
 const config = require('./config');
 const sabitler = require('./config/sabitler');
 const yardimcilar = require('./core/yardimcilar');
+const ayarlar = require('./core/ayarlar');
 const { modulleriYukle } = require('./core/modulYukleyici');
 
 const app = express();
@@ -14,7 +15,7 @@ app.set('view engine', 'ejs');
 app.set('views', [path.join(__dirname, 'views'), path.join(__dirname, 'moduller')]);
 app.disable('x-powered-by');
 
-app.use(express.urlencoded({ extended: true, limit: '2mb' }));
+app.use(express.urlencoded({ extended: true, limit: '2mb', parameterLimit: 10000 }));
 app.use(express.json({ limit: '2mb' }));
 
 // Kurum ağında dışarıya bağımlılık olmaması için tema dosyaları yerelden sunulur.
@@ -28,6 +29,7 @@ app.locals.sabitler = sabitler;
 app.locals.y = yardimcilar;
 
 app.use((req, res, next) => {
+  res.locals.ayar = ayarlar.getir();
   res.locals.aktifYol = req.path;
   // Menüde adresle en uzun eşleşen öğe seçili görünür.
   res.locals.aktifMenu = (app.locals.menu || [])
@@ -57,6 +59,7 @@ app.use((err, req, res, next) => {
 async function baslat() {
   await mongoose.connect(config.mongoUri);
   console.log('[db] MongoDB bağlantısı kuruldu');
+  await ayarlar.yukle();
   app.listen(config.port, '0.0.0.0', () => {
     console.log(`[http] ${config.uygulamaAdi} ${config.port} portunda çalışıyor`);
   });

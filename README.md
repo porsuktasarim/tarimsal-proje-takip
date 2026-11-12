@@ -6,14 +6,42 @@
 
 ## Özellikler
 
-**Projeler modülü (v0.1)**
+### Projeler
 
 - **Proje Başlat:** proje adı, kısa ad, yürütücü birim, dönem, başlangıç ve bitiş tarihleri, açıklama
-- **Kalemler:** her proje için tür (tohum, fide, gübre…), kalem adı/çeşit, ölçü birimi, dekar başı ve toplam miktar
-- **İlçe hedefleri:** 39 ilçe arasından projenin uygulanacağı ilçelerin seçimi; ilçe bazında hedef çiftçi sayısı ve hedef dekar
+- **Kalemler:** tür (tohum, gübre…), ürün (Mısır, Macar fiği…), çeşit (AGA, ADA…), ölçü birimi, hedef alan (da), toplam miktar ve normlar
+  - Katalogdan seçilen ürünün normları kendiliğinden dolar, proje içinde değiştirilebilir
+  - Katalogda olmayan ürün ya da çeşit yazılırsa proje kaydedilince kataloğa eklenir
+  - Toplam miktar boş bırakılırsa alan × ekim normu olarak hesaplanır
+- **İlçe hedefleri:** projenin uygulanacağı ilçeler; ilçe bazında hedef çiftçi sayısı ve hedef dekar
+- **Hedef çıktılar:** kalem bazında alan × çıktı normu (ot verimi, tane verimi, silaj verimi…) ve proje toplamları
 - Proje listesi, arama, birim ve durum süzgeci
 - Proje durumu: Taslak, Yürütülüyor, Tamamlandı, İptal (yalnızca taslaklar silinebilir)
-- Açık tema varsayılan; koyu tema seçimi tarayıcıda hatırlanır
+
+### Ayarlar
+
+| Bölüm | İçerik |
+|---|---|
+| Genel | Kurum adı, il |
+| Yürütücü birimler | Projeleri yürüten birimler |
+| Dönemler | Dönem adı, başlangıç/bitiş, yeni projede seçili gelecek varsayılan dönem |
+| Ürün kataloğu | Türe göre ürünler, çeşitleri ve normların varsayılan değerleri |
+| Hesaplama normları | Dekar başına tanımlanan değerler ve hesaptaki rolleri |
+| Kalem türleri, ölçü birimleri, ilçeler | Formlardaki seçim listeleri |
+
+- Bir değerin adı değiştirildiğinde, onu kullanan projeler ve katalog kayıtları da yeni adla güncellenir.
+- Kullanılan bir değer (projesi olan dönem, birim vb.) silinemez.
+- İlk açılışta `src/config/sabitler.js` içindeki varsayılanlar yazılır; sonrasında her şey Ayarlar sayfasından yönetilir.
+
+**Norm rolleri**
+
+| Rol | Hesap | Örnek |
+|---|---|---|
+| Ekim / uygulama normu | alan × norm = dağıtılacak miktar | Ekim normu 2,5 kg/da |
+| Çıktı (verim) | alan × norm = beklenen üretim | Kuru ot verimi 500 kg/da, tane verimi 300 kg/da |
+| Bilgi | hesaba girmez, kayıt amaçlı | Çiftçi başı azami alan 50 da |
+
+Normlar kaleme kopyalanarak saklanır; katalogda sonradan yapılan değişiklik eski projelerin hesaplarını etkilemez.
 
 ## Teknik yapı
 
@@ -25,7 +53,7 @@
 | Dağıtım | Docker, Docker Compose |
 | Port | **1763** |
 
-Tema ve ikon dosyaları `node_modules` içinden yerel olarak sunulur; uygulama internet erişimi olmayan kurum ağında da eksiksiz çalışır.
+Tema ve ikon dosyaları `node_modules` içinden yerel olarak sunulur; uygulama internet erişimi olmayan kurum ağında da eksiksiz çalışır. Açık tema varsayılandır; koyu tema seçimi tarayıcıda hatırlanır.
 
 > 1763, "Tarımsal Proje Takip Sistemi" adının ebced değeridir (طاریمصال پروژه تعقیب سیستمی).
 
@@ -40,6 +68,13 @@ docker compose up -d --build
 ```
 
 Uygulama `http://<sunucu-ip>:1763` adresinden açılır. Veriler `tpts-veri` Docker biriminde saklanır.
+
+### Güncelleme
+
+```bash
+git pull
+docker compose up -d --build
+```
 
 ### Doğrudan Node.js ile
 
@@ -61,18 +96,28 @@ MONGO_URI=mongodb://localhost:27017/tpts npm start
 
 ```
 src/
-  app.js                  Uygulama girişi
+  app.js                    Uygulama girişi
   config/
-    index.js              Uygulama ayarları
-    sabitler.js           İlçeler, birimler, kalem türleri, ölçü birimleri, durumlar
+    index.js                Ortam ayarları (port, veritabanı)
+    sabitler.js             İlk kurulum varsayılanları, norm rolleri, proje durumları
   core/
-    modulYukleyici.js     Modülleri otomatik yükler, menüyü oluşturur
-    yardimcilar.js        Sayı ve tarih biçimleme
-  views/                  Ortak şablonlar (üst/alt bölüm, hata sayfası)
+    ayarlar.js              Ayar servisi: önbellek, kullanım sayımı, yeniden adlandırma
+    modulYukleyici.js       Modülleri otomatik yükler, menüyü oluşturur
+    yardimcilar.js          Sayı, tarih, miktar biçimleme
+  views/                    Ortak şablonlar (üst/alt bölüm, bildirimler, hata sayfası)
   moduller/
-    projeler/             Projeler modülü (model, yönlendirmeler, görünümler)
-public/                   Uygulamaya özel CSS, JS, simge
+    projeler/               Proje modeli, norm hesapları (hesap.js), sayfalar
+    ayarlar/                Ayar ve Ürün modelleri, ayar sayfaları
+public/                     Uygulamaya özel CSS, JS, simge
 ```
+
+## Veri modeli
+
+| Koleksiyon | İçerik |
+|---|---|
+| `ayarlar` | Tek belge (`_id: genel`): kurum, il, birimler, dönemler, ilçeler, kalem türleri, ölçü birimleri, norm tanımları |
+| `urunler` | Ürün kataloğu: tür, ad, ölçü birimi, çeşitler, varsayılan normlar |
+| `projeler` | Proje bilgileri, kalemler (ürün kimliği, ürün, çeşit, alan, normlar), ilçe hedefleri |
 
 ## Yeni modül eklemek
 
@@ -88,15 +133,17 @@ module.exports = {
 };
 ```
 
-Uygulama yeniden başlatıldığında modül menüye ve yönlendirmeye kendiliğinden eklenir. Görünümler `res.render('basvurular/views/liste', …)` biçiminde çağrılır. Projelere bağlanacak kayıtlar `Proje` modelinin `_id` değeri, kaleme bağlanacak kayıtlar ise kalemin `_id` değeri üzerinden ilişkilendirilir (kalem kimlikleri düzenlemede korunur).
+Uygulama yeniden başlatıldığında modül menüye ve yönlendirmeye kendiliğinden eklenir. Görünümler `res.render('basvurular/views/liste', …)` biçiminde çağrılır; ayarlar her görünümde `ayar` olarak hazırdır. Projelere bağlanacak kayıtlar `Proje` modelinin `_id` değeri, kaleme bağlanacak kayıtlar ise kalemin `_id` değeri üzerinden ilişkilendirilir (kalem kimlikleri düzenlemede korunur).
+
+Yeni bir ayar listesi başka kayıtlarda kullanılacaksa `src/core/ayarlar.js` içindeki `baglar` tablosuna eklenir; böylece yeniden adlandırma ve silme denetimi o kayıtları da kapsar.
 
 ## Yol haritası
 
 - Çiftçi başvuruları ve ilçe veri girişi
 - İlçe bazında hak sahipliği ve dağıtım listeleri
 - Teslim tutanakları
+- Gerçekleşen verimlerin girilmesi ve hedeflerle karşılaştırılması
 - Raporlar ve Excel/PDF çıktıları
-- Birim ve kalem türlerinin yönetimi (Ayarlar)
 - Kullanıcı ve ilçe yetkilendirmesi
 
 ## Lisans

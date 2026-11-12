@@ -1,0 +1,74 @@
+<%- include('_bas') %>
+<%
+  var yeni = !urun._id;
+  var turler = ayar.kalemTurleri.slice();
+  if (urun.tur && turler.indexOf(urun.tur) < 0) turler.push(urun.tur);
+  var olculer = ayar.olcuBirimleri.slice();
+  if (urun.olcuBirimi && olculer.indexOf(urun.olcuBirimi) < 0) olculer.push(urun.olcuBirimi);
+  var normlar = urun.normlar || {};
+%>
+<form method="post" action="<%= eylem %>" class="card" autocomplete="off">
+  <div class="card-header">
+    <div>
+      <h3 class="card-title"><%= yeni ? 'Yeni ürün' : urun.ad %></h3>
+      <p class="card-subtitle">Normlar bu ürün için varsayılan değerlerdir; projeye eklenirken kaleme kopyalanır ve proje içinde değiştirilebilir.</p>
+    </div>
+  </div>
+  <div class="card-body">
+    <div class="row g-3">
+      <div class="col-md-4">
+        <label class="form-label required">Kalem türü</label>
+        <select name="tur" class="form-select" required>
+          <% turler.forEach(function (t) { %><option <%= urun.tur === t ? 'selected' : '' %>><%= t %></option><% }) %>
+        </select>
+      </div>
+      <div class="col-md-5">
+        <label class="form-label required">Ürün adı</label>
+        <input type="text" name="ad" value="<%= urun.ad || '' %>" class="form-control" placeholder="ör. Mısır, Macar fiği, DAP" required>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label required">Ölçü birimi</label>
+        <select name="olcuBirimi" class="form-select" required>
+          <% olculer.forEach(function (b) { %><option <%= urun.olcuBirimi === b ? 'selected' : '' %>><%= b %></option><% }) %>
+        </select>
+      </div>
+      <div class="col-md-6">
+        <label class="form-label">Çeşitler</label>
+        <textarea name="cesitler" rows="5" class="form-control" placeholder="Her satıra bir çeşit&#10;ör. AGA&#10;ADA"><%= (urun.cesitler || []).join('\n') %></textarea>
+        <small class="form-hint">Her satıra bir çeşit yazılır. Projede yazılan yeni çeşitler buraya eklenir.</small>
+      </div>
+      <div class="col-md-6">
+        <label class="form-label">Açıklama</label>
+        <textarea name="aciklama" rows="5" class="form-control"><%= urun.aciklama || '' %></textarea>
+      </div>
+    </div>
+  </div>
+  <div class="card-body border-top">
+    <h4 class="subheader mb-3">Varsayılan normlar</h4>
+    <div class="row g-3">
+      <% ayar.normlar.forEach(function (n) { var t = sabitler.normTipleri[n.tip] || {}; %>
+        <div class="col-sm-6 col-md-4">
+          <label class="form-label"><%= n.ad %> <span class="badge bg-<%= t.renk %>-lt ms-1"><%= t.ad %></span></label>
+          <div class="input-group">
+            <input type="number" step="any" min="0" name="normlar[<%= n.kod %>]" value="<%= normlar[n.kod] != null ? normlar[n.kod] : '' %>" class="form-control text-end">
+            <span class="input-group-text"><%= n.birim %></span>
+          </div>
+        </div>
+      <% }) %>
+    </div>
+    <small class="form-hint mt-2">Bu ürün için geçerli olmayan normlar boş bırakılabilir. Norm eklemek için <a href="/ayarlar/normlar">Hesaplama normları</a>.</small>
+  </div>
+  <div class="card-footer d-flex align-items-center gap-2">
+    <% if (!yeni) { %>
+      <% if (typeof kullanim !== 'undefined' && kullanim > 0) { %>
+        <span class="text-secondary small me-auto"><i class="ti ti-info-circle"></i> <%= kullanim %> projede kullanılıyor; ad değişirse projelerdeki kalemler de güncellenir.</span>
+      <% } else { %>
+        <button type="submit" formaction="/ayarlar/urunler/<%= urun._id %>/sil" class="btn btn-ghost-danger me-auto"
+                data-onay-dugme="Bu ürün katalogdan silinecek. Devam edilsin mi?"><i class="ti ti-trash me-1"></i> Sil</button>
+      <% } %>
+    <% } %>
+    <a href="/ayarlar/urunler?tur=<%= encodeURIComponent(urun.tur || '') %>" class="btn btn-ghost-secondary<%= yeni ? ' ms-auto' : '' %>">Vazgeç</a>
+    <button type="submit" class="btn btn-primary"><i class="ti ti-device-floppy me-1"></i> Kaydet</button>
+  </div>
+</form>
+<%- include('_son') %>

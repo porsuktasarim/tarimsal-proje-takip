@@ -1,0 +1,9 @@
+<% if (typeof hatalar !== 'undefined' && hatalar && hatalar.length) { %>
+  <div class="alert alert-danger" role="alert">
+    <div class="alert-icon"><i class="ti ti-alert-circle"></i></div>
+    <div>
+      <h4 class="alert-heading">Kayıt yapılamadı</h4>
+      <ul class="mb-0"><% hatalar.forEach(function (h) { %><li><%= h %></li><% }) %></ul>
+    </div>
+  </div>
+<% } %>

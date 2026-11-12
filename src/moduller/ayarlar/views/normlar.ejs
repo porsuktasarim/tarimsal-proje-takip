@@ -1,0 +1,91 @@
+<%- include('_bas') %>
+<%
+  function tipSecimi(ad, secili) {
+    var h = '<select name="' + ad + '" class="form-select">';
+    Object.keys(normTipleri).forEach(function (k) {
+      h += '<option value="' + k + '"' + (secili === k ? ' selected' : '') + '>' + normTipleri[k].ad + '</option>';
+    });
+    return h + '</select>';
+  }
+%>
+<div class="card mb-3">
+  <div class="card-body">
+    <h3 class="card-title mb-2">Normlar nasıl kullanılır?</h3>
+    <div class="row g-3 text-secondary">
+      <% Object.keys(normTipleri).forEach(function (k) { var t = normTipleri[k]; %>
+        <div class="col-md-4">
+          <span class="badge bg-<%= t.renk %>-lt mb-1"><%= t.ad %></span>
+          <div class="small"><%= t.aciklama %>.</div>
+        </div>
+      <% }) %>
+    </div>
+    <div class="small text-secondary mt-3">
+      Normların ürün bazındaki varsayılan değerleri <a href="/ayarlar/urunler">Ürün kataloğu</a>ndan girilir. Projede kalem eklenirken bu değerler kaleme kopyalanır ve proje içinde değiştirilebilir; sonradan katalogda yapılan değişiklik eski projeleri etkilemez.
+    </div>
+  </div>
+</div>
+
+<form method="post" action="/ayarlar/normlar" class="card" autocomplete="off">
+  <div class="card-header">
+    <div>
+      <h3 class="card-title">Hesaplama normları</h3>
+      <p class="card-subtitle">Dekar başına tanımlanan değerler. Proje istatistiklerinde alan ile çarpılarak hesaplanır.</p>
+    </div>
+    <div class="card-actions">
+      <button type="button" class="btn btn-sm" data-satir-ekle="satirlar"><i class="ti ti-plus me-1"></i> Norm ekle</button>
+    </div>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-vcenter card-table satir-tablosu">
+      <thead>
+        <tr>
+          <th class="w-1">#</th>
+          <th>Norm adı</th>
+          <th style="width:9rem">Birim</th>
+          <th style="width:16rem">Hesaptaki rolü</th>
+          <th class="w-1 text-nowrap">Kullanım</th>
+          <th class="w-1"></th>
+        </tr>
+      </thead>
+      <tbody data-satirlar="satirlar">
+        <% satirlar.forEach(function (s, i) { var n = (s.kod && kullanim[s.kod]) || 0; %>
+          <tr>
+            <td class="text-secondary"><span class="satir-no"></span></td>
+            <td>
+              <input type="hidden" name="satirlar[<%= i %>][kod]" value="<%= s.kod || '' %>">
+              <input type="text" name="satirlar[<%= i %>][ad]" value="<%= s.ad || '' %>" class="form-control">
+            </td>
+            <td><input type="text" name="satirlar[<%= i %>][birim]" value="<%= s.birim || '' %>" class="form-control" placeholder="kg/da"></td>
+            <td><%- tipSecimi('satirlar[' + i + '][tip]', s.tip) %></td>
+            <td class="text-nowrap"><% if (n) { %><span class="badge bg-blue-lt"><%= n %> proje</span><% } else { %><span class="text-secondary">–</span><% } %></td>
+            <td class="sil-sutunu">
+              <button type="button" class="btn btn-ghost-danger btn-icon" data-satir-sil <%= n ? 'disabled' : '' %>
+                      title="<%= n ? 'Projelerde kullanıldığı için silinemez' : 'Kaldır' %>"><i class="ti ti-trash"></i></button>
+            </td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+    <div class="d-none text-secondary text-center py-3" data-satir-bos="satirlar">Tanımlı norm yok.</div>
+  </div>
+  <template id="satirlar-sablon">
+    <tr>
+      <td class="text-secondary"><span class="satir-no"></span></td>
+      <td>
+        <input type="hidden" name="satirlar[__i__][kod]" value="">
+        <input type="text" name="satirlar[__i__][ad]" class="form-control" placeholder="ör. Hasat normu">
+      </td>
+      <td><input type="text" name="satirlar[__i__][birim]" value="kg/da" class="form-control"></td>
+      <td><%- tipSecimi('satirlar[__i__][tip]', 'cikti') %></td>
+      <td><span class="badge bg-green-lt">Yeni</span></td>
+      <td class="sil-sutunu"><button type="button" class="btn btn-ghost-danger btn-icon" data-satir-sil title="Kaldır"><i class="ti ti-trash"></i></button></td>
+    </tr>
+  </template>
+  <div class="card-footer d-flex align-items-center">
+    <div class="text-secondary small me-auto">
+      <i class="ti ti-info-circle"></i> Birim "kg/da" biçiminde yazılırsa sonuç "kg" olarak gösterilir.
+    </div>
+    <button type="submit" class="btn btn-primary"><i class="ti ti-device-floppy me-1"></i> Kaydet</button>
+  </div>
+</form>
+<%- include('_son') %>

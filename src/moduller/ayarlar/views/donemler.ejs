@@ -1,0 +1,68 @@
+<%- include('_bas') %>
+<form method="post" action="/ayarlar/donemler" class="card" autocomplete="off">
+  <div class="card-header">
+    <div>
+      <h3 class="card-title">Dönemler</h3>
+      <p class="card-subtitle">Projelerin bağlanacağı dönemler. Varsayılan dönem, yeni proje başlatılırken seçili gelir.</p>
+    </div>
+    <div class="card-actions">
+      <button type="button" class="btn btn-sm" data-satir-ekle="satirlar"><i class="ti ti-plus me-1"></i> Dönem ekle</button>
+    </div>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-vcenter card-table satir-tablosu">
+      <thead>
+        <tr>
+          <th class="w-1">#</th>
+          <th>Dönem adı</th>
+          <th>Başlangıç</th>
+          <th>Bitiş</th>
+          <th class="w-1 text-nowrap">Varsayılan</th>
+          <th class="w-1 text-nowrap">Kullanım</th>
+          <th class="w-1"></th>
+        </tr>
+      </thead>
+      <tbody data-satirlar="satirlar">
+        <% satirlar.forEach(function (s, i) { var n = (s.eski && kullanim[s.eski]) || 0; %>
+          <tr>
+            <td class="text-secondary"><span class="satir-no"></span></td>
+            <td>
+              <input type="hidden" name="satirlar[<%= i %>][eski]" value="<%= s.eski || '' %>">
+              <input type="text" name="satirlar[<%= i %>][ad]" value="<%= s.ad || '' %>" class="form-control" placeholder="ör. 2026 Güzlük">
+            </td>
+            <td><input type="date" name="satirlar[<%= i %>][baslangic]" value="<%= y.inputTarih(s.baslangic) %>" class="form-control"></td>
+            <td><input type="date" name="satirlar[<%= i %>][bitis]" value="<%= y.inputTarih(s.bitis) %>" class="form-control"></td>
+            <td class="text-center"><input type="radio" class="form-check-input" name="varsayilanSira" value="<%= i %>" data-sira-deger <%= s.varsayilan ? 'checked' : '' %>></td>
+            <td class="text-nowrap"><% if (n) { %><span class="badge bg-blue-lt"><%= n %> proje</span><% } else { %><span class="text-secondary">–</span><% } %></td>
+            <td class="sil-sutunu">
+              <button type="button" class="btn btn-ghost-danger btn-icon" data-satir-sil <%= n ? 'disabled' : '' %>
+                      title="<%= n ? 'Kullanıldığı için silinemez; adı değiştirilebilir' : 'Kaldır' %>"><i class="ti ti-trash"></i></button>
+            </td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+    <div class="d-none text-secondary text-center py-3" data-satir-bos="satirlar">Tanımlı dönem yok.</div>
+  </div>
+  <template id="satirlar-sablon">
+    <tr>
+      <td class="text-secondary"><span class="satir-no"></span></td>
+      <td>
+        <input type="hidden" name="satirlar[__i__][eski]" value="">
+        <input type="text" name="satirlar[__i__][ad]" class="form-control" placeholder="ör. 2027 Güzlük">
+      </td>
+      <td><input type="date" name="satirlar[__i__][baslangic]" class="form-control"></td>
+      <td><input type="date" name="satirlar[__i__][bitis]" class="form-control"></td>
+      <td class="text-center"><input type="radio" class="form-check-input" name="varsayilanSira" value="__i__" data-sira-deger></td>
+      <td><span class="badge bg-green-lt">Yeni</span></td>
+      <td class="sil-sutunu"><button type="button" class="btn btn-ghost-danger btn-icon" data-satir-sil title="Kaldır"><i class="ti ti-trash"></i></button></td>
+    </tr>
+  </template>
+  <div class="card-footer d-flex align-items-center">
+    <div class="text-secondary small me-auto">
+      <i class="ti ti-info-circle"></i> Dönem adı değiştirildiğinde, o döneme bağlı projeler de yeni adla güncellenir.
+    </div>
+    <button type="submit" class="btn btn-primary"><i class="ti ti-device-floppy me-1"></i> Kaydet</button>
+  </div>
+</form>
+<%- include('_son') %>

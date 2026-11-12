@@ -1,6 +1,6 @@
 <%- include('../../../views/partials/ust') %>
 <%- include('../../../views/partials/sayfa-basligi', {
-      ustBaslik: config.il + ' geneli',
+      ustBaslik: ayar.il + ' geneli',
       eylemler: '<a href="/projeler/yeni" class="btn btn-primary"><i class="ti ti-circle-plus me-1"></i> Proje Başlat</a>'
     }) %>
 
@@ -38,7 +38,7 @@
           <div class="col-6 col-md-3">
             <select name="birim" class="form-select">
               <option value="">Tüm birimler</option>
-              <% sabitler.birimler.forEach(function (b) { %>
+              <% ayar.birimler.forEach(function (b) { %>
                 <option <%= filtre.birim === b ? 'selected' : '' %>><%= b %></option>
               <% }) %>
             </select>

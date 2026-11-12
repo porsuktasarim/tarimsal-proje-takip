@@ -1,0 +1,62 @@
+<%- include('_bas') %>
+<%
+  function satir(i, s) {
+    var n = (s.eski && kullanim[s.eski]) || 0;
+    return { i: i, eski: s.eski || '', ad: s.ad || '', n: n };
+  }
+%>
+<form method="post" action="/ayarlar/<%= tanim.yol %>" class="card" autocomplete="off">
+  <div class="card-header">
+    <div>
+      <h3 class="card-title"><%= tanim.baslik %></h3>
+      <p class="card-subtitle"><%= tanim.aciklama %></p>
+    </div>
+    <div class="card-actions">
+      <button type="button" class="btn btn-sm" data-satir-ekle="satirlar"><i class="ti ti-plus me-1"></i> Ekle</button>
+    </div>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-vcenter card-table satir-tablosu">
+      <thead>
+        <tr><th class="w-1">#</th><th><%= tanim.tekil %></th><th class="w-1 text-nowrap">Kullanım</th><th class="w-1"></th></tr>
+      </thead>
+      <tbody data-satirlar="satirlar">
+        <% satirlar.forEach(function (s, i) { var r = satir(i, s); %>
+          <tr>
+            <td class="text-secondary"><span class="satir-no"></span></td>
+            <td>
+              <input type="hidden" name="satirlar[<%= i %>][eski]" value="<%= r.eski %>">
+              <input type="text" name="satirlar[<%= i %>][ad]" value="<%= r.ad %>" class="form-control">
+            </td>
+            <td class="text-nowrap">
+              <% if (r.n) { %><span class="badge bg-blue-lt"><%= r.n %> kayıt</span><% } else { %><span class="text-secondary">–</span><% } %>
+            </td>
+            <td class="sil-sutunu">
+              <button type="button" class="btn btn-ghost-danger btn-icon" data-satir-sil
+                      <%= r.n ? 'disabled' : '' %> title="<%= r.n ? 'Kullanıldığı için silinemez; adı değiştirilebilir' : 'Kaldır' %>"><i class="ti ti-trash"></i></button>
+            </td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+    <div class="d-none text-secondary text-center py-3" data-satir-bos="satirlar">Liste boş.</div>
+  </div>
+  <template id="satirlar-sablon">
+    <tr>
+      <td class="text-secondary"><span class="satir-no"></span></td>
+      <td>
+        <input type="hidden" name="satirlar[__i__][eski]" value="">
+        <input type="text" name="satirlar[__i__][ad]" class="form-control">
+      </td>
+      <td><span class="badge bg-green-lt">Yeni</span></td>
+      <td class="sil-sutunu"><button type="button" class="btn btn-ghost-danger btn-icon" data-satir-sil title="Kaldır"><i class="ti ti-trash"></i></button></td>
+    </tr>
+  </template>
+  <div class="card-footer d-flex align-items-center">
+    <div class="text-secondary small me-auto">
+      <i class="ti ti-info-circle"></i> Bir değerin adı değiştirildiğinde, onu kullanan kayıtlar da yeni adla güncellenir.
+    </div>
+    <button type="submit" class="btn btn-primary"><i class="ti ti-device-floppy me-1"></i> Kaydet</button>
+  </div>
+</form>
+<%- include('_son') %>

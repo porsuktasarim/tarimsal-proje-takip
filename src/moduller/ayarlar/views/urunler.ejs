@@ -1,0 +1,63 @@
+<%- include('_bas', {
+      eylemler: '<a href="/ayarlar/urunler/yeni' + (tur ? '?tur=' + encodeURIComponent(tur) : '') + '" class="btn btn-primary"><i class="ti ti-plus me-1"></i> Ürün ekle</a>'
+    }) %>
+<div class="card">
+  <div class="card-header">
+    <div>
+      <h3 class="card-title">Ürün kataloğu</h3>
+      <p class="card-subtitle">Kalem türüne göre ürünler, çeşitleri ve normların varsayılan değerleri. Projede yeni bir ürün ya da çeşit yazıldığında buraya kendiliğinden eklenir.</p>
+    </div>
+  </div>
+  <div class="card-body border-bottom py-2">
+    <div class="nav nav-pills gap-1 flex-wrap">
+      <a href="/ayarlar/urunler" class="nav-link py-1 px-2<%= !tur ? ' active' : '' %>">Tümü</a>
+      <% ayar.kalemTurleri.forEach(function (t) { %>
+        <a href="/ayarlar/urunler?tur=<%= encodeURIComponent(t) %>" class="nav-link py-1 px-2<%= tur === t ? ' active' : '' %>"><%= t %></a>
+      <% }) %>
+    </div>
+  </div>
+  <% if (!urunler.length) { %>
+    <div class="empty">
+      <p class="empty-title">Katalogda ürün yok</p>
+      <p class="empty-subtitle text-secondary">Ürünler buradan eklenebilir ya da proje başlatılırken yazılan yeni ürünler kataloğa kendiliğinden eklenir.</p>
+    </div>
+  <% } else { %>
+    <div class="table-responsive">
+      <table class="table table-vcenter card-table">
+        <thead>
+          <tr>
+            <% if (!tur) { %><th>Tür</th><% } %>
+            <th>Ürün</th>
+            <th>Çeşitler</th>
+            <th>Varsayılan normlar</th>
+            <th class="w-1">Proje</th>
+            <th class="w-1"></th>
+          </tr>
+        </thead>
+        <tbody>
+          <% urunler.forEach(function (u) { %>
+            <tr>
+              <% if (!tur) { %><td><span class="badge bg-green-lt"><%= u.tur %></span></td><% } %>
+              <td class="text-nowrap"><span class="fw-medium"><%= u.ad %></span> <span class="text-secondary small">(<%= u.olcuBirimi %>)</span></td>
+              <td>
+                <% if (u.cesitler && u.cesitler.length) { u.cesitler.forEach(function (c) { %>
+                  <span class="badge badge-outline text-secondary me-1 mb-1"><%= c %></span>
+                <% }) } else { %><span class="text-secondary">–</span><% } %>
+              </td>
+              <td class="small">
+                <% var dolu = ayar.normlar.filter(function (n) { return u.normlar && u.normlar[n.kod] != null; }); %>
+                <% if (!dolu.length) { %><span class="text-secondary">Girilmemiş</span><% } %>
+                <% dolu.forEach(function (n) { var t = sabitler.normTipleri[n.tip] || {}; %>
+                  <div class="text-nowrap"><span class="norm-nokta bg-<%= t.renk %>"></span><span class="text-secondary"><%= n.ad %>:</span> <%= y.sayi(u.normlar[n.kod]) %> <span class="text-secondary"><%= n.birim %></span></div>
+                <% }) %>
+              </td>
+              <td class="tablo-sayi"><%= kullanim[u._id] || '–' %></td>
+              <td><a href="/ayarlar/urunler/<%= u._id %>/duzenle" class="btn btn-ghost-secondary btn-icon" title="Düzenle"><i class="ti ti-edit"></i></a></td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  <% } %>
+</div>
+<%- include('_son') %>
