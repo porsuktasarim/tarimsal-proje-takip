@@ -78,6 +78,13 @@ const gorevDurumlari = {
   iptal: { ad: 'İptal', renk: 'red', ikon: 'ti-circle-x' }
 };
 
+const talepDurumlari = {
+  alindi: { ad: 'Talep alındı', renk: 'secondary', ikon: 'ti-inbox' },
+  onaylandi: { ad: 'Onaylandı', renk: 'green', ikon: 'ti-circle-check' },
+  teslim: { ad: 'Teslim edildi', renk: 'blue', ikon: 'ti-truck-delivery' },
+  reddedildi: { ad: 'Reddedildi', renk: 'red', ikon: 'ti-circle-x' }
+};
+
 const oncelikler = {
   dusuk: { ad: 'Düşük', renk: 'secondary' },
   normal: { ad: 'Normal', renk: 'blue' },
@@ -87,5 +94,5 @@ const oncelikler = {
 
 module.exports = {
   varsayilanlar, normTipleri, normBirimOnerileri, ambalajBirimleri, projeDurumlari,
-  rolRenkleri, gorevDurumlari, oncelikler
+  rolRenkleri, gorevDurumlari, oncelikler, talepDurumlari
 };

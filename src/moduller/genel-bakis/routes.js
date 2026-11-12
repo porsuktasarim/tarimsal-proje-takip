@@ -1,6 +1,6 @@
 const express = require('express');
 const mongoose = require('mongoose');
-const { projeHesabi } = require('../projeler/hesap');
+const { projeHesabi, taleplerOzeti } = require('../projeler/hesap');
 const { projeDurumlari } = require('../../config/sabitler');
 
 const router = express.Router();
@@ -22,6 +22,7 @@ router.get('/', sar(async (req, res) => {
   const projeler = await Proje.find(donem ? { donem } : {}).sort({ olusturulma: -1 });
   const projeIdleri = projeler.map((p) => p._id);
   const gorevler = await Gorev.find({ projeId: { $in: projeIdleri } }).select('projeId durum sonTarih').lean();
+  const tumTalepler = await mongoose.model('Talep').find({ projeId: { $in: projeIdleri }, durum: { $ne: 'reddedildi' } }).lean();
 
   const bugun = new Date();
   bugun.setHours(0, 0, 0, 0);
@@ -30,9 +31,11 @@ router.get('/', sar(async (req, res) => {
   const satirlar = projeler.map((p) => {
     const hesap = projeHesabi(p, ayar);
     const pg = gorevler.filter((g) => String(g.projeId) === String(p._id));
+    const talep = taleplerOzeti(tumTalepler.filter((x) => String(x.projeId) === String(p._id)), p, ayar);
     return {
       proje: p,
       hesap,
+      talep,
       gorev: {
         toplam: pg.length,
         tamam: pg.filter((g) => g.durum === 'tamamlandi').length,
@@ -49,6 +52,10 @@ router.get('/', sar(async (req, res) => {
     durumlar: Object.fromEntries(Object.keys(projeDurumlari).map((k) => [k, satirlar.filter((s) => s.proje.durum === k).length])),
     hedefDekar: sayilanlar.reduce((t, s) => t + s.hesap.toplamDekar, 0),
     hedefCiftci: sayilanlar.reduce((t, s) => t + s.proje.toplamHedefCiftci, 0),
+    talepCiftci: new Set(tumTalepler.map((x) => String(x.ciftciId))).size,
+    talepAlan: sayilanlar.reduce((t, s) => t + s.talep.toplamAlan, 0),
+    butce: sayilanlar.reduce((t, s) => t + (s.hesap.butce.toplam || 0), 0),
+    ciftciKatkisi: sayilanlar.reduce((t, s) => t + (s.talep.ciftciKatkisi || 0), 0),
     ilceSayisi: new Set(sayilanlar.flatMap((s) => s.proje.ilceler.map((i) => i.ilce))).size,
     dagitim: {},
     ciktilar: ayar.ciktiNormlari.map((n) => ({ norm: n, toplamlar: {} }))

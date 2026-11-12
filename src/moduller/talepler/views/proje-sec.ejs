@@ -1,0 +1,23 @@
+<%- include('../../../views/partials/ust') %>
+<%- include('../../../views/partials/sayfa-basligi', { ustBaslik: 'Çiftçi talepleri', eylemler: '' }) %>
+<div class="page-body">
+  <div class="container-xl">
+    <h3 class="mb-3">Talep hangi projeye girilecek?</h3>
+    <% if (!projeler.length) { %>
+      <div class="card"><div class="card-body text-secondary">Talep girilebilecek (taslak ya da yürütülen) proje yok.</div></div>
+    <% } %>
+    <div class="row row-cards">
+      <% projeler.forEach(function (p) { var d = sabitler.projeDurumlari[p.durum]; %>
+        <div class="col-md-6 col-lg-4">
+          <a href="/talepler/yeni?proje=<%= p._id %>" class="card card-link h-100">
+            <div class="card-body">
+              <div class="fw-medium mb-1"><%= p.ad %></div>
+              <div class="small"><span class="badge bg-<%= d.renk %>-lt"><%= d.ad %></span> <span class="text-secondary"><%= p.donem || '' %> · <%= p.kalemler.length %> kalem</span></div>
+            </div>
+          </a>
+        </div>
+      <% }) %>
+    </div>
+  </div>
+</div>
+<%- include('../../../views/partials/alt') %>

@@ -210,6 +210,7 @@
         }
       }
       miktarIpucu(blok);
+      if (doldur) fiyatBirimleri(blok);
     };
 
     // Toplam dağıtım boşsa hesaplanan değer ipucu olarak gösterilir.
@@ -235,6 +236,23 @@
       miktar.placeholder = ipucu;
     };
 
+    // Fiyat birimi seçenekleri: ambalaj içeriğinin birimi (TL/kg) ve dağıtım birimi (TL/çuval)
+    var fiyatBirimleri = function (blok) {
+      var sec = blok.querySelector('.kalem-fiyat-birimi');
+      if (!sec) return;
+      var olcu = blok.querySelector('.kalem-olcu').value;
+      var aMiktar = parseFloat(blok.querySelector('.ambalaj-miktar').value);
+      var aBirim = blok.querySelector('.ambalaj-birim').value;
+      var secenekler = [];
+      if (!isNaN(aMiktar) && aMiktar > 0) secenekler.push(aBirim);
+      if (secenekler.indexOf(olcu) < 0) secenekler.push(olcu);
+      // Elle seçilmemişse ambalaj içeriğinin birimi (TL/kg) varsayılır
+      var onceki = sec.dataset.elle === '1' ? sec.value : null;
+      sec.innerHTML = '';
+      secenekler.forEach(function (b) { var o = document.createElement('option'); o.textContent = b; sec.appendChild(o); });
+      sec.value = onceki && secenekler.indexOf(onceki) >= 0 ? onceki : secenekler[0];
+    };
+
     var form = document.getElementById('proje-formu');
     var blokOf = function (el) { return el.closest('.kalem-blok'); };
 
@@ -242,8 +260,10 @@
       var b = blokOf(e.target);
       if (!b) return;
       if (e.isTrusted && e.target.matches('.kalem-olcu, .ambalaj-birim')) e.target.dataset.oto = '0';
+      if (e.isTrusted && e.target.matches('.kalem-fiyat-birimi')) e.target.dataset.elle = '1';
       if (e.target.matches('.kalem-tur, .kalem-urun, .kalem-cesit')) kalemGuncelle(b, true);
       else miktarIpucu(b);
+      if (!e.target.matches('.kalem-fiyat-birimi')) fiyatBirimleri(b);
     });
     form.addEventListener('input', function (e) {
       var b = blokOf(e.target);
@@ -256,11 +276,119 @@
       }
       if (e.target.matches('.kalem-urun, .kalem-cesit')) kalemGuncelle(b, false);
       else miktarIpucu(b);
+      if (e.target.matches('.ambalaj-miktar')) fiyatBirimleri(b);
     });
     form.addEventListener('satir-eklendi', function (e) {
-      if (e.detail && e.detail.classList.contains('kalem-blok')) kalemGuncelle(e.detail, false);
+      if (e.detail && e.detail.classList.contains('kalem-blok')) { kalemGuncelle(e.detail, false); fiyatBirimleri(e.detail); }
     });
     form.querySelectorAll('.kalem-blok').forEach(function (b) { kalemGuncelle(b, false); });
+  }
+
+  // --- Talep formu: T.C. sorgusu ve canlı özet ---
+  var talepVeriEl = document.getElementById('talep-verisi');
+  if (talepVeriEl) {
+    var tv = JSON.parse(talepVeriEl.textContent);
+    var tForm = document.getElementById('talep-formu');
+    var tcInput = tForm.querySelector('[data-tc]');
+    var tcDurum = tForm.querySelector('[data-tc-durum]');
+    var ilceSec = tForm.querySelector('[data-ciftci-ilce]');
+    var ozetEl = tForm.querySelector('[data-talep-ozet]');
+    var sy = function (n) { return Number(n).toLocaleString('tr-TR', { maximumFractionDigits: 2 }); };
+    var tl = function (n) { return Number(n).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' TL'; };
+    var esit = function (a, b) { return String(a || '').trim().toLocaleLowerCase('tr') === String(b || '').trim().toLocaleLowerCase('tr'); };
+    var kacis = function (s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
+
+    var tcSorgula = function () {
+      var tc = (tcInput.value || '').replace(/\D/g, '');
+      if (tc.length !== 11) { tcDurum.textContent = ''; return; }
+      fetch('/ciftciler/tc/' + tc).then(function (r) { return r.json(); }).then(function (c) {
+        if (c.bulundu) {
+          var ciftci = c.ciftci;
+          ['adSoyad', 'telefon', 'mahalle', 'adres'].forEach(function (a) {
+            var el = tForm.querySelector('[data-alan="' + a + '"]');
+            if (el) el.value = ciftci[a] || '';
+          });
+          var cks = tForm.querySelector('[data-alan="cks"]');
+          if (cks) cks.checked = !!ciftci.cks;
+          if (!Array.prototype.some.call(ilceSec.options, function (o) { return o.value === ciftci.ilce; })) {
+            var o = document.createElement('option'); o.textContent = ciftci.ilce; ilceSec.appendChild(o);
+          }
+          ilceSec.value = ciftci.ilce;
+          tcDurum.innerHTML = '<span class="text-green"><i class="ti ti-user-check"></i> Kayıtlı çiftçi: ' + kacis(ciftci.ilce) + '</span>';
+        } else {
+          tcDurum.innerHTML = c.gecerli ? '<span class="text-secondary"><i class="ti ti-user-plus"></i> Yeni çiftçi; kaydedilecek</span>'
+            : '<span class="text-red"><i class="ti ti-alert-circle"></i> T.C. kimlik numarası geçersiz</span>';
+        }
+      }).catch(function () { tcDurum.textContent = ''; });
+    };
+    tcInput.addEventListener('change', tcSorgula);
+    tcInput.addEventListener('input', function () { if (tcInput.value.replace(/\D/g, '').length === 11) tcSorgula(); });
+    var sorguDugme = tForm.querySelector('[data-tc-sorgula]');
+    if (sorguDugme) sorguDugme.addEventListener('click', tcSorgula);
+
+    // Yeni parsel satırının ilçesi çiftçinin ilçesi olur
+    tForm.addEventListener('satir-eklendi', function (e) {
+      var s = e.detail.querySelector('.talep-parsel-ilce');
+      if (s && ilceSec.value) s.value = ilceSec.value;
+      ozetGuncelle();
+    });
+
+    var ozetGuncelle = function () {
+      var alanlar = {};
+      var toplamAlan = 0;
+      tForm.querySelectorAll('tbody[data-satirlar] > tr').forEach(function (tr) {
+        var k = tr.querySelector('.talep-kalem').value;
+        var a = parseFloat(tr.querySelector('.talep-alan').value);
+        if (!k || isNaN(a)) return;
+        alanlar[k] = (alanlar[k] || 0) + a;
+        toplamAlan += a;
+      });
+      var html = '';
+      var bedel = 0, katki = 0, bedelVar = false;
+      tv.kalemler.forEach(function (k) {
+        var alan = alanlar[k._id];
+        if (!alan) return;
+        var satir = '<div class="mb-2"><div class="fw-medium">' + kacis(k.ad) + '</div><div class="small text-secondary">' + sy(alan) + ' da';
+        if (k.ekim != null) {
+          var ihtiyac = alan * k.ekim;
+          var miktar = null, teslim = null, teslimBirimi = null;
+          if (esit(k.ihtiyacBirimi, k.olcuBirimi)) { miktar = ihtiyac; teslim = ihtiyac; teslimBirimi = k.olcuBirimi; }
+          else if (k.ambalaj && esit(k.ambalaj.birim, k.ihtiyacBirimi)) { miktar = Math.ceil(ihtiyac / k.ambalaj.miktar - 1e-9); teslim = miktar * k.ambalaj.miktar; teslimBirimi = k.ambalaj.birim; }
+          satir += ' × ' + sy(k.ekim) + ' = ' + sy(ihtiyac) + ' ' + kacis(k.ihtiyacBirimi || '') + '</div>';
+          if (miktar != null) {
+            satir += '<div><strong>' + sy(miktar) + ' ' + kacis(k.olcuBirimi) + '</strong>' + (k.ambalaj && !esit(k.ambalaj.birim, k.olcuBirimi) ? ' <span class="text-secondary small">(' + sy(teslim) + ' ' + kacis(teslimBirimi) + ')</span>' : '') + '</div>';
+            if (k.birimFiyat != null) {
+              var b = esit(k.fiyatBirimi, k.olcuBirimi) ? miktar * k.birimFiyat : (esit(k.fiyatBirimi, teslimBirimi) ? teslim * k.birimFiyat : null);
+              if (b != null) {
+                bedel += b; bedelVar = true;
+                var kk = tv.katkiOrani != null ? b * tv.katkiOrani / 100 : null;
+                if (kk != null) katki += kk;
+                satir += '<div class="small text-secondary">Bedel ' + tl(b) + (kk != null ? ' · çiftçi katkısı ' + tl(kk) : '') + '</div>';
+              }
+            }
+          } else {
+            satir += '<div class="small text-warning">Ambalaj içeriği tanımlı olmadığı için miktar hesaplanamadı</div>';
+          }
+        } else {
+          satir += '</div><div class="small text-secondary">Ekim normu tanımlı değil</div>';
+        }
+        html += satir + '</div>';
+      });
+      if (!html) { ozetEl.innerHTML = '<div class="text-secondary">Parsel girildikçe hesaplanır.</div>'; return; }
+      var uyari = '';
+      if (tv.azamiAlan != null && toplamAlan > tv.azamiAlan) uyari = '<div class="alert alert-danger py-2 mb-2">Toplam alan azami sınırı (' + sy(tv.azamiAlan) + ' da) aşıyor.</div>';
+      else if (tv.oncelikliAlan != null && toplamAlan > tv.oncelikliAlan) uyari = '<div class="alert alert-warning py-2 mb-2">Toplam alan öncelikli alan sınırının (' + sy(tv.oncelikliAlan) + ' da) üstünde.</div>';
+      html = uyari + html + '<hr class="my-2"><div class="d-flex"><span>Toplam alan</span><strong class="ms-auto">' + sy(toplamAlan) + ' da</strong></div>';
+      if (bedelVar) {
+        html += '<div class="d-flex"><span>Bedel</span><strong class="ms-auto">' + tl(bedel) + '</strong></div>';
+        if (tv.katkiOrani != null) html += '<div class="d-flex"><span>Çiftçi katkısı (%' + sy(tv.katkiOrani) + ')</span><strong class="ms-auto">' + tl(katki) + '</strong></div>';
+      }
+      ozetEl.innerHTML = html;
+    };
+    tForm.addEventListener('input', ozetGuncelle);
+    tForm.addEventListener('change', ozetGuncelle);
+    tForm.addEventListener('click', function (e) { if (e.target.closest('[data-satir-sil]')) setTimeout(ozetGuncelle, 0); });
+    ozetGuncelle();
   }
 
   // --- Silme onayı ---

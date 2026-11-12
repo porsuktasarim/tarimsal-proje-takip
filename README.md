@@ -18,6 +18,23 @@
 - Proje listesi, arama, birim ve durum süzgeci
 - Proje durumu: Taslak, Yürütülüyor, Tamamlandı, İptal (yalnızca taslaklar silinebilir)
 
+### Bütçe ve finansman
+
+- Kalemde birim fiyat ve fiyat birimi (TL/kg ya da TL/çuval); projede destek kaynağı ve çiftçi katkı oranı.
+- Proje sayfasında girdi bütçesi: miktar × birim fiyat, toplam bütçe, destek kaynağı ve çiftçi katkısı (ör. 14.320.660 TL → Valilik %75, çiftçi %25).
+- Başvuru alan sınırları: öncelikli alan (ör. 50 da) ve azami alan (ör. 100 da); aşıldığında talep formunda ve listelerde uyarı verilir.
+
+### Çiftçiler ve talepler
+
+- **Çiftçi kaydı** projelerden bağımsızdır: T.C. kimlik no (denetimli, benzersiz), ad soyad, telefon, ilçe, mahalle/köy, adres, ÇKS kaydı var/yok. Aynı çiftçi birden fazla projede kullanılır.
+- **Talep** bir çiftçinin bir projedeki talebidir. Her satır bir parselde ekilecek bir kalemdir: kalem, parselin ilçesi, mahalle/köy, ada, parsel, ekilecek alan (da). Parsel çiftçinin ilçesi dışında olabilir; karışım ekimde aynı parsel her kalem için ayrı satırda girilir.
+- Talep formunda T.C. yazıldığında kayıtlı çiftçinin bilgileri getirilir; yeni çiftçi talep ile birlikte kaydedilir. Bir çiftçinin bir projede tek talebi olur.
+- Miktar her çiftçinin her kalemi için ayrı hesaplanır ve ambalaja yukarı yuvarlanır (ör. 12,5 da × 20 kg/da = 250 kg → 7 çuval / 280 kg). Bedel ve çiftçi katkısı teslim edilecek miktar üzerinden hesaplanır.
+- Talep durumu: Talep alındı, Onaylandı, Teslim edildi, Reddedildi (reddedilenler toplamlara girmez).
+- **İlçe kuralı:** yürütücüler yalnızca sorumlu oldukları ilçelerin çiftçisini kaydeder ve talebini girer; listeler varsayılan olarak kendi ilçeleriyle açılır. Koordinatör ve yöneticiler tüm ilçelerde çalışır.
+- **Çiftçi icmali:** çiftçinin tüm projelerdeki talepleri, alanları, miktarları, bedelleri ve katkıları.
+- Proje sayfasında kalem ve ilçe bazında talep özeti (talep / hedef); Genel Bakış'ta talep eden çiftçi, talep alanı, hedef bütçe ve çiftçi katkısı.
+
 ### Kişiler, roller ve görevler
 
 - **Roller:** İş Planı (yöneticiler; toplu istatistik ve son durum), Proje Koordinatörü (il müdürlüğü personeli), Proje Yürütücüsü (sahada çalışan personel). Rol adları ve açıklamaları Ayarlar'dan değiştirilebilir.
@@ -119,12 +136,15 @@ src/
     ayarlar.js              Ayar servisi: önbellek, kullanım sayımı, yeniden adlandırma
     gocler.js               Veri dönüşümleri (sürüm geçişleri)
     kimlik.js               "Kimsiniz?" girişi (kişi seçimi, çerez)
+    yetki.js                İlçe kuralları (yürütücünün çalıştığı ilçeler)
     modulYukleyici.js       Modülleri otomatik yükler, menüyü oluşturur
     yardimcilar.js          Sayı, tarih, miktar biçimleme
   views/                    Ortak şablonlar (üst/alt bölüm, bildirimler, hata sayfası)
   moduller/
     genel-bakis/            Toplu istatistik ve son durum panosu
-    projeler/               Proje modeli, norm hesapları (hesap.js), sayfalar
+    projeler/               Proje modeli, norm, miktar ve bütçe hesapları (hesap.js), sayfalar
+    talepler/               Çiftçi talepleri (parsel satırları)
+    ciftciler/              Çiftçi kaydı ve çiftçi icmali
     gorevler/               Görev modeli ve sayfaları
     ayarlar/                Ayar, Ürün ve Kişi modelleri, ayar sayfaları
 public/                     Uygulamaya özel CSS, JS, simge
@@ -137,6 +157,8 @@ public/                     Uygulamaya özel CSS, JS, simge
 | `ayarlar` | Tek belge (`_id: genel`): kurum, il, birimler, dönemler, ilçeler, kalem türleri, ölçü birimleri, norm tanımları |
 | `urunler` | Ürün kataloğu: tür, ad, dağıtım birimi, ambalaj, normlar `{ kod: { deger, birim } }`, çeşitler (kendi normları ve ambalajıyla) |
 | `projeler` | Proje bilgileri, kalemler (ürün kimliği, ürün, çeşit, alan, dağıtım birimi, ambalaj, normlar), ilçe hedefleri, proje ekibi |
+| `ciftciler` | Çiftçiler: T.C. kimlik no, ad soyad, iletişim, ilçe, mahalle/köy, ÇKS |
+| `talepler` | Çiftçi talepleri: proje, çiftçi, ilçe, parsel satırları (kalem, ilçe, mahalle, ada, parsel, alan), durum |
 | `kisiler` | Kişiler: ad soyad, unvan, rol kodu, birim, ilçeler, aktiflik |
 | `gorevler` | Görevler: atama (kişi ya da rol), proje, ilçe, son tarih, öncelik, durum, hareket geçmişi |
 
@@ -162,11 +184,10 @@ Yeni bir ayar listesi başka kayıtlarda kullanılacaksa `src/core/ayarlar.js` i
 
 ## Yol haritası
 
-- Çiftçi başvuruları ve ilçe veri girişi
 - İlçe bazında hak sahipliği ve dağıtım listeleri
-- Teslim tutanakları
+- Teslim tutanakları ve çiftçi katkı tahsilatı
 - Gerçekleşen verimlerin girilmesi ve hedeflerle karşılaştırılması
-- Raporlar ve Excel/PDF çıktıları
+- Raporlar ve Excel/PDF çıktıları (çiftçi icmali, ilçe listeleri)
 - Rollere göre ekranlar ve yetkiler; isteğe bağlı şifreli giriş
 
 ## Lisans

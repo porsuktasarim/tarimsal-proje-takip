@@ -1,0 +1,45 @@
+<%
+  // Çiftçi bilgileri (çiftçi formu ve talep formu ortak). Parametreler: c (çiftçi), ilceler, onek ('' ya da 'ciftci')
+  var ad = function (alan) { return locals.onek ? locals.onek + '[' + alan + ']' : alan; };
+  var cf = locals.c || {};
+%>
+<div class="row g-3" data-ciftci-alanlari>
+  <div class="col-md-4">
+    <label class="form-label required">T.C. kimlik no</label>
+    <div class="input-group">
+      <input type="text" name="<%= ad('tcKimlikNo') %>" value="<%= cf.tcKimlikNo || '' %>" class="form-control font-monospace" required
+             inputmode="numeric" maxlength="11" pattern="[1-9][0-9]{10}" data-tc>
+      <% if (locals.sorgu) { %><button type="button" class="btn" data-tc-sorgula title="Kayıtlı çiftçiyi getir"><i class="ti ti-search"></i></button><% } %>
+    </div>
+    <small class="form-hint" data-tc-durum></small>
+  </div>
+  <div class="col-md-8">
+    <label class="form-label required">Adı soyadı</label>
+    <input type="text" name="<%= ad('adSoyad') %>" value="<%= cf.adSoyad || '' %>" class="form-control" required data-alan="adSoyad">
+  </div>
+  <div class="col-md-4">
+    <label class="form-label">Telefon</label>
+    <input type="tel" name="<%= ad('telefon') %>" value="<%= cf.telefon || '' %>" class="form-control" placeholder="05xx xxx xx xx" data-alan="telefon">
+  </div>
+  <div class="col-md-4">
+    <label class="form-label required">İlçe</label>
+    <select name="<%= ad('ilce') %>" class="form-select" required data-alan="ilce" data-ciftci-ilce>
+      <% if (ilceler.length !== 1) { %><option value="">Seçiniz</option><% } %>
+      <% ilceler.forEach(function (i) { %><option <%= cf.ilce === i ? 'selected' : '' %>><%= i %></option><% }) %>
+    </select>
+  </div>
+  <div class="col-md-4">
+    <label class="form-label">Mahalle / köy</label>
+    <input type="text" name="<%= ad('mahalle') %>" value="<%= cf.mahalle || '' %>" class="form-control" data-alan="mahalle">
+  </div>
+  <div class="col-md-8">
+    <label class="form-label">Adres</label>
+    <input type="text" name="<%= ad('adres') %>" value="<%= cf.adres || '' %>" class="form-control" data-alan="adres">
+  </div>
+  <div class="col-md-4 d-flex align-items-end">
+    <label class="form-check form-switch mb-2">
+      <input type="checkbox" class="form-check-input" name="<%= ad('cks') %>" <%= cf.cks ? 'checked' : '' %> data-alan="cks">
+      <span class="form-check-label">ÇKS kaydı var</span>
+    </label>
+  </div>
+</div>

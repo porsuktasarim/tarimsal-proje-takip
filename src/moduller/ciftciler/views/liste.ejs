@@ -1,0 +1,75 @@
+<%- include('../../../views/partials/ust') %>
+<%- include('../../../views/partials/sayfa-basligi', {
+      ustBaslik: ayar.il + ' geneli',
+      eylemler: '<a href="/ciftciler/yeni" class="btn btn-primary"><i class="ti ti-user-plus me-1"></i> Çiftçi ekle</a>'
+    }) %>
+<div class="page-body">
+  <div class="container-xl">
+    <%- include('../../../views/partials/bildirim') %>
+    <div class="card">
+      <div class="card-header">
+        <form class="row g-2 w-100" method="get" action="/ciftciler">
+          <div class="col-12 col-md">
+            <div class="input-icon">
+              <span class="input-icon-addon"><i class="ti ti-search"></i></span>
+              <input type="search" name="q" value="<%= filtre.q || '' %>" class="form-control" placeholder="Ad, T.C. kimlik no, mahalle ya da telefon">
+            </div>
+          </div>
+          <div class="col-6 col-md-3">
+            <select name="ilce" class="form-select" onchange="this.form.submit()">
+              <% if (kisitli) { %><option value="benim" <%= filtre.ilce === 'benim' ? 'selected' : '' %>>Benim ilçelerim (<%= ben.ilceler.join(', ') %>)</option><% } %>
+              <option value="" <%= !filtre.ilce ? 'selected' : '' %>>Tüm ilçeler</option>
+              <% ayar.ilceler.forEach(function (i) { %><option <%= filtre.ilce === i ? 'selected' : '' %>><%= i %></option><% }) %>
+            </select>
+          </div>
+          <div class="col-6 col-md-2">
+            <select name="cks" class="form-select" onchange="this.form.submit()">
+              <option value="">ÇKS: tümü</option>
+              <option value="var" <%= filtre.cks === 'var' ? 'selected' : '' %>>ÇKS kaydı var</option>
+              <option value="yok" <%= filtre.cks === 'yok' ? 'selected' : '' %>>ÇKS kaydı yok</option>
+            </select>
+          </div>
+          <div class="col-auto"><button class="btn" type="submit"><i class="ti ti-filter me-1"></i> Süz</button></div>
+        </form>
+      </div>
+      <% if (!ciftciler.length) { %>
+        <div class="empty">
+          <div class="empty-icon"><i class="ti ti-users" style="font-size:3rem"></i></div>
+          <p class="empty-title">Çiftçi bulunamadı</p>
+          <p class="empty-subtitle text-secondary">Çiftçiler buradan ya da proje talebi girilirken kaydedilir.</p>
+        </div>
+      <% } else { %>
+        <div class="table-responsive">
+          <table class="table table-vcenter card-table">
+            <thead>
+              <tr>
+                <th>Çiftçi</th>
+                <th>T.C. kimlik no</th>
+                <th>İlçe / mahalle</th>
+                <th>Telefon</th>
+                <th>ÇKS</th>
+                <th class="tablo-sayi">Proje</th>
+                <th class="tablo-sayi">Talep alanı</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% ciftciler.forEach(function (c) { var o = ozet[String(c._id)] || { proje: 0, alan: 0 }; %>
+                <tr>
+                  <td><a href="/ciftciler/<%= c._id %>" class="text-reset fw-medium"><%= c.adSoyad %></a></td>
+                  <td class="text-secondary font-monospace"><%= c.tcKimlikNo %></td>
+                  <td><%= c.ilce %><% if (c.mahalle) { %><div class="text-secondary small"><%= c.mahalle %></div><% } %></td>
+                  <td class="text-secondary text-nowrap"><%= c.telefon || '–' %></td>
+                  <td><% if (c.cks) { %><span class="badge bg-green-lt">Var</span><% } else { %><span class="badge bg-secondary-lt">Yok</span><% } %></td>
+                  <td class="tablo-sayi"><%= o.proje || '–' %></td>
+                  <td class="tablo-sayi text-nowrap"><%= o.alan ? y.sayi(o.alan) + ' da' : '–' %></td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+        <div class="card-footer text-secondary small"><%= ciftciler.length %> çiftçi</div>
+      <% } %>
+    </div>
+  </div>
+</div>
+<%- include('../../../views/partials/alt') %>

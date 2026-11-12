@@ -1,0 +1,28 @@
+<%
+  // Parametreler: i, s (satır), kalemler (proje kalemleri), varsayilanIlce
+  var on = 'satirlar[' + i + ']';
+  var dv = function (v) { return v !== undefined && v !== null ? v : ''; };
+  var ilce = s.parselIlce || varsayilanIlce;
+%>
+<tr>
+  <td>
+    <% if (s._id) { %><input type="hidden" name="<%= on %>[_id]" value="<%= s._id %>"><% } %>
+    <select name="<%= on %>[kalemId]" class="form-select form-select-sm talep-kalem" required>
+      <% if (kalemler.length !== 1) { %><option value="">Seçiniz</option><% } %>
+      <% kalemler.forEach(function (k) { %>
+        <option value="<%= k._id %>" <%= String(s.kalemId) === String(k._id) ? 'selected' : '' %>><%= k.urun %><%= k.cesit ? ' · ' + k.cesit : '' %></option>
+      <% }) %>
+    </select>
+  </td>
+  <td>
+    <select name="<%= on %>[parselIlce]" class="form-select form-select-sm talep-parsel-ilce" required>
+      <option value="">Seçiniz</option>
+      <% ayar.ilceler.forEach(function (x) { %><option <%= ilce === x ? 'selected' : '' %>><%= x %></option><% }) %>
+    </select>
+  </td>
+  <td><input type="text" name="<%= on %>[mahalle]" value="<%= dv(s.mahalle) %>" class="form-control form-control-sm"></td>
+  <td><input type="text" name="<%= on %>[ada]" value="<%= dv(s.ada) %>" class="form-control form-control-sm"></td>
+  <td><input type="text" name="<%= on %>[parsel]" value="<%= dv(s.parsel) %>" class="form-control form-control-sm"></td>
+  <td><input type="number" step="any" min="0" name="<%= on %>[alan]" value="<%= dv(s.alan) %>" class="form-control form-control-sm text-end talep-alan" required></td>
+  <td class="sil-sutunu"><button type="button" class="btn btn-ghost-danger btn-icon btn-sm" data-satir-sil title="Kaldır"><i class="ti ti-trash"></i></button></td>
+</tr>

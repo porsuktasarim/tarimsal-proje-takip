@@ -59,6 +59,24 @@ const miktar = (deger, birim) => {
   return `${sayi(deger)}${birim ? ' ' + birim : ''}`;
 };
 
+// 14320660 -> "14.320.660,00 TL"
+const para = (n) => {
+  if (n === null || n === undefined || Number.isNaN(Number(n))) return '–';
+  return Number(n).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' TL';
+};
+
+// T.C. kimlik numarası denetimi (11 hane, ilk hane 0 değil, 10. ve 11. hane algoritması)
+const tcGecerliMi = (tc) => {
+  const s = String(tc || '').trim();
+  if (!/^[1-9][0-9]{10}$/.test(s)) return false;
+  const d = s.split('').map(Number);
+  const tek = d[0] + d[2] + d[4] + d[6] + d[8];
+  const cift = d[1] + d[3] + d[5] + d[7];
+  const h10 = (((tek * 7 - cift) % 10) + 10) % 10;
+  const h11 = d.slice(0, 10).reduce((a, b) => a + b, 0) % 10;
+  return d[9] === h10 && d[10] === h11;
+};
+
 // Mongoose Map ya da düz nesneden değer okur.
 const mapDeger = (m, k) => {
   if (!m) return undefined;
@@ -67,5 +85,5 @@ const mapDeger = (m, k) => {
 };
 
 module.exports = {
-  sayi, tarih, inputTarih, tarihOku, sayiOku, diziyeCevir, anahtar, kodUret, sonucBirimi, miktar, mapDeger
+  sayi, tarih, inputTarih, tarihOku, sayiOku, diziyeCevir, anahtar, kodUret, sonucBirimi, miktar, para, tcGecerliMi, mapDeger
 };

@@ -1,0 +1,128 @@
+<%- include('../../../views/partials/ust') %>
+<%- include('../../../views/partials/sayfa-basligi', {
+      ustBaslik: proje ? (proje.kisaAd || proje.ad) : 'Projeler',
+      eylemler: proje ? '<a href="/talepler/yeni?proje=' + proje._id + '" class="btn btn-primary"><i class="ti ti-plus me-1"></i> Talep gir</a>' : ''
+    }) %>
+<%
+  var td = sabitler.talepDurumlari;
+  var bas = proje ? (proje.basvuru || {}) : {};
+  var birimli = function (t) { var b = Object.keys(t || {}); return b.length ? b.map(function (k) { return y.sayi(t[k]) + ' ' + k; }).join(' · ') : '–'; };
+%>
+<div class="page-body">
+  <div class="container-xl">
+    <%- include('../../../views/partials/bildirim') %>
+    <% if (!proje) { %>
+      <div class="card"><div class="card-body text-secondary">Henüz proje yok. <a href="/projeler/yeni">Proje başlat</a></div></div>
+    <% } else { %>
+      <div class="row row-cards mb-3">
+        <div class="col-sm-6 col-lg-3"><div class="card card-sm"><div class="card-body">
+          <div class="text-secondary">Talep eden çiftçi</div>
+          <div class="h2 mb-0"><%= toplam.ciftci %> <span class="fs-4 text-secondary fw-normal">/ <%= y.sayi(proje.toplamHedefCiftci) %> hedef</span></div>
+        </div></div></div>
+        <div class="col-sm-6 col-lg-3"><div class="card card-sm"><div class="card-body">
+          <div class="text-secondary">Talep alanı</div>
+          <div class="h2 mb-0"><%= y.sayi(toplam.alan) %> <span class="fs-4 text-secondary fw-normal">/ <%= y.sayi(proje.toplamHedefDekar) %> da</span></div>
+        </div></div></div>
+        <div class="col-sm-6 col-lg-3"><div class="card card-sm"><div class="card-body">
+          <div class="text-secondary">Dağıtılacak</div>
+          <div class="h3 mb-0"><%= birimli(toplam.miktar) %></div>
+        </div></div></div>
+        <div class="col-sm-6 col-lg-3"><div class="card card-sm"><div class="card-body">
+          <div class="text-secondary">Çiftçi katkısı</div>
+          <div class="h3 mb-0"><%= y.para(toplam.ciftciKatkisi) %></div>
+        </div></div></div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <form class="row g-2 w-100" method="get" action="/talepler">
+            <div class="col-12 col-md-4">
+              <select name="proje" class="form-select" onchange="this.form.submit()">
+                <% projeler.forEach(function (p) { %><option value="<%= p._id %>" <%= String(p._id) === filtre.proje ? 'selected' : '' %>><%= p.kisaAd || p.ad %><%= p.donem ? ' (' + p.donem + ')' : '' %></option><% }) %>
+              </select>
+            </div>
+            <div class="col-6 col-md-3">
+              <select name="ilce" class="form-select" onchange="this.form.submit()">
+                <% if (kisitli) { %><option value="benim" <%= filtre.ilce === 'benim' ? 'selected' : '' %>>Benim ilçelerim</option><% } %>
+                <option value="" <%= !filtre.ilce ? 'selected' : '' %>>Tüm ilçeler</option>
+                <% ayar.ilceler.forEach(function (i) { %><option <%= filtre.ilce === i ? 'selected' : '' %>><%= i %></option><% }) %>
+              </select>
+            </div>
+            <div class="col-6 col-md-2">
+              <select name="durum" class="form-select" onchange="this.form.submit()">
+                <option value="">Tüm durumlar</option>
+                <% Object.keys(td).forEach(function (k) { %><option value="<%= k %>" <%= filtre.durum === k ? 'selected' : '' %>><%= td[k].ad %></option><% }) %>
+              </select>
+            </div>
+            <div class="col">
+              <div class="input-icon">
+                <span class="input-icon-addon"><i class="ti ti-search"></i></span>
+                <input type="search" name="q" value="<%= filtre.q || '' %>" class="form-control" placeholder="Ad ya da T.C.">
+              </div>
+            </div>
+          </form>
+        </div>
+        <% if (!satirlar.length) { %>
+          <div class="empty">
+            <div class="empty-icon"><i class="ti ti-clipboard-list" style="font-size:3rem"></i></div>
+            <p class="empty-title">Talep yok</p>
+            <p class="empty-subtitle text-secondary">Bu süzgeçle listelenecek çiftçi talebi bulunmuyor.</p>
+            <div class="empty-action"><a href="/talepler/yeni?proje=<%= proje._id %>" class="btn btn-primary"><i class="ti ti-plus me-1"></i> Talep gir</a></div>
+          </div>
+        <% } else { %>
+          <div class="table-responsive">
+            <table class="table table-vcenter card-table">
+              <thead>
+                <tr>
+                  <th>Çiftçi</th>
+                  <th>İlçe</th>
+                  <th>ÇKS</th>
+                  <th>Kalemler</th>
+                  <th class="tablo-sayi">Alan</th>
+                  <th class="tablo-sayi">Miktar</th>
+                  <th class="tablo-sayi">Çiftçi katkısı</th>
+                  <th>Durum</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% satirlar.forEach(function (s) { var t = s.talep, c = s.ciftci, h = s.hesap, d = td[t.durum]; %>
+                  <tr class="<%= t.durum === 'reddedildi' ? 'opacity-50' : '' %>">
+                    <td>
+                      <a href="/talepler/<%= t._id %>" class="text-reset fw-medium"><%= c.adSoyad %></a>
+                      <div class="text-secondary small font-monospace"><%= c.tcKimlikNo %></div>
+                    </td>
+                    <td><%= t.ilce %><% if (c.mahalle) { %><div class="text-secondary small"><%= c.mahalle %></div><% } %></td>
+                    <td><%- c.cks ? '<span class="badge bg-green-lt">Var</span>' : '<span class="badge bg-secondary-lt">Yok</span>' %></td>
+                    <td class="small">
+                      <% h.kalemler.forEach(function (hk) { %><div class="text-nowrap"><%= hk.kalem.urun %><%= hk.kalem.cesit ? ' · ' + hk.kalem.cesit : '' %>: <%= y.sayi(hk.alan) %> da</div><% }) %>
+                    </td>
+                    <td class="tablo-sayi text-nowrap">
+                      <%= y.sayi(h.toplamAlan) %> da
+                      <% if (bas.azamiAlan != null && h.toplamAlan > bas.azamiAlan) { %><div><span class="badge bg-red-lt">azami sınır aşıldı</span></div>
+                      <% } else if (bas.oncelikliAlan != null && h.toplamAlan > bas.oncelikliAlan) { %><div><span class="badge bg-yellow-lt">öncelik sınırı üstü</span></div><% } %>
+                    </td>
+                    <td class="tablo-sayi small text-nowrap">
+                      <% h.kalemler.forEach(function (hk) { %><div><%= y.miktar(hk.miktar, hk.kalem.olcuBirimi) %></div><% }) %>
+                    </td>
+                    <td class="tablo-sayi text-nowrap"><%= y.para(h.ciftciKatkisi) %></td>
+                    <td><span class="badge bg-<%= d.renk %>-lt"><%= d.ad %></span></td>
+                  </tr>
+                <% }) %>
+              </tbody>
+              <tfoot>
+                <tr class="fw-bold">
+                  <td colspan="4"><%= toplam.ciftci %> çiftçi <span class="fw-normal text-secondary">(reddedilenler hariç)</span></td>
+                  <td class="tablo-sayi text-nowrap"><%= y.sayi(toplam.alan) %> da</td>
+                  <td class="tablo-sayi small"><%= birimli(toplam.miktar) %></td>
+                  <td class="tablo-sayi text-nowrap"><%= y.para(toplam.ciftciKatkisi) %></td>
+                  <td></td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        <% } %>
+      </div>
+    <% } %>
+  </div>
+</div>
+<%- include('../../../views/partials/alt') %>

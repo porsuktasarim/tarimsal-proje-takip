@@ -63,7 +63,10 @@ const baglar = {
   ilceler: [
     { model: 'Proje', dizi: 'ilceler', alan: 'ilce' },
     { model: 'Kisi', liste: 'ilceler' },
-    { model: 'Gorev', alan: 'ilce' }
+    { model: 'Gorev', alan: 'ilce' },
+    { model: 'Ciftci', alan: 'ilce' },
+    { model: 'Talep', alan: 'ilce' },
+    { model: 'Talep', dizi: 'satirlar', alan: 'parselIlce' }
   ],
   kalemTurleri: [{ model: 'Urun', alan: 'tur' }, { model: 'Proje', dizi: 'kalemler', alan: 'tur' }],
   olcuBirimleri: [{ model: 'Urun', alan: 'olcuBirimi' }, { model: 'Proje', dizi: 'kalemler', alan: 'olcuBirimi' }]

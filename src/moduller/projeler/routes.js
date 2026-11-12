@@ -4,7 +4,7 @@ const Proje = require('./model');
 const Urun = require('../ayarlar/modeller/Urun');
 const Kisi = require('../ayarlar/modeller/Kisi');
 const katalog = require('../ayarlar/katalog');
-const { projeHesabi } = require('./hesap');
+const { projeHesabi, taleplerOzeti } = require('./hesap');
 const { projeDurumlari } = require('../../config/sabitler');
 const { sayiOku, diziyeCevir, tarihOku, anahtar } = require('../../core/yardimcilar');
 
@@ -41,12 +41,22 @@ function formuOku(govde, ayar, mevcut) {
         alan: sayiOku(k.alan),
         normlar: katalog.normFormuOku(k.normlar, ayar.normlar, true),
         toplamMiktar: sayiOku(k.toplamMiktar),
+        birimFiyat: sayiOku(k.birimFiyat),
+        fiyatBirimi: metin(k.fiyatBirimi) || undefined,
         aciklama: metin(k.aciklama) || undefined
       }))
       .filter((k) => k.urun || k.cesit || k.alan !== undefined || Object.keys(k.normlar).length),
     ilceler: diziyeCevir(govde.ilceler)
       .filter((i) => i && i.ilce && gecerliIlceler.has(i.ilce))
       .map((i) => ({ ilce: i.ilce, hedefCiftci: sayiOku(i.hedefCiftci), hedefDekar: sayiOku(i.hedefDekar) })),
+    finansman: {
+      destekKaynagi: metin(govde.finansman && govde.finansman.destekKaynagi) || undefined,
+      ciftciKatkiOrani: sayiOku(govde.finansman && govde.finansman.ciftciKatkiOrani)
+    },
+    basvuru: {
+      oncelikliAlan: sayiOku(govde.basvuru && govde.basvuru.oncelikliAlan),
+      azamiAlan: sayiOku(govde.basvuru && govde.basvuru.azamiAlan)
+    },
     koordinatorler: diziyeCevir(govde.koordinatorler).filter((id) => mongoose.isValidObjectId(id)),
     yurutuculer: diziyeCevir(govde.yurutuculer).filter((id) => mongoose.isValidObjectId(id))
   };
@@ -69,6 +79,12 @@ function formuOku(govde, ayar, mevcut) {
     if (!k.olcuBirimi) hatalar.push(`${i + 1}. kalemin dağıtım birimi seçilmelidir.`);
   });
   if (veri.ilceler.length === 0) hatalar.push('Projenin uygulanacağı en az bir ilçe seçilmelidir.');
+  const oran = veri.finansman.ciftciKatkiOrani;
+  if (oran != null && (oran < 0 || oran > 100)) hatalar.push('Çiftçi katkı oranı 0 ile 100 arasında olmalıdır.');
+  const b = veri.basvuru;
+  if (b.oncelikliAlan != null && b.azamiAlan != null && b.oncelikliAlan > b.azamiAlan) {
+    hatalar.push('Öncelikli alan sınırı azami alandan büyük olamaz.');
+  }
 
   return { veri, hatalar };
 }
@@ -200,6 +216,8 @@ router.get('/:id', sar(projeBul), sar(async (req, res) => {
       .sort({ sonTarih: 1, olusturulma: -1 })
   ]);
   const kisiBul = (id) => ekip.find((k) => String(k._id) === String(id));
+  const talepler = await mongoose.model('Talep').find({ projeId: req.proje._id, durum: { $ne: 'reddedildi' } }).lean();
+  const talepOzeti = taleplerOzeti(talepler, req.proje, res.locals.ayar);
   res.render(V + 'detay', {
     baslik: req.proje.ad,
     proje: req.proje,
@@ -207,6 +225,7 @@ router.get('/:id', sar(projeBul), sar(async (req, res) => {
     koordinatorler: req.proje.koordinatorler.map(kisiBul).filter(Boolean),
     yurutuculer: req.proje.yurutuculer.map(kisiBul).filter(Boolean),
     gorevler,
+    talepOzeti,
     katalogEklenen: parseInt(req.query.katalog, 10) || 0
   });
 }));

@@ -37,8 +37,8 @@
           <div class="d-flex align-items-center">
             <span class="avatar bg-blue-lt me-3"><i class="ti ti-map-2"></i></span>
             <div>
-              <div class="h2 mb-0"><%= y.sayi(ozet.hedefDekar) %> <span class="fs-4 text-secondary fw-normal">da</span></div>
-              <div class="text-secondary small">hedef alan · <%= ozet.ilceSayisi %> ilçe</div>
+              <div class="h2 mb-0"><%= y.sayi(ozet.talepAlan) %> <span class="fs-4 text-secondary fw-normal">/ <%= y.sayi(ozet.hedefDekar) %> da</span></div>
+              <div class="text-secondary small">talep / hedef alan · <%= ozet.ilceSayisi %> ilçe</div>
             </div>
           </div>
         </div></div>
@@ -48,8 +48,8 @@
           <div class="d-flex align-items-center">
             <span class="avatar bg-orange-lt me-3"><i class="ti ti-users"></i></span>
             <div>
-              <div class="h2 mb-0"><%= y.sayi(ozet.hedefCiftci) %></div>
-              <div class="text-secondary small">hedef çiftçi</div>
+              <div class="h2 mb-0"><%= y.sayi(ozet.talepCiftci) %> <span class="fs-4 text-secondary fw-normal">/ <%= y.sayi(ozet.hedefCiftci) %></span></div>
+              <div class="text-secondary small">talep eden / hedef çiftçi</div>
             </div>
           </div>
         </div></div>
@@ -83,6 +83,14 @@
                 <div class="datagrid-title">Dağıtılacak</div>
                 <div class="datagrid-content fw-medium"><%= birimli(ozet.dagitim) %></div>
               </div>
+              <div class="datagrid-item">
+                <div class="datagrid-title">Hedef bütçe</div>
+                <div class="datagrid-content fw-medium"><%= ozet.butce ? y.para(ozet.butce) : '–' %></div>
+              </div>
+              <div class="datagrid-item">
+                <div class="datagrid-title">Taleplerdeki çiftçi katkısı</div>
+                <div class="datagrid-content fw-medium"><%= y.para(ozet.ciftciKatkisi) %></div>
+              </div>
               <% ozet.ciktilar.forEach(function (c) { if (!Object.keys(c.toplamlar).length) return; %>
                 <div class="datagrid-item">
                   <div class="datagrid-title"><%= c.norm.ad %></div>
@@ -113,7 +121,7 @@
                   <tr>
                     <th>Proje</th>
                     <th class="tablo-sayi">İlçe</th>
-                    <th class="tablo-sayi">Hedef alan</th>
+                    <th class="tablo-sayi">Talep / hedef</th>
                     <th class="tablo-sayi">Dağıtım</th>
                     <th style="min-width: 9rem">Görevler</th>
                   </tr>
@@ -127,7 +135,10 @@
                         <div class="small"><span class="badge bg-<%= d.renk %>-lt"><%= d.ad %></span> <span class="text-secondary"><%= p.donem || '' %></span></div>
                       </td>
                       <td class="tablo-sayi"><%= p.ilceler.length %></td>
-                      <td class="tablo-sayi text-nowrap"><%= y.sayi(s.hesap.toplamDekar) %> da</td>
+                      <td class="tablo-sayi text-nowrap">
+                        <%= y.sayi(s.talep.toplamAlan) %> / <%= y.sayi(s.hesap.toplamDekar) %> da
+                        <div class="text-secondary small"><%= s.talep.ciftciSayisi %> / <%= y.sayi(s.proje.toplamHedefCiftci) %> çiftçi</div>
+                      </td>
                       <td class="tablo-sayi text-nowrap small"><%= birimli(s.hesap.miktarToplamlari) %></td>
                       <td>
                         <% if (g.toplam) { %>

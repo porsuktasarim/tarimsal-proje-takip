@@ -19,6 +19,8 @@ const kalemSema = new mongoose.Schema({
   alan: { type: Number, min: 0 },                             // bu kalemin hedef alanı (da)
   normlar: { type: mongoose.Schema.Types.Mixed, default: {} },// { <kod>: { deger, birim } }
   toplamMiktar: { type: Number, min: 0 },                     // elle girilirse hesaplananın yerine geçer
+  birimFiyat: { type: Number, min: 0 },                       // TL; fiyat birimine göre (ör. 36 TL/kg)
+  fiyatBirimi: { type: String, trim: true },                  // dağıtım birimi (çuval) ya da ambalaj içeriği birimi (kg)
   aciklama: { type: String, trim: true }
 }, { _id: true, minimize: false });
 
@@ -40,6 +42,16 @@ const projeSema = new mongoose.Schema({
   durum: { type: String, enum: Object.keys(projeDurumlari), default: 'taslak' },
   kalemler: { type: [kalemSema], default: [] },
   ilceler: { type: [ilceHedefSema], default: [] },
+  // Bütçe ve finansman: kalem bedellerinin çiftçi katkısı oranı, kalanı destek kaynağınca karşılanır
+  finansman: {
+    destekKaynagi: { type: String, trim: true },              // ör. İstanbul Valiliği
+    ciftciKatkiOrani: { type: Number, min: 0, max: 100 }      // yüzde
+  },
+  // Çiftçi başvurularında alan sınırları (aşıldığında uyarı verilir)
+  basvuru: {
+    oncelikliAlan: { type: Number, min: 0 },                  // ör. 50 da'ya kadar öncelikli
+    azamiAlan: { type: Number, min: 0 }                       // ör. 100 da'ya kadar değerlendirilir
+  },
   // Proje ekibi (Ayarlar > Kişiler)
   koordinatorler: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Kisi' }],
   yurutuculer: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Kisi' }]

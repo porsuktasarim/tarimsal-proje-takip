@@ -1,0 +1,109 @@
+<%- include('../../../views/partials/ust') %>
+<%
+  var yeni = !talep._id;
+  var satirlar = (talep.satirlar && talep.satirlar.length) ? talep.satirlar : [{}];
+  var bas = proje.basvuru || {};
+  var fin = proje.finansman || {};
+  var istemci = {
+    kalemler: kalemVerisi,
+    oncelikliAlan: bas.oncelikliAlan != null ? bas.oncelikliAlan : null,
+    azamiAlan: bas.azamiAlan != null ? bas.azamiAlan : null,
+    katkiOrani: fin.ciftciKatkiOrani != null ? fin.ciftciKatkiOrani : null
+  };
+  function satirHtml(i, s) {
+    return include('satir', { i: i, s: s, kalemler: proje.kalemler, varsayilanIlce: ciftci.ilce || '' });
+  }
+%>
+<%- include('../../../views/partials/sayfa-basligi', {
+      ustBaslik: proje.kisaAd || proje.ad,
+      eylemler: '<a href="/talepler?proje=' + proje._id + '" class="btn btn-ghost-secondary">Talepler</a>'
+    }) %>
+<div class="page-body">
+  <div class="container-xl">
+    <%- include('../../../views/partials/bildirim') %>
+    <%- include('../../../views/partials/hatalar') %>
+    <% if (!proje.kalemler.length) { %>
+      <div class="alert alert-warning">Bu projede kalem tanımlı değil; önce projeye kalem eklenmelidir.</div>
+    <% } %>
+
+    <form method="post" action="<%= eylem %>" autocomplete="off" id="talep-formu">
+      <input type="hidden" name="projeId" value="<%= proje._id %>">
+      <div class="row row-cards">
+        <div class="col-lg-8">
+          <div class="card mb-3">
+            <div class="card-header">
+              <h3 class="card-title"><span class="badge bg-primary-lt me-2">1</span> Çiftçi</h3>
+            </div>
+            <div class="card-body">
+              <%- include('../../../views/partials/ciftci-alanlari', { c: ciftci, ilceler: ilceler, onek: 'ciftci', sorgu: true }) %>
+              <small class="form-hint mt-2">T.C. kimlik numarası yazıldığında kayıtlı çiftçinin bilgileri getirilir; yeni çiftçi kaydı talep ile birlikte oluşturulur. Çiftçi başka projelerde de kullanılır.</small>
+            </div>
+          </div>
+
+          <div class="card mb-3">
+            <div class="card-header">
+              <h3 class="card-title"><span class="badge bg-primary-lt me-2">2</span> Parseller ve ekilecek kalemler</h3>
+              <div class="card-actions">
+                <button type="button" class="btn btn-sm" data-satir-ekle="satirlar"><i class="ti ti-plus me-1"></i> Parsel ekle</button>
+              </div>
+            </div>
+            <div class="card-body pb-0">
+              <p class="text-secondary mb-0">Her satır bir parselde ekilecek bir kalemdir. Parsel çiftçinin ilçesi dışında olabilir. Karışım ekimde aynı parsel her kalem için ayrı satırda girilir.</p>
+            </div>
+            <div class="table-responsive">
+              <table class="table table-vcenter card-table satir-tablosu talep-satirlari">
+                <thead>
+                  <tr>
+                    <th>Kalem</th>
+                    <th>Parsel ilçesi</th>
+                    <th>Mahalle / köy</th>
+                    <th style="width:6rem">Ada</th>
+                    <th style="width:6rem">Parsel</th>
+                    <th style="width:8rem" class="text-end">Alan (da)</th>
+                    <th class="w-1"></th>
+                  </tr>
+                </thead>
+                <tbody data-satirlar="satirlar">
+                  <% satirlar.forEach(function (s, i) { %><%- satirHtml(i, s) %><% }) %>
+                </tbody>
+              </table>
+              <div class="d-none text-secondary text-center py-3" data-satir-bos="satirlar">Parsel eklenmedi.</div>
+            </div>
+            <template id="satirlar-sablon"><%- satirHtml('__i__', {}) %></template>
+          </div>
+
+          <div class="card mb-3">
+            <div class="card-body">
+              <label class="form-label">Not</label>
+              <textarea name="aciklama" rows="2" class="form-control"><%= talep.aciklama || '' %></textarea>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-lg-4">
+          <div class="card mb-3 talep-ozet">
+            <div class="card-header"><h3 class="card-title">Talep özeti</h3></div>
+            <div class="card-body" data-talep-ozet>
+              <div class="text-secondary">Parsel girildikçe hesaplanır.</div>
+            </div>
+            <div class="card-footer small text-secondary">
+              Miktar her kalem için ayrı hesaplanır ve ambalaja (çuval, torba) yukarı yuvarlanır.
+              <% if (bas.oncelikliAlan != null || bas.azamiAlan != null) { %>
+                <div class="mt-1">Alan sınırları: <% if (bas.oncelikliAlan != null) { %><%= y.sayi(bas.oncelikliAlan) %> da'ya kadar öncelikli<% } %><% if (bas.oncelikliAlan != null && bas.azamiAlan != null) { %>, <% } %><% if (bas.azamiAlan != null) { %>en çok <%= y.sayi(bas.azamiAlan) %> da<% } %>.</div>
+              <% } %>
+            </div>
+          </div>
+          <div class="d-flex flex-column gap-2">
+            <button type="submit" class="btn btn-primary"><i class="ti ti-device-floppy me-1"></i> Kaydet</button>
+            <% if (yeni) { %>
+              <button type="submit" name="sonra" value="yeni" class="btn"><i class="ti ti-plus me-1"></i> Kaydet ve yeni talep gir</button>
+            <% } %>
+            <a href="<%= yeni ? '/talepler?proje=' + proje._id : '/talepler/' + talep._id %>" class="btn btn-ghost-secondary">Vazgeç</a>
+          </div>
+        </div>
+      </div>
+      <script type="application/json" id="talep-verisi"><%- JSON.stringify(istemci).replace(/</g, '\\u003c') %></script>
+    </form>
+  </div>
+</div>
+<%- include('../../../views/partials/alt') %>

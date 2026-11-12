@@ -78,6 +78,36 @@
               <label class="form-label">Açıklama</label>
               <textarea name="aciklama" rows="3" class="form-control" placeholder="Projenin amacı, dayanağı, kaynağı vb."><%= proje.aciklama || '' %></textarea>
             </div>
+            <div class="col-12"><div class="hr-text my-2">Finansman ve başvuru</div></div>
+            <% var fin = proje.finansman || {}; var bas = proje.basvuru || {}; %>
+            <div class="col-md-4">
+              <label class="form-label">Destek kaynağı</label>
+              <input type="text" name="finansman[destekKaynagi]" value="<%= fin.destekKaynagi || '' %>" class="form-control" placeholder="ör. İstanbul Valiliği">
+            </div>
+            <div class="col-md-2">
+              <label class="form-label">Çiftçi katkısı</label>
+              <div class="input-group">
+                <span class="input-group-text">%</span>
+                <input type="number" step="any" min="0" max="100" name="finansman[ciftciKatkiOrani]" value="<%= fin.ciftciKatkiOrani != null ? fin.ciftciKatkiOrani : '' %>" class="form-control text-end" placeholder="25">
+              </div>
+            </div>
+            <div class="col-md-3">
+              <label class="form-label">Öncelikli alan sınırı</label>
+              <div class="input-group">
+                <input type="number" step="any" min="0" name="basvuru[oncelikliAlan]" value="<%= bas.oncelikliAlan != null ? bas.oncelikliAlan : '' %>" class="form-control text-end" placeholder="50">
+                <span class="input-group-text">da</span>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <label class="form-label">Azami alan</label>
+              <div class="input-group">
+                <input type="number" step="any" min="0" name="basvuru[azamiAlan]" value="<%= bas.azamiAlan != null ? bas.azamiAlan : '' %>" class="form-control text-end" placeholder="100">
+                <span class="input-group-text">da</span>
+              </div>
+            </div>
+            <div class="col-12">
+              <small class="form-hint">Kalem bedellerinin çiftçi katkı oranı kadarı çiftçiden, kalanı destek kaynağından karşılanır. Alan sınırları çiftçi talebi girilirken uyarı olarak gösterilir.</small>
+            </div>
           </div>
         </div>
       </div>

@@ -115,3 +115,10 @@
 .hareket-listesi { list-style: none; padding: 0; margin: 0; }
 .hareket-listesi li { padding: .6rem 0; border-bottom: 1px solid var(--tblr-border-color); }
 .hareket-listesi li:last-child { border-bottom: 0; }
+
+/* Talep formundaki parsel tablosu dar sütuna sığsın */
+.talep-satirlari td, .talep-satirlari th { padding-left: .35rem; padding-right: .35rem; }
+.talep-satirlari .form-control { min-width: 3.5rem; }
+.talep-satirlari .form-select { min-width: 6.5rem; }
+.talep-satirlari .talep-kalem { min-width: 8rem; }
+.talep-ozet { position: sticky; top: 1rem; }

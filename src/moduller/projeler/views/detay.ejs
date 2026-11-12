@@ -199,6 +199,70 @@
           <% } %>
         </div>
 
+        <!-- Bütçe ve finansman -->
+        <%
+          var fin = proje.finansman || {};
+          var oran = fin.ciftciKatkiOrani;
+        %>
+        <div class="card mb-3">
+          <div class="card-header">
+            <div>
+              <h3 class="card-title">Bütçe ve finansman</h3>
+              <p class="card-subtitle">Hedef miktarlar üzerinden; birim fiyat kalem düzenlenerek girilir.</p>
+            </div>
+          </div>
+          <div class="table-responsive">
+            <table class="table table-vcenter card-table">
+              <thead>
+                <tr>
+                  <th>Girdi</th>
+                  <th class="tablo-sayi">Miktar</th>
+                  <th class="tablo-sayi">Birim fiyat</th>
+                  <th class="tablo-sayi">Toplam</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% hesap.kalemler.forEach(function (h) { var k = h.kalem; %>
+                  <tr>
+                    <td><span class="fw-medium"><%= k.urun %></span><% if (k.cesit) { %> <span class="text-secondary">· <%= k.cesit %></span><% } %></td>
+                    <td class="tablo-sayi text-nowrap">
+                      <%= h.teslim != null ? y.sayi(h.teslim) + ' ' + h.teslimBirimi : '–' %>
+                      <% if (h.ambalaj && h.miktar != null) { %><div class="text-secondary small"><%= y.sayi(h.miktar) %> <%= k.olcuBirimi %></div><% } %>
+                    </td>
+                    <td class="tablo-sayi text-nowrap"><%= k.birimFiyat != null ? y.para(k.birimFiyat) + ' / ' + h.fiyatBirimi : '–' %></td>
+                    <td class="tablo-sayi text-nowrap"><%= y.para(h.bedel) %></td>
+                  </tr>
+                <% }) %>
+              </tbody>
+              <tfoot>
+                <tr class="fw-bold">
+                  <td colspan="3">Toplam proje bütçesi</td>
+                  <td class="tablo-sayi text-nowrap"><%= y.para(hesap.butce.toplam) %></td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+          <div class="card-body">
+            <% if (hesap.butce.fiyatsizKalem) { %>
+              <div class="text-warning small mb-2"><i class="ti ti-alert-triangle"></i> <%= hesap.butce.fiyatsizKalem %> kalemde birim fiyat girilmemiş.</div>
+            <% } %>
+            <% if (oran == null) { %>
+              <div class="text-secondary small">Çiftçi katkı oranı girilmemiş; proje düzenlenerek "Finansman ve başvuru" bölümünden girilebilir.</div>
+            <% } else { %>
+              <div class="datagrid">
+                <div class="datagrid-item">
+                  <div class="datagrid-title"><%= fin.destekKaynagi || 'Destek' %> katkısı · %<%= y.sayi(100 - oran) %></div>
+                  <div class="datagrid-content fw-medium"><%= y.para(hesap.butce.destek) %></div>
+                </div>
+                <div class="datagrid-item">
+                  <div class="datagrid-title">Çiftçi katkısı · %<%= y.sayi(oran) %></div>
+                  <div class="datagrid-content fw-medium"><%= y.para(hesap.butce.ciftciKatkisi) %></div>
+                </div>
+              </div>
+            <% } %>
+          </div>
+        </div>
+
         <!-- Hedef çıktılar -->
         <%
           var toplamMetni = function (t) {
@@ -251,6 +315,65 @@
                     <% }) %>
                   </tr>
                 </tfoot>
+              </table>
+            </div>
+          <% } %>
+        </div>
+
+        <!-- Çiftçi talepleri -->
+        <%
+          var to = talepOzeti;
+          var hedefIlce = {};
+          proje.ilceler.forEach(function (h) { hedefIlce[h.ilce] = h; });
+          var ilceSatirlari = proje.ilceler.map(function (h) { return h.ilce; });
+          to.ilceler.forEach(function (i) { if (ilceSatirlari.indexOf(i.ilce) < 0) ilceSatirlari.push(i.ilce); });
+          var talepIlce = {};
+          to.ilceler.forEach(function (i) { talepIlce[i.ilce] = i; });
+          var oranMetni = function (a, b) { return b ? ' <span class="text-secondary small">%' + Math.round(100 * a / b) + '</span>' : ''; };
+        %>
+        <div class="card mb-3">
+          <div class="card-header">
+            <div>
+              <h3 class="card-title">Çiftçi talepleri</h3>
+              <p class="card-subtitle"><%= to.ciftciSayisi %> çiftçi · <%= y.sayi(to.toplamAlan) %> da · çiftçi katkısı <%= y.para(to.ciftciKatkisi) %> <span class="text-secondary">(reddedilenler hariç)</span></p>
+            </div>
+            <div class="card-actions">
+              <a href="/talepler?proje=<%= proje._id %>" class="btn btn-sm btn-ghost-secondary">Listele</a>
+              <a href="/talepler/yeni?proje=<%= proje._id %>" class="btn btn-sm"><i class="ti ti-plus me-1"></i> Talep gir</a>
+            </div>
+          </div>
+          <% if (!to.ciftciSayisi) { %>
+            <div class="card-body text-secondary">Henüz çiftçi talebi girilmedi.</div>
+          <% } else { %>
+            <div class="table-responsive">
+              <table class="table table-sm table-vcenter card-table">
+                <thead><tr><th>Kalem</th><th class="tablo-sayi">Çiftçi</th><th class="tablo-sayi">Talep alanı</th><th class="tablo-sayi">Dağıtılacak</th><th class="tablo-sayi">Bedel</th></tr></thead>
+                <tbody>
+                  <% to.kalemler.forEach(function (k) { if (!k.ciftci) return; var hk = hesap.kalemler.find(function (x) { return String(x.kalem._id) === String(k.kalem._id); }); %>
+                    <tr>
+                      <td><%= k.kalem.urun %><% if (k.kalem.cesit) { %> <span class="text-secondary">· <%= k.kalem.cesit %></span><% } %></td>
+                      <td class="tablo-sayi"><%= k.ciftci %></td>
+                      <td class="tablo-sayi text-nowrap"><%= y.sayi(k.alan) %> da<% if (hk && hk.alan) { %><%- oranMetni(k.alan, hk.alan) %><% } %></td>
+                      <td class="tablo-sayi text-nowrap"><%= y.miktar(k.miktar, k.kalem.olcuBirimi) %><% if (k.teslim != null && k.teslimBirimi !== k.kalem.olcuBirimi) { %><div class="text-secondary small"><%= y.sayi(k.teslim) %> <%= k.teslimBirimi %></div><% } %></td>
+                      <td class="tablo-sayi text-nowrap"><%= y.para(k.bedel) %></td>
+                    </tr>
+                  <% }) %>
+                </tbody>
+              </table>
+            </div>
+            <div class="table-responsive border-top">
+              <table class="table table-sm table-vcenter card-table">
+                <thead><tr><th>İlçe</th><th class="tablo-sayi">Çiftçi (talep / hedef)</th><th class="tablo-sayi">Alan (talep / hedef)</th><th class="tablo-sayi">Çiftçi katkısı</th></tr></thead>
+                <tbody>
+                  <% ilceSatirlari.forEach(function (ilce) { var h = hedefIlce[ilce] || {}; var ti = talepIlce[ilce] || { ciftci: 0, alan: 0 }; %>
+                    <tr>
+                      <td><a href="/talepler?proje=<%= proje._id %>&ilce=<%= encodeURIComponent(ilce) %>" class="text-reset"><%= ilce %></a></td>
+                      <td class="tablo-sayi text-nowrap"><%= ti.ciftci %> / <%= y.sayi(h.hedefCiftci) %></td>
+                      <td class="tablo-sayi text-nowrap"><%= y.sayi(ti.alan) %> / <%= y.sayi(h.hedefDekar) %> da<% if (h.hedefDekar) { %><%- oranMetni(ti.alan, h.hedefDekar) %><% } %></td>
+                      <td class="tablo-sayi text-nowrap"><%= y.para(ti.ciftciKatkisi) %></td>
+                    </tr>
+                  <% }) %>
+                </tbody>
               </table>
             </div>
           <% } %>
