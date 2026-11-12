@@ -4,7 +4,7 @@ const ayarlar = require('../../core/ayarlar');
 const Urun = require('./modeller/Urun');
 const Kisi = require('./modeller/Kisi');
 const {
-  normTipleri, normBirimOnerileri, ambalajBirimleri, yetkiGruplari, tumYetkiler, rolRenkSecenekleri, BIN_DANE_KOD
+  normTipleri, normBirimOnerileri, ambalajBirimleri, yetkiGruplari, tumYetkiler, rolRenkSecenekleri
 } = require('../../config/sabitler');
 const katalog = require('./katalog');
 const { yetkisizSayfa } = require('../../core/yetki');
@@ -25,7 +25,7 @@ const sekmeler = [
   { yol: '/ayarlar/normlar', ad: 'Hesaplama normları', ikon: 'ti-calculator', yetki: 'ayar.katalog' },
   { yol: '/ayarlar/hayvan-turleri', ad: 'Hayvan türleri', ikon: 'ti-paw', yetki: 'ayar.katalog' },
   { yol: '/ayarlar/kalem-turleri', ad: 'Kalem türleri', ikon: 'ti-category', yetki: 'ayar.katalog' },
-  { yol: '/ayarlar/olcu-birimleri', ad: 'Ölçü birimleri', ikon: 'ti-ruler-measure', yetki: 'ayar.katalog' },
+  { yol: '/ayarlar/olcu-birimleri', ad: 'Dağıtım birimleri', ikon: 'ti-package', yetki: 'ayar.katalog' },
   { yol: '/ayarlar/ilceler', ad: 'İlçeler', ikon: 'ti-map-pin', yetki: 'ayar.genel' }
 ];
 
@@ -72,8 +72,8 @@ const listeler = {
     aciklama: 'Projelerde dağıtılan kalemlerin türleri (tohum, fide, gübre vb.). Ürün kataloğu türlere göre gruplanır.'
   },
   olcuBirimleri: {
-    yol: 'olcu-birimleri', baslik: 'Ölçü birimleri', tekil: 'Ölçü birimi',
-    aciklama: 'Kalem miktarlarında kullanılan ölçü birimleri.'
+    yol: 'olcu-birimleri', baslik: 'Dağıtım birimleri', tekil: 'Ambalaj',
+    aciklama: 'Kalemlerin çiftçiye dağıtıldığı ambalajlar (çuval, paket, torba). İçeriği kalemde girilir: 1 çuval = 25 kg, 1 paket = 50.000 adet.'
   },
   ilceler: {
     yol: 'ilceler', baslik: 'İlçeler', tekil: 'İlçe',
@@ -187,7 +187,6 @@ router.post('/normlar', sar(async (req, res) => {
   }
 
   const silinenler = mevcut.filter((n) => !satirlar.some((s) => s.kod === n.kod));
-  if (silinenler.some((n) => n.kod === BIN_DANE_KOD)) hatalar.push('"Bin dane ağırlığı" adet ↔ kg dönüşümünde kullanıldığı için silinemez.');
   const kullanim = {};
   for (const n of mevcut) kullanim[n.kod] = await normKullanimi(n.kod);
   silinenler.forEach((n) => {
@@ -247,8 +246,17 @@ function urunFormuOku(govde, ayar) {
   };
 }
 
-// Kaydedilecek biçim: çeşitte birimi boş normlar ürünün birimini alır.
-function urunKayitVerisi(veri) {
+// Kaydedilecek biçim: çeşitte birimi boş normlar ürünün birimini alır; ekim
+// normunun birimi ürünün (çeşitte varsa çeşidin) ambalaj içeriğinin birimine eşitlenir.
+function urunKayitVerisi(veri, ayar) {
+  const ekimKod = ayar && ayar.ekimNormu ? ayar.ekimNormu.kod : null;
+  katalog.ekimBiriminiEsitle(veri.normlar, veri.ambalaj, ekimKod);
+  veri.cesitler.forEach((c) => {
+    if (c.normlar[ekimKod] && !c.normlar[ekimKod].birim && !c.ambalaj && veri.normlar[ekimKod]) {
+      c.normlar[ekimKod].birim = veri.normlar[ekimKod].birim;
+    }
+    katalog.ekimBiriminiEsitle(c.normlar, c.ambalaj || veri.ambalaj, ekimKod);
+  });
   return {
     ...veri,
     ambalaj: veri.ambalaj || undefined,
@@ -310,7 +318,7 @@ router.post('/urunler', sar(async (req, res) => {
   if (hatalar.length) {
     return urunFormu(res, 422, { baslik: 'Yeni ürün', urun: veri, hatalar, eylem: '/ayarlar/urunler' });
   }
-  await Urun.create(urunKayitVerisi(veri));
+  await Urun.create(urunKayitVerisi(veri, res.locals.ayar));
   return res.redirect(`/ayarlar/urunler?tur=${encodeURIComponent(veri.tur)}&bildirim=kaydedildi`);
 }));
 
@@ -345,7 +353,7 @@ router.post('/urunler/:id', sar(urunBul), sar(async (req, res) => {
 
   const adDegisti = req.urun.ad !== veri.ad || req.urun.tur !== veri.tur;
   const cesitAdlari = veri.cesitler.filter((c) => c.eski && c.eski !== c.ad);
-  req.urun.set(urunKayitVerisi(veri));
+  req.urun.set(urunKayitVerisi(veri, res.locals.ayar));
   req.urun.markModified('normlar');
   req.urun.markModified('cesitler');
   await req.urun.save();

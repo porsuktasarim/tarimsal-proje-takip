@@ -80,7 +80,10 @@ function formuOku(govde, ayar, mevcut) {
     hatalar.push('Bitiş tarihi başlangıç tarihinden önce olamaz.');
   }
   if (veri.kalemler.length === 0) hatalar.push('En az bir kalem eklenmelidir.');
+  const ekimKod = ayar.ekimNormu ? ayar.ekimNormu.kod : null;
   veri.kalemler.forEach((k, i) => {
+    if (!k.ambalaj) hatalar.push(`${i + 1}. kalemin ambalaj içeriği girilmelidir (ör. 1 çuval = 25 kg, 1 paket = 50.000 adet).`);
+    katalog.ekimBiriminiEsitle(k.normlar, k.ambalaj, ekimKod);
     if (!k.tur) hatalar.push(`${i + 1}. kalemin türü seçilmelidir.`);
     if (!k.urun) hatalar.push(`${i + 1}. kalemin ürün adı girilmelidir.`);
     if (!k.olcuBirimi) hatalar.push(`${i + 1}. kalemin dağıtım birimi seçilmelidir.`);
@@ -146,6 +149,7 @@ async function katalogaIsle(kalemler, ayar) {
       }
     });
     if (!k.ambalaj && etkin.ambalaj && k.olcuBirimi === etkin.olcuBirimi) k.ambalaj = etkin.ambalaj;
+    katalog.ekimBiriminiEsitle(k.normlar, k.ambalaj, ayar.ekimNormu ? ayar.ekimNormu.kod : null);
     k.urunId = belge._id;
     k.urun = belge.ad;
   }

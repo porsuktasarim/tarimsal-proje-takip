@@ -173,7 +173,6 @@
                       <td class="tablo-sayi text-nowrap"><%= h.ekimDegeri != null ? y.sayi(h.ekimDegeri) + ' ' + h.ekimBirimi : '–' %></td>
                       <td class="tablo-sayi text-nowrap">
                         <%= h.ihtiyac != null ? y.miktar(h.ihtiyac, h.ihtiyacBirimi) : '–' %>
-                        <% if (h.donusum) { %><div class="text-secondary small" title="Bin dane ağırlığı <%= y.sayi(h.binDane) %> g">≈ <%= y.miktar(h.donusum.miktar, h.donusum.birim) %></div><% } %>
                       </td>
                     <% } %>
                     <td class="tablo-sayi text-nowrap">
@@ -184,8 +183,8 @@
                         <div class="text-warning small">hesap: <%= y.miktar(h.hesaplananMiktar, k.olcuBirimi) %></div>
                       <% } %>
                       <% if (h.birimUyumsuz && h.miktarKaynak !== 'elle') { %>
-                        <div class="text-warning small" title="İhtiyaç <%= h.ihtiyacBirimi %>, dağıtım <%= h.ambalaj ? h.ambalaj.birim + ' içerikli ' : '' %><%= k.olcuBirimi %> olarak tanımlı. Adet ile ağırlık arasında dönüşüm için kalemde bin dane ağırlığı girilmeli ya da ambalaj içeriği <%= h.ihtiyacBirimi %> olarak tanımlanmalıdır.">
-                          <i class="ti ti-alert-triangle"></i> birim dönüşümü için bin dane ağırlığı gerekli
+                        <div class="text-warning small" title="Ekim normunun birimi (<%= h.ekimBirimi %>) ambalaj içeriğinin birimiyle aynı olmalıdır. Kalem düzenlenip kaydedildiğinde birimler eşitlenir.">
+                          <i class="ti ti-alert-triangle"></i> <%= h.ambalaj ? 'birimler uyuşmuyor' : 'ambalaj içeriği girilmeli' %>
                         </div>
                       <% } %>
                     </td>

@@ -60,7 +60,7 @@
 | Ürün kataloğu | Türe göre ürünler; dağıtım birimi, ambalaj içeriği, normların varsayılan değer ve birimleri; çeşitler ve çeşide özel değerler |
 | Hesaplama normları | Dekar başına tanımlanan değerler ve hesaptaki rolleri |
 | Hayvan türleri | Talepte sorulan hayvan varlığı türleri ve birimleri |
-| Kalem türleri, ölçü birimleri, ilçeler | Formlardaki seçim listeleri |
+| Kalem türleri, dağıtım birimleri, ilçeler | Formlardaki seçim listeleri (dağıtım birimi: çuval, paket, torba) |
 
 - Bir değerin adı değiştirildiğinde, onu kullanan projeler ve katalog kayıtları da yeni adla güncellenir.
 - Kullanılan bir değer (projesi olan dönem, birim vb.) silinemez.
@@ -74,7 +74,7 @@
 | Çıktı (verim) | alan × norm = beklenen üretim | Kuru ot verimi 500 kg/da, tane verimi 300 kg/da |
 | Bilgi | hesaba girmez, kayıt amaçlı | Çiftçi başı azami alan 50 da |
 
-Normun birimi ürüne, çeşide ve kaleme göre değiştirilebilir (ör. ekim normu mısırda adet/da, yulafta kg/da). Ekim normu adet/da, ambalaj kg olduğunda dönüşüm **Bin dane ağırlığı (g)** normuyla yapılır: 1.000 da × 7.000 adet/da = 7.000.000 adet × 330 g / 1.000 = 2.310 kg → 93 çuval (25 kg). Çeşitte girilen değer ürünün değerinin yerine geçer; boş bırakılanlarda ürünün değeri geçerlidir.
+Kalemler her zaman bir ambalajla (çuval, paket, torba) dağıtılır ve ambalaj içeriği zorunludur. **Ekim normunun birimi ambalaj içeriğinin birimine bağlıdır** ve elle değiştirilemez: 1 paket = 50.000 adet ise ekim normu adet/da, 1 çuval = 25 kg ise kg/da olur. Böylece ihtiyaç doğrudan ambalaj sayısına çevrilir: 1.000 da × 10.000 adet/da = 10.000.000 adet → 200 paket. Diğer normların birimi ürüne, çeşide ve kaleme göre değiştirilebilir. Çeşitte girilen değer ürünün değerinin yerine geçer; boş bırakılanlarda ürünün değeri geçerlidir.
 
 Normlar kaleme kopyalanarak saklanır; katalogda sonradan yapılan değişiklik eski projelerin hesaplarını etkilemez.
 

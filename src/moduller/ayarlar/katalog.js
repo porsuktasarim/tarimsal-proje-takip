@@ -114,9 +114,17 @@ function farkliNormlar(normlar, temel) {
   return sonuc;
 }
 
+// Ekim normunun birimi ambalaj içeriğinin birimine bağlıdır: 1 paket = 50.000 adet
+// ise ekim normu adet/da, 1 çuval = 25 kg ise kg/da. Normlar nesnesini yerinde günceller.
+function ekimBiriminiEsitle(normlar, ambalaj, ekimKod) {
+  if (!ekimKod || !normlar || !normlar[ekimKod] || !ambalaj || !ambalaj.birim) return normlar;
+  normlar[ekimKod] = { ...normlar[ekimKod], birim: `${ambalaj.birim}/da` };
+  return normlar;
+}
+
 const ayniAmbalaj = (a, b) => (!a && !b) || (a && b && a.miktar === b.miktar && a.birim === b.birim);
 
 module.exports = {
   normOku, normlarDuz, ambalajDuz, cesitDuz, urunDuz, cesitBul, etkinVarsayilanlar,
-  normFormuOku, ambalajFormuOku, farkliNormlar, ayniAmbalaj
+  normFormuOku, ambalajFormuOku, farkliNormlar, ayniAmbalaj, ekimBiriminiEsitle
 };

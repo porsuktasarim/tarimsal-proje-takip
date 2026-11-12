@@ -63,13 +63,38 @@ const gocler = [
   },
   {
     no: 3,
-    aciklama: 'Adet ↔ kg dönüşümü için "Bin dane ağırlığı" normu eklenir',
+    aciklama: '(kaldırıldı; 4. dönüşüme bakınız)',
+    async uygula() {}
+  },
+  {
+    no: 4,
+    aciklama: '"Bin dane ağırlığı" normu kaldırılır; ekim normu birimleri ambalaj içeriğinin birimine eşitlenir',
     async uygula(db, ayar) {
-      const normlar = ayar.normlar || [];
-      if (normlar.some((n) => n.kod === 'bin_dane_agirligi')) return;
-      await Ayar.updateOne({ _id: 'genel' }, {
-        $set: { normlar: [...normlar, { kod: 'bin_dane_agirligi', ad: 'Bin dane ağırlığı', birim: 'g', tip: 'bilgi' }] }
-      });
+      const BD = 'bin_dane_agirligi';
+      const ekim = (ayar.normlar || []).find((n) => n.tip === 'ekim');
+      const ekimKod = ekim ? ekim.kod : null;
+      await Ayar.updateOne({ _id: 'genel' }, { $set: { normlar: (ayar.normlar || []).filter((n) => n.kod !== BD) } });
+
+      const duzelt = (normlar, ambalaj) => {
+        const n = { ...(normlar || {}) };
+        delete n[BD];
+        // Yalnızca birimi boş olanlar eşitlenir; uyuşmayanlar (ör. adet/da ile kg içerik) değerin
+        // anlamı değişeceği için olduğu gibi bırakılır, proje sayfasında uyarı ile düzeltilir.
+        if (ekimKod && n[ekimKod] && !n[ekimKod].birim && ambalaj && ambalaj.miktar > 0 && ambalaj.birim) {
+          n[ekimKod] = { ...n[ekimKod], birim: `${ambalaj.birim}/da` };
+        }
+        return n;
+      };
+      const urunler = db.collection('urunler');
+      for await (const u of urunler.find({})) {
+        const cesitler = (u.cesitler || []).map((c) => ({ ...c, normlar: duzelt(c.normlar, c.ambalaj || u.ambalaj) }));
+        await urunler.updateOne({ _id: u._id }, { $set: { normlar: duzelt(u.normlar, u.ambalaj), cesitler } });
+      }
+      const projeler = db.collection('projeler');
+      for await (const p of projeler.find({})) {
+        const kalemler = (p.kalemler || []).map((k) => ({ ...k, normlar: duzelt(k.normlar, k.ambalaj) }));
+        await projeler.updateOne({ _id: p._id }, { $set: { kalemler } });
+      }
     }
   }
 ];

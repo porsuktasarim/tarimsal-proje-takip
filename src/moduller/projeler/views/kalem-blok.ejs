@@ -7,7 +7,7 @@
   if (k.olcuBirimi && kOlculer.indexOf(k.olcuBirimi) < 0) kOlculer.push(k.olcuBirimi);
   var kTurler = turler.slice();
   if (k.tur && kTurler.indexOf(k.tur) < 0) kTurler.push(k.tur);
-  var olcu = k.olcuBirimi || 'kg';
+  var olcu = k.olcuBirimi || olculer[0] || 'çuval';
   var dv = function (v) { return v !== undefined && v !== null ? v : ''; };
   // Fiyat birimi: dağıtım birimi (TL/çuval) ya da ambalaj içeriğinin birimi (TL/kg)
   var amb = k.ambalaj && k.ambalaj.miktar > 0 ? k.ambalaj : null;
@@ -57,8 +57,8 @@
       </select>
     </div>
     <div class="col-12 col-md-5">
-      <label class="form-label small mb-1">Ambalaj içeriği <span class="text-secondary fw-normal">(torba, çuval gibi birimlerde)</span></label>
-      <%- include('../../../views/partials/ambalaj-girdi', { onek: nm('ambalaj'), a: k.ambalaj, etiket: '1 ' + olcu + ' =' }) %>
+      <label class="form-label small mb-1 required">Ambalaj içeriği <span class="text-secondary fw-normal">(ekim normunun birimi buna göre gelir)</span></label>
+      <%- include('../../../views/partials/ambalaj-girdi', { onek: nm('ambalaj'), a: k.ambalaj, etiket: '1 ' + olcu + ' =', zorunlu: true }) %>
     </div>
     <div class="col-6 col-md-3">
       <label class="form-label small mb-1">Toplam dağıtım</label>
@@ -79,6 +79,16 @@
     </div>
   </div>
 
+  <%
+    var ekimT = ayar.ekimNormu, ekimV = ekimT ? knormlar[ekimT.kod] : null;
+    var uyusmaz = ekimV && ekimV.deger != null && amb && ekimV.birim && ekimV.birim !== amb.birim + '/da';
+  %>
+  <% if (uyusmaz) { %>
+    <div class="alert alert-warning py-2 mt-2 mb-0 small">
+      Kayıtlı ekim normu <strong><%= y.sayi(ekimV.deger) %> <%= ekimV.birim %></strong>, ambalaj içeriği ise <strong><%= amb.birim %></strong>.
+      Ekim normunun birimi artık ambalaj içeriğine bağlı (<%= amb.birim %>/da); değer ya da ambalaj içeriği kontrol edilerek kaydedilmelidir.
+    </div>
+  <% } %>
   <div class="row g-2 mt-1">
     <% ayar.normlar.forEach(function (n) { var v = knormlar[n.kod] || {}; %>
       <%- include('../../../views/partials/norm-girdi', {

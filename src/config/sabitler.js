@@ -27,8 +27,9 @@ const varsayilanlar = {
 
   kalemTurleri: ['Tohum', 'Fide', 'Fidan', 'Gübre', 'Ekipman', 'Diğer'],
 
-  // Kalemin çiftçiye dağıtıldığı birim (torba, çuval gibi ambalajlar dahil)
-  olcuBirimleri: ['kg', 'adet', 'torba', 'çuval', 'paket', 'litre', 'ton'],
+  // Kalemin çiftçiye dağıtıldığı ambalaj (dağıtım birimi). İçeriği kalemde
+  // "1 çuval = 25 kg" ya da "1 paket = 50.000 adet" biçiminde girilir.
+  olcuBirimleri: ['çuval', 'paket', 'torba'],
 
   // tip: ekim  -> dekar başına verilecek kalem miktarı (dağıtım ihtiyacını hesaplar)
   //      cikti -> dekar başına beklenen üretim (hedef çıktıyı hesaplar)
@@ -38,9 +39,7 @@ const varsayilanlar = {
     { kod: 'yesil_ot_verimi', ad: 'Yeşil ot verimi', birim: 'kg/da', tip: 'cikti' },
     { kod: 'kuru_ot_verimi', ad: 'Kuru ot verimi', birim: 'kg/da', tip: 'cikti' },
     { kod: 'tane_verimi', ad: 'Tane verimi', birim: 'kg/da', tip: 'cikti' },
-    { kod: 'silaj_verimi', ad: 'Silaj verimi', birim: 'kg/da', tip: 'cikti' },
-    // Adet ile ağırlık arasında dönüşüm için (ekim normu adet/da, ambalaj kg ise)
-    { kod: 'bin_dane_agirligi', ad: 'Bin dane ağırlığı', birim: 'g', tip: 'bilgi' }
+    { kod: 'silaj_verimi', ad: 'Silaj verimi', birim: 'kg/da', tip: 'cikti' }
   ],
 
   // Talep değerlendirmesinde yardımcı bilgi olarak girilen hayvan varlığı
@@ -115,11 +114,9 @@ const rolRenkSecenekleri = ['blue', 'azure', 'indigo', 'purple', 'pink', 'red', 
 // Norm birimi alanlarında öneri olarak gösterilir; elle başka birim de yazılabilir.
 const normBirimOnerileri = ['kg/da', 'adet/da', 'g/da', 'fide/da', 'litre/da', 'ton/da'];
 
-// Ambalaj içeriğinin birimi (1 torba = 25.000 adet, 1 çuval = 50 kg ...)
+// Ambalaj içeriğinin birimi (1 paket = 50.000 adet, 1 çuval = 25 kg ...).
+// Ekim normunun birimi bu birime bağlıdır: içerik adet ise adet/da, kg ise kg/da.
 const ambalajBirimleri = ['kg', 'adet', 'g', 'fide', 'litre'];
-
-// Bu kodlu norm adet ↔ kg dönüşümünde kullanılır (bin danenin gram cinsinden ağırlığı).
-const BIN_DANE_KOD = 'bin_dane_agirligi';
 
 const normTipleri = {
   ekim: { ad: 'Ekim / uygulama normu', aciklama: 'Dekar başına verilecek miktar; dağıtım ihtiyacı hesaplanır', renk: 'green' },
@@ -158,5 +155,5 @@ const oncelikler = {
 
 module.exports = {
   varsayilanlar, normTipleri, normBirimOnerileri, ambalajBirimleri, projeDurumlari,
-  gorevDurumlari, oncelikler, talepDurumlari, yetkiGruplari, tumYetkiler, rolRenkSecenekleri, BIN_DANE_KOD
+  gorevDurumlari, oncelikler, talepDurumlari, yetkiGruplari, tumYetkiler, rolRenkSecenekleri
 };

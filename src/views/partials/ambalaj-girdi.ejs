@@ -8,7 +8,7 @@
 <div class="input-group input-group-sm ambalaj-girdi">
   <span class="input-group-text ambalaj-etiket"><%= typeof etiket !== 'undefined' && etiket ? etiket : '1 ambalaj =' %></span>
   <input type="number" step="any" min="0" name="<%= onek %>[miktar]" value="<%= dv(amb.miktar) %>"
-         placeholder="<%= dv(typeof ytMiktar !== 'undefined' ? ytMiktar : '') %>" class="form-control text-end ambalaj-miktar">
+         placeholder="<%= dv(typeof ytMiktar !== 'undefined' ? ytMiktar : '') %>" class="form-control text-end ambalaj-miktar"<%= locals.zorunlu ? ' required' : '' %>>
   <select name="<%= onek %>[birim]" class="form-select ambalaj-birim">
     <% sabitler.ambalajBirimleri.forEach(function (b) { %><option <%= secili === b ? 'selected' : '' %>><%= b %></option><% }) %>
     <% if (secili && sabitler.ambalajBirimleri.indexOf(secili) < 0) { %><option selected><%= secili %></option><% } %>

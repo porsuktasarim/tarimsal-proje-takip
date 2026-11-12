@@ -1,21 +1,25 @@
 (function () {
   'use strict';
 
-  // Birim dönüşümü (sunucudaki projeler/hesap.js ile aynı): g/kg/ton arası;
-  // adet ile ağırlık arası bin dane ağırlığı (g) ile. Dönüştürülemiyorsa null.
-  var AGIRLIK = { g: 1, kg: 1000, ton: 1000000 };
-  var donustur = function (miktar, kaynak, hedef, binDane) {
-    var k = String(kaynak || '').trim().toLocaleLowerCase('tr');
-    var h = String(hedef || '').trim().toLocaleLowerCase('tr');
-    if (miktar == null || isNaN(miktar) || !k || !h) return null;
-    if (k === h) return miktar;
-    if (AGIRLIK[k] && AGIRLIK[h]) return miktar * AGIRLIK[k] / AGIRLIK[h];
-    if (binDane > 0) {
-      if (k === 'adet' && AGIRLIK[h]) return miktar * binDane / 1000 / AGIRLIK[h];
-      if (AGIRLIK[k] && h === 'adet') return miktar * AGIRLIK[k] * 1000 / binDane;
-    }
-    return null;
+  // --- Ekim normunun birimi ambalaj içeriğinin birimine bağlıdır ---
+  // Proje kaleminde kalemin ambalajı; ürün formunda ürünün ambalajı, çeşitte
+  // içerik girilmişse çeşidin ambalajı esas alınır (ör. 1 paket = 50.000 adet → adet/da).
+  var ekimBirimleriniEsitle = function () {
+    var urunAmb = document.querySelector('#urun-ambalaj .ambalaj-birim');
+    document.querySelectorAll('[data-ekim-birim]').forEach(function (inp) {
+      var blok = inp.closest('.kalem-blok');
+      var birim = null;
+      if (blok && blok.querySelector('.ambalaj-birim')) {
+        var m = parseFloat(blok.querySelector('.ambalaj-miktar').value);
+        if (!urunAmb || (!isNaN(m) && m > 0)) birim = blok.querySelector('.ambalaj-birim').value;
+      }
+      if (!birim && urunAmb) birim = urunAmb.value;
+      if (birim) { inp.value = birim + '/da'; inp.placeholder = birim + '/da'; }
+    });
   };
+  document.addEventListener('change', function (e) { if (e.target.matches('.ambalaj-birim, .ambalaj-miktar')) ekimBirimleriniEsitle(); });
+  document.addEventListener('input', function (e) { if (e.target.matches('.ambalaj-miktar')) ekimBirimleriniEsitle(); });
+  document.addEventListener('satir-eklendi', ekimBirimleriniEsitle);
 
   // --- Tema değiştirme (açık / koyu) ---
   document.querySelectorAll('.tema-degistir').forEach(function (dugme) {
@@ -225,6 +229,7 @@
           if (e.ambalaj) { seciliYap(aBirim, e.ambalaj.birim); aBirim.dataset.oto = '1'; }
         }
       }
+      ekimBirimleriniEsitle();
       miktarIpucu(blok);
       if (doldur) fiyatBirimleri(blok);
     };
@@ -244,12 +249,9 @@
           var ihtiyac = alan * norm;
           var aMiktar = parseFloat(blok.querySelector('.ambalaj-miktar').value);
           var aBirim = blok.querySelector('.ambalaj-birim').value;
-          var bdEl = blok.querySelector('.norm-deger[data-norm="bin_dane_agirligi"]');
-          var binDane = bdEl ? parseFloat(bdEl.value !== '' ? bdEl.value : bdEl.placeholder) : NaN;
-          var icerik;
-          if (anahtar(birim) === anahtar(dagitim)) ipucu = 'Hesap: ' + sayiYaz(ihtiyac);
-          else if (!isNaN(aMiktar) && aMiktar > 0 && (icerik = donustur(ihtiyac, birim, aBirim, binDane)) != null) ipucu = 'Hesap: ' + sayiYaz(Math.ceil(icerik / aMiktar - 1e-9));
-          else if ((icerik = donustur(ihtiyac, birim, dagitim, binDane)) != null) ipucu = 'Hesap: ' + sayiYaz(icerik);
+          // Ekim normunun birimi ambalaj içeriğinin birimine bağlı olduğundan doğrudan bölünür
+          if (!isNaN(aMiktar) && aMiktar > 0) ipucu = 'Hesap: ' + sayiYaz(Math.ceil(ihtiyac / aMiktar - 1e-9)) + ' ' + dagitim;
+          else if (isNaN(aMiktar) && anahtar(birim) === anahtar(dagitim)) ipucu = 'Hesap: ' + sayiYaz(ihtiyac);
           else ipucu = 'İhtiyaç ' + sayiYaz(ihtiyac) + ' ' + birim;
         }
       }
@@ -376,14 +378,12 @@
         if (k.ekim != null) {
           var ihtiyac = alan * k.ekim;
           var miktar = null, teslim = null, teslimBirimi = null;
-          var icerik = null;
-          if (esit(k.ihtiyacBirimi, k.olcuBirimi)) { miktar = ihtiyac; teslim = ihtiyac; teslimBirimi = k.olcuBirimi; }
-          else if (k.ambalaj && (icerik = donustur(ihtiyac, k.ihtiyacBirimi, k.ambalaj.birim, k.binDane)) != null) {
-            miktar = Math.ceil(icerik / k.ambalaj.miktar - 1e-9); teslim = miktar * k.ambalaj.miktar; teslimBirimi = k.ambalaj.birim;
-          } else if (!k.ambalaj && (icerik = donustur(ihtiyac, k.ihtiyacBirimi, k.olcuBirimi, k.binDane)) != null) {
-            miktar = icerik; teslim = icerik; teslimBirimi = k.olcuBirimi;
+          if (k.ambalaj && esit(k.ambalaj.birim, k.ihtiyacBirimi)) {
+            miktar = Math.ceil(ihtiyac / k.ambalaj.miktar - 1e-9); teslim = miktar * k.ambalaj.miktar; teslimBirimi = k.ambalaj.birim;
+          } else if (!k.ambalaj && esit(k.ihtiyacBirimi, k.olcuBirimi)) {
+            miktar = ihtiyac; teslim = ihtiyac; teslimBirimi = k.olcuBirimi;
           }
-          satir += ' × ' + sy(k.ekim) + ' = ' + sy(ihtiyac) + ' ' + kacis(k.ihtiyacBirimi || '') + (icerik != null && !esit(k.ihtiyacBirimi, teslimBirimi) ? ' ≈ ' + sy(icerik) + ' ' + kacis(teslimBirimi) : '') + '</div>';
+          satir += ' × ' + sy(k.ekim) + ' = ' + sy(ihtiyac) + ' ' + kacis(k.ihtiyacBirimi || '') + '</div>';
           if (miktar != null) {
             satir += '<div><strong>' + sy(miktar) + ' ' + kacis(k.olcuBirimi) + '</strong>' + (k.ambalaj && !esit(k.ambalaj.birim, k.olcuBirimi) ? ' <span class="text-secondary small">(' + sy(teslim) + ' ' + kacis(teslimBirimi) + ')</span>' : '') + '</div>';
             if (k.birimFiyat != null) {
@@ -396,7 +396,7 @@
               }
             }
           } else {
-            satir += '<div class="small text-warning">Birimler uyuşmadığı için miktar hesaplanamadı (adet ↔ kg için projedeki kalemde bin dane ağırlığı girilmelidir)</div>';
+            satir += '<div class="small text-warning">Ekim normu ile ambalaj içeriğinin birimi uyuşmuyor; proje kalemi düzenlenip kaydedilmelidir</div>';
           }
         } else {
           satir += '</div><div class="small text-secondary">Ekim normu tanımlı değil</div>';
@@ -419,6 +419,8 @@
     tForm.addEventListener('click', function (e) { if (e.target.closest('[data-satir-sil]')) setTimeout(ozetGuncelle, 0); });
     ozetGuncelle();
   }
+
+  ekimBirimleriniEsitle();
 
   // --- Silme onayı ---
   document.querySelectorAll('form[data-onay]').forEach(function (f) {

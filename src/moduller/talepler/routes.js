@@ -5,7 +5,7 @@ const Ciftci = require('../ciftciler/model');
 const { ciftciFormuOku, ciftciDenetle } = require('../ciftciler/routes');
 const { talepHesabi, fiyatBirimi } = require('../projeler/hesap');
 const { normOku } = require('../ayarlar/katalog');
-const { talepDurumlari, BIN_DANE_KOD } = require('../../config/sabitler');
+const { talepDurumlari } = require('../../config/sabitler');
 const { sayiOku, diziyeCevir, anahtar, sonucBirimi, hayvanlariOku } = require('../../core/yardimcilar');
 const { calisilanIlceler, ilceKisitliMi, yetkiGerekli } = require('../../core/yetki');
 
@@ -42,8 +42,7 @@ function kalemVerisi(proje, ayar) {
       olcuBirimi: k.olcuBirimi,
       ambalaj: k.ambalaj && k.ambalaj.miktar > 0 ? { miktar: k.ambalaj.miktar, birim: k.ambalaj.birim } : null,
       birimFiyat: k.birimFiyat != null ? k.birimFiyat : null,
-      fiyatBirimi: fiyatBirimi(k),
-      binDane: (normOku(k.normlar, BIN_DANE_KOD) || {}).deger || null
+      fiyatBirimi: fiyatBirimi(k)
     };
   });
 }
