@@ -1,0 +1,19 @@
+<%
+  // Formül değerleri, puan ve limit aşımları. Parametreler: deg
+%>
+<% if (deg.limitAsimlari.length) { %>
+  <div class="alert alert-warning py-2 mb-2">
+    <div class="fw-medium"><i class="ti ti-alert-triangle me-1"></i> Limit üstü</div>
+    <% deg.limitAsimlari.forEach(function (l) { %><div class="small"><%= l.ad %>: <%= y.sayi(l.deger) %> &gt; <%= y.sayi(l.ust) %> <%= l.birim %></div><% }) %>
+  </div>
+<% } %>
+<% if (deg.formuller.length) { %>
+  <dl class="row mb-0 small">
+    <% deg.formuller.forEach(function (f) { %>
+      <dt class="col-7 fw-normal"><%= f.ad %><% if (f.puan) { %> <span class="badge bg-purple-lt">puan</span><% } %></dt>
+      <dd class="col-5 text-end mb-1"><% if (f.hata) { %><span class="text-danger" title="<%= f.hata %>">hata</span><% } else { %><strong><%= y.sayi(f.deger, f.ondalik) %></strong> <%= f.birim %><% } %></dd>
+    <% }) %>
+  </dl>
+<% } else if (!deg.limitAsimlari.length) { %>
+  <div class="text-secondary small">Projede değerlendirme formülü tanımlanmamış.</div>
+<% } %>

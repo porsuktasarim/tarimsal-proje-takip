@@ -37,6 +37,7 @@ app.locals.ben = null;          // kimlik ara katmanı doldurur
 app.locals.kurulumKipi = false;
 app.locals.adminVar = true;
 app.locals.izin = () => false;  // yetki ara katmanı doldurur
+app.locals.silebilir = false;
 app.locals.y = { ...yardimcilar, normOku: require('./moduller/ayarlar/katalog').normOku };
 
 app.use((req, res, next) => {
@@ -48,6 +49,7 @@ app.use((req, res, next) => {
     .filter((yol) => req.path === yol || req.path.startsWith(yol + '/'))
     .sort((a, b) => b.length - a.length)[0] || null;
   res.locals.bildirim = req.query.bildirim || null;
+  res.locals.bildirimHata = typeof req.query.hata === 'string' ? req.query.hata.slice(0, 300) : null;
   next();
 });
 

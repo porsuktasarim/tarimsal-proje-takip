@@ -138,6 +138,34 @@ const gocler = [
       const normsuzTurler = kalemTurleri.filter((t) => normsuz.includes(t.toLocaleLowerCase('tr')));
       await db.collection('ayarlar').updateOne({ _id: 'genel' }, { $set: { kalemTurleri, olcuBirimleri, normsuzTurler } });
     }
+  },
+  {
+    no: 7,
+    aciklama: 'Başvuru aşamaları ve geçmişi; talep.onayla → talep.degerlendir, talep.sil kaldırılır',
+    async uygula(db, ayar) {
+      const esle = { alindi: 'gonderildi', onaylandi: 'desteklendi', reddedildi: 'desteklenmedi', teslim: 'teslim' };
+      const talepler = db.collection('talepler');
+      for await (const t of talepler.find({})) {
+        const durum = esle[t.durum] || t.durum || 'gonderildi';
+        const set = { durum };
+        if (!Array.isArray(t.gecmis) || !t.gecmis.length) {
+          set.gecmis = [{ _id: new mongoose.Types.ObjectId(), tarih: t.olusturulma || new Date(), kisiAd: t.kaydedenAd, tur: 'olusturma', durum, not: 'Önceki sürümden aktarıldı' }];
+        }
+        if (!t.basvuru || !t.basvuru.tarih) {
+          set.basvuru = { tarih: t.olusturulma || new Date(), talepKalemleri: t.talepKalemleri || [], hayvanlar: t.hayvanlar || {} };
+        }
+        if (['desteklendi', 'desteklenmedi'].includes(durum) && !(t.karar && t.karar.sonuc)) set.karar = { sonuc: durum, tarih: t.guncellenme || new Date() };
+        await talepler.updateOne({ _id: t._id }, { $set: set });
+      }
+      const roller = (ayar.roller || []).map((r) => {
+        const y = new Set(r.yetkiler || []);
+        if (y.has('talep.onayla')) y.add('talep.degerlendir');
+        y.delete('talep.onayla');
+        y.delete('talep.sil');
+        return { ...r, yetkiler: [...y] };
+      });
+      if (roller.length) await db.collection('ayarlar').updateOne({ _id: 'genel' }, { $set: { roller } });
+    }
   }
 ];
 

@@ -74,7 +74,7 @@
     <% if (!yeni) { %>
       <% if (kullanim > 0) { %>
         <span class="text-secondary small me-auto"><i class="ti ti-info-circle"></i> <%= kullanim %> proje/görev kaydında geçiyor; silinemez, pasif yapılabilir.</span>
-      <% } else { %>
+      <% } else if (silebilir) { %>
         <button type="submit" formaction="/ayarlar/kisiler/<%= kisi._id %>/sil" formnovalidate class="btn btn-ghost-danger me-auto"
                 data-onay-dugme="Bu kişi silinecek. Devam edilsin mi?"><i class="ti ti-trash me-1"></i> Sil</button>
       <% } %>

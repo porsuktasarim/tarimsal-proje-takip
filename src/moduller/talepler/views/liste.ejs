@@ -14,6 +14,20 @@
     <% if (!proje) { %>
       <div class="card"><div class="card-body text-secondary">Henüz proje yok. <a href="/projeler/yeni">Proje başlat</a></div></div>
     <% } else { %>
+      <% if (bekleyenler.yurutucude && izin('talep.gir')) { %>
+        <div class="alert alert-warning d-flex align-items-center">
+          <i class="ti ti-message-question me-2"></i>
+          <div><strong><%= bekleyenler.yurutucude %> başvuru</strong> ön inceleme sonrası görüşünüzü bekliyor. Başvuruyu açıp not düşerek koordinatöre yeniden gönderiniz.</div>
+          <a href="/talepler?proje=<%= proje._id %>&ilce=<%= encodeURIComponent(filtre.ilce || '') %>&durum=yurutucude" class="btn btn-sm ms-auto">Göster</a>
+        </div>
+      <% } %>
+      <% if (bekleyenler.taslak && izin('talep.gir')) { %>
+        <div class="alert alert-info d-flex align-items-center">
+          <i class="ti ti-pencil me-2"></i>
+          <div><strong><%= bekleyenler.taslak %> başvuru</strong> taslakta; koordinatöre gönderilmedi.</div>
+          <a href="/talepler?proje=<%= proje._id %>&ilce=<%= encodeURIComponent(filtre.ilce || '') %>&durum=taslak" class="btn btn-sm ms-auto">Göster</a>
+        </div>
+      <% } %>
       <div class="row row-cards mb-3">
         <div class="col-sm-6 col-lg-3"><div class="card card-sm"><div class="card-body">
           <div class="text-secondary">Talep eden çiftçi</div>
@@ -89,7 +103,7 @@
               </thead>
               <tbody>
                 <% satirlar.forEach(function (s) { var t = s.talep, c = s.ciftci, h = s.hesap, d = td[t.durum]; %>
-                  <tr class="<%= t.durum === 'reddedildi' ? 'opacity-50' : '' %>">
+                  <tr class="<%= t.durum === 'desteklenmedi' ? 'opacity-50' : '' %>">
                     <td>
                       <a href="/talepler/<%= t._id %>" class="text-reset fw-medium"><%= c.adSoyad %></a>
                       <div class="text-secondary small font-monospace"><%= c.tcKimlikNo %></div>
@@ -115,7 +129,7 @@
               </tbody>
               <tfoot>
                 <tr class="fw-bold">
-                  <td colspan="4"><%= toplam.ciftci %> çiftçi <span class="fw-normal text-secondary">(reddedilenler hariç)</span>
+                  <td colspan="4"><%= toplam.ciftci %> çiftçi <span class="fw-normal text-secondary">(desteklenmeyenler hariç)</span>
                     <% var th = y.hayvanMetni(toplam.hayvanlar, ayar.hayvanTurleri); if (th) { %><div class="small fw-normal text-secondary"><i class="ti ti-paw"></i> <%= th %></div><% } %></td>
                   <td class="tablo-sayi text-nowrap"><%= y.toplamMetni(toplam.toplamlar) %></td>
                   <td class="tablo-sayi small"><%= birimli(toplam.miktar) %></td>

@@ -44,7 +44,7 @@ function ciftciDenetle(v, izinliIlceler) {
 // Çiftçilerin talep sayısı ve toplam alanı
 // Talep birimleri kaleme göre değiştiği için (da, adet, m²) toplamlar birime göre tutulur.
 async function talepOzetleri(ciftciIdleri, ayar) {
-  const talepler = await Talep.find({ ciftciId: { $in: ciftciIdleri }, durum: { $ne: 'reddedildi' } }).select('ciftciId projeId talepKalemleri satirlar').lean();
+  const talepler = await Talep.find({ ciftciId: { $in: ciftciIdleri }, durum: { $ne: 'desteklenmedi' } }).select('ciftciId projeId talepKalemleri satirlar').lean();
   const projeIdleri = [...new Set(talepler.map((t) => String(t.projeId)))];
   const projeler = await mongoose.model('Proje').find({ _id: { $in: projeIdleri } }).lean();
   const projeHaritasi = Object.fromEntries(projeler.map((p) => [String(p._id), p]));
@@ -119,7 +119,7 @@ router.get('/:id', sar(ciftciBul), sar(async (req, res) => {
   const satirlar = talepler.filter((t) => t.projeId).map((t) => ({
     talep: t, proje: t.projeId, hesap: talepHesabi(t, t.projeId, res.locals.ayar)
   }));
-  const sayilanlar = satirlar.filter((s) => s.talep.durum !== 'reddedildi');
+  const sayilanlar = satirlar.filter((s) => s.talep.durum !== 'desteklenmedi');
   const toplam = {
     toplamlar: {},
     bedel: sayilanlar.reduce((a, s) => a + (s.hesap.bedel || 0), 0),

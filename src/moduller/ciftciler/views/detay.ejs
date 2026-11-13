@@ -24,7 +24,7 @@
             </dl>
             <% if (c.aciklama) { %><hr class="my-3"><div class="text-secondary" style="white-space: pre-line"><%= c.aciklama %></div><% } %>
           </div>
-          <% if (!satirlar.length && izin('ciftci.yonet')) { %>
+          <% if (!satirlar.length && silebilir) { %>
             <div class="card-footer">
               <form method="post" action="/ciftciler/<%= c._id %>/sil" data-onay="Çiftçi kaydı silinecek. Devam edilsin mi?">
                 <button class="btn btn-ghost-danger btn-sm w-100"><i class="ti ti-trash me-1"></i> Kaydı sil</button>
@@ -37,7 +37,7 @@
       <div class="col-lg-8">
         <div class="row row-cards mb-3">
           <div class="col-4"><div class="card card-sm"><div class="card-body">
-            <div class="text-secondary">Proje</div><div class="h2 mb-0"><%= satirlar.filter(function (s) { return s.talep.durum !== 'reddedildi'; }).length %></div>
+            <div class="text-secondary">Proje</div><div class="h2 mb-0"><%= satirlar.filter(function (s) { return s.talep.durum !== 'desteklenmedi'; }).length %></div>
           </div></div></div>
           <div class="col-4"><div class="card card-sm"><div class="card-body">
             <div class="text-secondary">Toplam talep</div><div class="h3 mb-0"><%= y.toplamMetni(toplam.toplamlar) %></div>
@@ -51,7 +51,7 @@
           <div class="card"><div class="card-body text-secondary">Bu çiftçinin henüz talebi yok.</div></div>
         <% } %>
         <% satirlar.forEach(function (s) { var t = s.talep, p = s.proje, h = s.hesap, d = td[t.durum]; %>
-          <div class="card mb-3<%= t.durum === 'reddedildi' ? ' opacity-75' : '' %>">
+          <div class="card mb-3<%= t.durum === 'desteklenmedi' ? ' opacity-75' : '' %>">
             <div class="card-header">
               <div>
                 <h3 class="card-title"><a href="/projeler/<%= p._id %>" class="text-reset"><%= p.kisaAd || p.ad %></a></h3>

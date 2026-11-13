@@ -101,7 +101,7 @@
               </select>
               <button type="submit" class="btn">Değiştir</button>
             </form>
-            <% if (proje.durum === 'taslak') { %>
+            <% if (proje.durum === 'taslak' && silebilir) { %>
               <form method="post" action="/projeler/<%= proje._id %>/sil" class="mt-3"
                     data-onay="Bu taslak proje kalıcı olarak silinecek. Devam edilsin mi?">
                 <button type="submit" class="btn btn-ghost-danger w-100"><i class="ti ti-trash me-1"></i> Taslağı sil</button>
@@ -340,13 +340,25 @@
           <div class="card-header">
             <div>
               <h3 class="card-title">Çiftçi talepleri</h3>
-              <p class="card-subtitle"><%= to.ciftciSayisi %> çiftçi · <%= y.toplamMetni(to.toplamlar) %> · çiftçi katkısı <%= y.para(to.ciftciKatkisi) %> <span class="text-secondary">(reddedilenler hariç)</span></p>
+              <p class="card-subtitle"><%= to.ciftciSayisi %> çiftçi · <%= y.toplamMetni(to.toplamlar) %> · çiftçi katkısı <%= y.para(to.ciftciKatkisi) %> <span class="text-secondary">(desteklenmeyenler hariç)</span></p>
             </div>
             <div class="card-actions">
+              <% if (izin('talep.degerlendir')) { %><a href="/degerlendirme?proje=<%= proje._id %>" class="btn btn-sm btn-ghost-secondary"><i class="ti ti-list-check me-1"></i> Değerlendir</a><% } %>
+              <% if (izin('talep.gor')) { %><a href="/degerlendirme/icmal?proje=<%= proje._id %>" class="btn btn-sm btn-ghost-secondary">İcmal</a><% } %>
               <% if (izin('talep.gor')) { %><a href="/talepler?proje=<%= proje._id %>" class="btn btn-sm btn-ghost-secondary">Listele</a><% } %>
               <% if (izin('talep.gir')) { %><a href="/talepler/yeni?proje=<%= proje._id %>" class="btn btn-sm"><i class="ti ti-plus me-1"></i> Talep gir</a><% } %>
             </div>
           </div>
+          <% if (Object.keys(asamaSayilari).length) { %>
+            <div class="card-body py-2 border-bottom d-flex flex-wrap gap-1">
+              <% Object.keys(sabitler.talepDurumlari).forEach(function (k) { var n = asamaSayilari[k]; if (!n) return; var d = sabitler.talepDurumlari[k]; %>
+                <span class="badge bg-<%= d.renk %>-lt"><i class="ti <%= d.ikon %> me-1"></i><%= d.ad %>: <%= n %></span>
+              <% }) %>
+              <% var dg = proje.degerlendirme || {}; if ((dg.formuller || []).length || (dg.limitler || []).length) { %>
+                <span class="text-secondary small ms-auto"><%= (dg.formuller || []).length %> formül · <%= (dg.limitler || []).length %> limit</span>
+              <% } %>
+            </div>
+          <% } %>
           <% if (!to.ciftciSayisi) { %>
             <div class="card-body text-secondary">Henüz çiftçi talebi girilmedi.</div>
           <% } else { %>

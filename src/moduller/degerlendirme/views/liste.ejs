@@ -1,0 +1,202 @@
+<%- include('../../../views/partials/ust') %>
+<%- include('../../../views/partials/sayfa-basligi', {
+      ustBaslik: proje ? (proje.kisaAd || proje.ad) : 'Projeler',
+      eylemler: proje ? '<a href="/degerlendirme/icmal?proje=' + proje._id + '" class="btn"><i class="ti ti-report-money me-1"></i> Destek icmali</a>' : ''
+    }) %>
+<%
+  var td = sabitler.talepDurumlari;
+  var url = function (degisen) {
+    var f = Object.assign({}, filtre, degisen);
+    return '/degerlendirme?' + Object.keys(f).filter(function (k) { return f[k]; }).map(function (k) { return k + '=' + encodeURIComponent(f[k]); }).join('&');
+  };
+%>
+<div class="page-body">
+  <div class="container-xl">
+    <%- include('../../../views/partials/bildirim') %>
+    <% if (!proje) { %>
+      <div class="card"><div class="card-body text-secondary">Henüz proje yok.</div></div>
+    <% } else { %>
+
+      <!-- Aşama özetleri -->
+      <div class="row row-cards mb-3">
+        <div class="col-lg-8">
+          <div class="card card-sm"><div class="card-body">
+            <div class="d-flex flex-wrap gap-2">
+              <% Object.keys(td).forEach(function (k) { var n = sayilar[k] || 0; var d = td[k]; %>
+                <a href="<%= url({ asama: k }) %>" class="btn btn-sm <%= filtre.asama === k ? 'btn-' + d.renk : 'btn-outline-' + d.renk %><%= n ? '' : ' opacity-50' %>">
+                  <i class="ti <%= d.ikon %> me-1"></i><%= d.ad %> <span class="badge ms-1 bg-<%= filtre.asama === k ? 'white text-' + d.renk : d.renk + '-lt' %>"><%= n %></span>
+                </a>
+              <% }) %>
+            </div>
+          </div></div>
+        </div>
+        <div class="col-lg-4">
+          <div class="card card-sm"><div class="card-body">
+            <div class="text-secondary small">Desteklenen (<%= destek.ciftci %> çiftçi)</div>
+            <div class="h3 mb-0"><%= y.para(destek.bedel) %>
+              <% if (butce.toplam) { %><span class="fs-5 text-secondary fw-normal">/ <%= y.para(butce.toplam) %> · %<%= Math.round(100 * destek.bedel / butce.toplam) %></span><% } %></div>
+            <div class="small text-secondary">Çiftçi katkısı <%= y.para(destek.ciftciKatkisi) %></div>
+          </div></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <form class="row g-2 w-100" method="get" action="/degerlendirme">
+            <div class="col-12 col-md-3">
+              <select name="proje" class="form-select" onchange="this.form.submit()">
+                <% projeler.forEach(function (p) { %><option value="<%= p._id %>" <%= String(p._id) === filtre.proje ? 'selected' : '' %>><%= p.kisaAd || p.ad %><%= p.donem ? ' (' + p.donem + ')' : '' %></option><% }) %>
+              </select>
+            </div>
+            <div class="col-6 col-md-2">
+              <select name="asama" class="form-select" onchange="this.form.submit()">
+                <% Object.keys(ASAMA_GRUPLARI).forEach(function (k) { %><option value="<%= k %>" <%= filtre.asama === k ? 'selected' : '' %>><%= ASAMA_GRUPLARI[k].ad %></option><% }) %>
+                <% Object.keys(td).forEach(function (k) { %><option value="<%= k %>" <%= filtre.asama === k ? 'selected' : '' %>><%= td[k].ad %></option><% }) %>
+              </select>
+            </div>
+            <div class="col-6 col-md-2">
+              <select name="ilce" class="form-select" onchange="this.form.mahalle.value=''; this.form.submit()">
+                <option value="">İl geneli</option>
+                <% ayar.ilceler.forEach(function (i) { %><option <%= filtre.ilce === i ? 'selected' : '' %>><%= i %></option><% }) %>
+              </select>
+            </div>
+            <div class="col-6 col-md-2">
+              <select name="mahalle" class="form-select" onchange="this.form.submit()">
+                <option value="">Tüm mahalleler</option>
+                <% mahalleler.forEach(function (m) { %><option <%= filtre.mahalle === m ? 'selected' : '' %>><%= m %></option><% }) %>
+              </select>
+            </div>
+            <div class="col-6 col-md">
+              <div class="input-icon">
+                <span class="input-icon-addon"><i class="ti ti-search"></i></span>
+                <input type="search" name="q" value="<%= filtre.q %>" class="form-control" placeholder="Ad ya da T.C.">
+              </div>
+            </div>
+            <div class="col-auto d-flex align-items-center">
+              <label class="form-check form-switch mb-0" title="Projede tanımlı limitleri aşan başvurular">
+                <input class="form-check-input" type="checkbox" name="limit" value="1" <%= filtre.limit === '1' ? 'checked' : '' %> onchange="this.form.submit()">
+                <span class="form-check-label">Limit üstü <span class="badge bg-yellow-lt"><%= limitUstu %></span></span>
+              </label>
+            </div>
+          </form>
+        </div>
+
+        <% if (limitler.length) { %>
+          <div class="card-body py-2 small text-secondary border-bottom">
+            <i class="ti ti-ruler-measure me-1"></i> Limitler:
+            <% limitler.forEach(function (l, i) { %><%= i ? ' · ' : '' %><%= l.ad || l.ifade %> ≤ <%= y.sayi(l.ust) %> <%= l.birim || '' %><% }) %>
+          </div>
+        <% } %>
+
+        <% if (!satirlar.length) { %>
+          <div class="empty">
+            <div class="empty-icon"><i class="ti ti-list-check" style="font-size:3rem"></i></div>
+            <p class="empty-title">Başvuru yok</p>
+            <p class="empty-subtitle text-secondary">Bu süzgeçle değerlendirilecek başvuru bulunmuyor.</p>
+          </div>
+        <% } else { %>
+          <form method="post" action="/degerlendirme/toplu" id="toplu-formu" data-islem-formu>
+            <input type="hidden" name="donus" value="<%= donus %>">
+            <div class="table-responsive">
+              <table class="table table-vcenter card-table table-sm degerlendirme-tablosu" data-siralanabilir>
+                <thead>
+                  <tr>
+                    <th class="w-1"><input type="checkbox" class="form-check-input" data-tumunu-sec></th>
+                    <th data-sirala="metin">Çiftçi</th>
+                    <th data-sirala="metin">İlçe / mahalle</th>
+                    <th>Hayvan</th>
+                    <th>Talep (geçerli)</th>
+                    <th class="tablo-sayi" data-sirala="sayi">Bedel</th>
+                    <th class="tablo-sayi" data-sirala="sayi">Çiftçi katkısı</th>
+                    <% formuller.forEach(function (f) { %><th class="tablo-sayi" data-sirala="sayi" title="<%= f.ifade %>"><%= f.ad %><%= f.birim ? ' (' + f.birim + ')' : '' %></th><% }) %>
+                    <th data-sirala="metin">Aşama</th>
+                    <th class="w-1"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <% satirlar.forEach(function (s, sira) { var t = s.talep, c = s.ciftci, h = s.hesap, d = td[t.durum]; %>
+                    <tr id="b-<%= t._id %>" class="<%= s.deg.limitAsimlari.length ? 'limit-ustu' : '' %>">
+                      <td><input type="checkbox" class="form-check-input" name="ids" value="<%= t._id %>" data-secim></td>
+                      <td data-deger="<%= c.adSoyad %>">
+                        <a href="/talepler/<%= t._id %>" class="text-reset fw-medium"><%= c.adSoyad %></a>
+                        <div class="small text-secondary font-monospace"><%= c.tcKimlikNo %>
+                          <%- c.cks ? '<span class="badge bg-green-lt ms-1">ÇKS</span>' : '<span class="badge bg-secondary-lt ms-1">ÇKS yok</span>' %></div>
+                      </td>
+                      <td data-deger="<%= t.ilce %> <%= c.mahalle || '' %>"><%= t.ilce %><% if (c.mahalle) { %><div class="small text-secondary"><%= c.mahalle %></div><% } %></td>
+                      <td class="small"><%= y.hayvanMetni(t.hayvanlar, ayar.hayvanTurleri) || '–' %></td>
+                      <td class="small">
+                        <% h.kalemler.forEach(function (hk) { var im = s.ilk[String(hk.kalem._id)]; %>
+                          <div class="text-nowrap"><%= kalemAdi(hk.kalem) %>: <strong><%= y.sayi(hk.esasMiktari) %> <%= hk.talepBirimi %></strong>
+                            <% if (im != null && im !== hk.talepMiktari) { %><span class="text-secondary text-decoration-line-through" title="Başvurudaki miktar"><%= y.sayi(im) %></span><% } %>
+                            <span class="text-secondary">· <%= y.sayi(hk.miktar) %> <%= hk.kalem.olcuBirimi %></span>
+                          </div>
+                        <% }) %>
+                      </td>
+                      <td class="tablo-sayi text-nowrap" data-deger="<%= h.bedel || 0 %>"><%= y.para(h.bedel) %></td>
+                      <td class="tablo-sayi text-nowrap" data-deger="<%= h.ciftciKatkisi || 0 %>"><%= y.para(h.ciftciKatkisi) %></td>
+                      <% s.deg.formuller.forEach(function (f) { %>
+                        <td class="tablo-sayi text-nowrap<%= f.puan ? ' fw-bold' : '' %>" data-deger="<%= f.deger == null ? '' : f.deger %>">
+                          <% if (f.hata) { %><span class="text-danger" title="<%= f.hata %>">hata</span><% } else { %><%= y.sayi(f.deger, f.ondalik) %><% } %>
+                        </td>
+                      <% }) %>
+                      <td data-deger="<%= d.ad %>">
+                        <span class="badge bg-<%= d.renk %>-lt"><i class="ti <%= d.ikon %> me-1"></i><%= d.ad %></span>
+                        <% if (s.deg.limitAsimlari.length) { %>
+                          <div><span class="badge bg-yellow-lt mt-1" title="<%= s.deg.limitAsimlari.map(function (l) { return l.ad + ': ' + y.sayi(l.deger) + ' > ' + y.sayi(l.ust) + ' ' + l.birim; }).join('\n') %>"><i class="ti ti-alert-triangle"></i> limit üstü</span></div>
+                        <% } %>
+                        <% if (s.sonNot) { %><div class="small text-secondary text-truncate" style="max-width: 14rem" title="<%= s.sonNot.kisiAd %>: <%= s.sonNot.not %>"><i class="ti ti-message"></i> <%= s.notSayisi %> · <%= s.sonNot.not %></div><% } %>
+                      </td>
+                      <td>
+                        <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#panel-penceresi"
+                                data-panel="/degerlendirme/<%= t._id %>/panel?donus=<%= encodeURIComponent(donus) %>">Değerlendir</button>
+                      </td>
+                    </tr>
+                  <% }) %>
+                </tbody>
+                <tfoot>
+                  <tr class="fw-bold">
+                    <td></td>
+                    <td colspan="3"><%= satirlar.length %> başvuru</td>
+                    <td class="small"><%= y.toplamMetni(toplam.toplamlar) %></td>
+                    <td class="tablo-sayi text-nowrap"><%= y.para(toplam.bedel) %></td>
+                    <td class="tablo-sayi text-nowrap"><%= y.para(toplam.ciftciKatkisi) %></td>
+                    <% formuller.forEach(function () { %><td></td><% }) %>
+                    <td colspan="2"></td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+            <div class="card-footer toplu-islem">
+              <div class="row g-2 align-items-end">
+                <div class="col-12 col-lg-auto"><span class="text-secondary text-nowrap"><span data-secili-sayi>0</span> başvuru seçili</span></div>
+                <div class="col-12 col-lg-4">
+                  <textarea name="not" rows="1" class="form-control form-control-sm" placeholder="Not / gerekçe (seçilen tüm başvurulara yazılır; silinemez)"></textarea>
+                </div>
+                <div class="col-12 col-lg d-flex flex-wrap gap-1">
+                  <% toplu.forEach(function (i) { %>
+                    <button type="submit" name="islem" value="<%= i.kod %>" class="btn btn-sm btn-outline-<%= i.renk %>" data-toplu-dugme disabled
+                            <% if (i.notZorunlu && i.notZorunlu({ durum: 'incelemede' })) { %>data-not-zorunlu="<%= i.notEtiket %>"<% } %>><i class="ti <%= i.ikon %> me-1"></i><%= i.ad %></button>
+                  <% }) %>
+                </div>
+              </div>
+              <div class="small text-secondary mt-2">İşlem yalnızca uygun aşamadaki başvurularda yapılır (ör. teslim alma yalnızca gönderilmiş başvurularda). Sütun başlıklarına tıklanarak sıralanır<%= puanVar ? '; varsayılan sıra puana göredir' : '' %>.</div>
+            </div>
+          </form>
+        <% } %>
+      </div>
+    <% } %>
+  </div>
+</div>
+
+<div class="modal modal-blur fade" id="panel-penceresi" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Başvuru değerlendirmesi</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Kapat"></button>
+      </div>
+      <div class="modal-body" data-panel-icerik><div class="text-secondary">Yükleniyor…</div></div>
+    </div>
+  </div>
+</div>
+<%- include('../../../views/partials/alt') %>

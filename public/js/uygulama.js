@@ -519,6 +519,117 @@
 
   ekimBirimleriniEsitle();
 
+  // --- Silme yalnızca Sistem Yöneticisinde: kayıtlı satırların kaldır düğmeleri kapatılır ---
+  document.querySelectorAll('[data-silme-kapali] [data-satir-sil]').forEach(function (d) {
+    d.disabled = true;
+    d.title = 'Silme yalnızca Sistem Yöneticisi tarafından yapılır';
+  });
+
+  // --- Proje formu: değerlendirme formülleri ---
+  var sonIfade = null;
+  document.addEventListener('focusin', function (e) { if (e.target.matches('.formul-ifade')) sonIfade = e.target; });
+  document.addEventListener('click', function (e) {
+    var d = e.target.closest('[data-degisken]');
+    if (!d) return;
+    var hedef = sonIfade || document.querySelector('.formul-ifade');
+    if (!hedef) return;
+    var ad = d.getAttribute('data-degisken');
+    var bas = hedef.selectionStart != null ? hedef.selectionStart : hedef.value.length;
+    var son = hedef.selectionEnd != null ? hedef.selectionEnd : bas;
+    hedef.value = hedef.value.slice(0, bas) + ad + hedef.value.slice(son);
+    hedef.focus();
+    hedef.setSelectionRange(bas + ad.length, bas + ad.length);
+  });
+  var kodUret = function (s) {
+    return String(s || '').trim().toLocaleLowerCase('tr').replace(/\s+/g, ' ')
+      .replace(/ç/g, 'c').replace(/ğ/g, 'g').replace(/ı/g, 'i').replace(/ö/g, 'o').replace(/ş/g, 's').replace(/ü/g, 'u')
+      .replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+  };
+  document.addEventListener('input', function (e) {
+    if (!e.target.matches('.formul-ad')) return;
+    var k = e.target.parentNode.querySelector('.formul-kod');
+    if (k) k.textContent = kodUret(e.target.value);
+  });
+  // Puan tek formülde olur
+  document.addEventListener('change', function (e) {
+    if (!e.target.matches('.formul-puan') || !e.target.checked) return;
+    document.querySelectorAll('.formul-puan').forEach(function (c) { if (c !== e.target) c.checked = false; });
+  });
+
+  // --- Değerlendirme sayfası: pencere, seçim, sıralama ---
+  var panel = document.getElementById('panel-penceresi');
+  if (panel) {
+    panel.addEventListener('show.bs.modal', function (e) {
+      var d = e.relatedTarget;
+      var icerik = panel.querySelector('[data-panel-icerik]');
+      icerik.innerHTML = '<div class="text-secondary">Yükleniyor…</div>';
+      if (!d) return;
+      fetch(d.getAttribute('data-panel'), { headers: { 'X-Requested-With': 'fetch' } })
+        .then(function (r) { return r.text(); })
+        .then(function (h) { icerik.innerHTML = h; })
+        .catch(function () { icerik.innerHTML = '<div class="text-danger">Yüklenemedi.</div>'; });
+    });
+  }
+  var toplu = document.getElementById('toplu-formu');
+  if (toplu) {
+    var seciliGuncelle = function () {
+      var n = toplu.querySelectorAll('[data-secim]:checked').length;
+      toplu.querySelector('[data-secili-sayi]').textContent = n;
+      toplu.querySelectorAll('[data-toplu-dugme]').forEach(function (b) { b.disabled = n === 0; });
+    };
+    toplu.addEventListener('change', function (e) {
+      if (e.target.matches('[data-tumunu-sec]')) toplu.querySelectorAll('[data-secim]').forEach(function (c) { c.checked = e.target.checked; });
+      seciliGuncelle();
+    });
+    seciliGuncelle();
+  }
+  document.querySelectorAll('table[data-siralanabilir]').forEach(function (tablo) {
+    tablo.querySelectorAll('th[data-sirala]').forEach(function (th) {
+      th.classList.add('siralanabilir');
+      th.addEventListener('click', function () {
+        var sutun = Array.prototype.indexOf.call(th.parentNode.children, th);
+        var sayi = th.getAttribute('data-sirala') === 'sayi';
+        var yon = th.dataset.yon === 'artan' ? 'azalan' : 'artan';
+        tablo.querySelectorAll('th[data-sirala]').forEach(function (x) { delete x.dataset.yon; });
+        th.dataset.yon = yon;
+        var govde = tablo.tBodies[0];
+        var satirlar = Array.prototype.slice.call(govde.rows);
+        var deger = function (tr) {
+          var td = tr.cells[sutun];
+          var v = td ? (td.getAttribute('data-deger') || td.textContent.trim()) : '';
+          return sayi ? (v === '' ? -Infinity : parseFloat(v)) : v;
+        };
+        satirlar.sort(function (a, b) {
+          var x = deger(a), z = deger(b);
+          var c = sayi ? x - z : String(x).localeCompare(String(z), 'tr');
+          return yon === 'artan' ? c : -c;
+        });
+        satirlar.forEach(function (tr) { govde.appendChild(tr); });
+      });
+    });
+  });
+
+  // --- Başvuru akışı: not/gerekçe zorunlu işlemler ---
+  document.addEventListener('submit', function (e) {
+    var f = e.target;
+    var not = f.querySelector('textarea[name="not"]');
+    if (f.matches('[data-islem-formu]')) {
+      var d = e.submitter;
+      if (d && d.hasAttribute('data-not-zorunlu') && not && !not.value.trim()) {
+        e.preventDefault();
+        not.classList.add('is-invalid');
+        not.placeholder = d.getAttribute('data-not-zorunlu') + ' yazılmalıdır';
+        not.focus();
+      }
+    }
+    if (f.matches('[data-degistir-formu]') && not && !not.value.trim()) {
+      var dusen = Array.prototype.some.call(f.querySelectorAll('[data-onceki]'), function (i) {
+        var v = parseFloat(i.value); return (isNaN(v) ? 0 : v) < parseFloat(i.getAttribute('data-onceki'));
+      });
+      if (dusen) { e.preventDefault(); not.classList.add('is-invalid'); not.placeholder = 'Miktar düşürülürken gerekçe yazılmalıdır'; not.focus(); }
+    }
+  });
+
   // --- Silme onayı ---
   document.querySelectorAll('form[data-onay]').forEach(function (f) {
     f.addEventListener('submit', function (e) {

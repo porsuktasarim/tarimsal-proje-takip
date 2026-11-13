@@ -55,6 +55,29 @@ const projeSema = new mongoose.Schema({
     oncelikliAlan: { type: Number, min: 0 },                  // ör. 50 da'ya kadar öncelikli
     azamiAlan: { type: Number, min: 0 }                       // ör. 100 da'ya kadar değerlendirilir
   },
+  // Başvuru değerlendirmesi: formüller (puan dahil) ve limitler (aşan başvurular işaretlenir)
+  degerlendirme: {
+    formuller: {
+      type: [new mongoose.Schema({
+        kod: { type: String, trim: true },        // değişken adı (addan üretilir): ot_ihtiyaci
+        ad: { type: String, trim: true },         // Ot ihtiyacı
+        ifade: { type: String, trim: true },      // buyukbas * 3650 + kucukbas * 550
+        birim: { type: String, trim: true },
+        ondalik: { type: Number, min: 0, max: 6 },
+        puan: { type: Boolean, default: false }   // başvurular bu değere göre sıralanır
+      }, { _id: false })],
+      default: []
+    },
+    limitler: {
+      type: [new mongoose.Schema({
+        ad: { type: String, trim: true },         // Azami destek tutarı
+        ifade: { type: String, trim: true },      // destek
+        ust: { type: Number },                    // 20000
+        birim: { type: String, trim: true }       // TL
+      }, { _id: false })],
+      default: []
+    }
+  },
   // Proje ekibi (Ayarlar > Kişiler)
   koordinatorler: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Kisi' }],
   yurutuculer: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Kisi' }]

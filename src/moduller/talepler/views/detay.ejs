@@ -4,7 +4,11 @@
   var d = td[talep.durum];
   var bas = proje.basvuru || {};
   var fin = proje.finansman || {};
-  var eylemler = izin('talep.gir') ? '<a href="/talepler/' + talep._id + '/duzenle" class="btn"><i class="ti ti-edit me-1"></i> Düzenle</a>' : '';
+  var eylemler = duzenlenebilir ? '<a href="/talepler/' + talep._id + '/duzenle" class="btn"><i class="ti ti-edit me-1"></i> ' + (talep.durum === 'taslak' ? 'Düzenle' : 'Formu düzelt (yönetici)') + '</a>' : '';
+  if (izin('talep.degerlendir')) eylemler += ' <a href="/degerlendirme?proje=' + proje._id + '" class="btn btn-ghost-secondary"><i class="ti ti-list-check me-1"></i> Değerlendirme</a>';
+  // Başvurudaki (ilk gönderilen) miktarlar
+  var ilkMiktar = {};
+  ((talep.basvuru && talep.basvuru.talepKalemleri) || []).forEach(function (t) { ilkMiktar[String(t.kalemId)] = t.miktar; });
 %>
 <%- include('../../../views/partials/sayfa-basligi', { ustBaslik: (proje.kisaAd || proje.ad) + ' · talep', eylemler: eylemler }) %>
 <div class="page-body">
@@ -40,7 +44,8 @@
                   <tr>
                     <td><%= hk.kalem.urun %><% if (hk.kalem.cesit) { %> <span class="text-secondary">· <%= hk.kalem.cesit %></span><% } %>
                       <div class="small text-secondary"><%= hk.esasKaynak === 'talep' ? 'talep esas' : 'parsel toplamı esas (talep miktarı girilmemiş)' %></div></td>
-                    <td class="tablo-sayi text-nowrap"><%= hk.talepMiktari != null ? y.sayi(hk.talepMiktari) + ' ' + hk.talepBirimi : '–' %></td>
+                    <td class="tablo-sayi text-nowrap"><%= hk.talepMiktari != null ? y.sayi(hk.talepMiktari) + ' ' + hk.talepBirimi : '–' %>
+                      <% var im = ilkMiktar[String(hk.kalem._id)]; if (talep.basvuru && talep.basvuru.tarih && im !== hk.talepMiktari && !(im == null && hk.talepMiktari == null)) { %><div class="small text-secondary" title="Koordinatöre ilk gönderildiğindeki miktar">başvuru: <%= im != null ? y.sayi(im) + ' ' + hk.talepBirimi : '–' %></div><% } %></td>
                     <td class="tablo-sayi text-nowrap">
                       <%= hk.parselMiktari != null ? y.sayi(hk.parselMiktari) + ' ' + hk.talepBirimi : '–' %>
                       <% if (hk.parselSayisi) { %><div class="small text-secondary"><%= hk.parselSayisi %> parsel</div><% } %>
@@ -115,21 +120,40 @@
         </div>
 
         <div class="card mb-3">
-          <div class="card-header"><h3 class="card-title">Durum</h3></div>
+          <div class="card-header">
+            <h3 class="card-title">Başvuru aşaması</h3>
+            <div class="card-actions"><span class="badge bg-<%= d.renk %>-lt"><i class="ti <%= d.ikon %> me-1"></i><%= d.ad %></span></div>
+          </div>
           <div class="card-body">
-            <div class="mb-3"><span class="badge bg-<%= d.renk %>-lt"><i class="ti <%= d.ikon %> me-1"></i><%= d.ad %></span></div>
-            <form method="post" action="/talepler/<%= talep._id %>/durum" class="d-flex flex-wrap gap-2<%= izin('talep.onayla') ? '' : ' d-none' %>">
-              <% Object.keys(td).forEach(function (k) { if (k === talep.durum) return; %>
-                <button name="durum" value="<%= k %>" class="btn btn-sm"><i class="ti <%= td[k].ikon %> me-1"></i><%= td[k].ad %></button>
-              <% }) %>
-            </form>
-            <div class="text-secondary small mt-3">Kaydeden: <%= talep.kaydedenAd || '–' %> · <%= y.tarih(talep.olusturulma) %></div>
+            <div class="text-secondary small mb-2"><%= d.uzun %><% if (talep.karar && talep.karar.sonuc) { %> · <%= talep.karar.kisiAd || '' %> <%= y.tarih(talep.karar.tarih) %><% } %></div>
+            <% if (talep.karar && talep.karar.gerekce) { %><div class="gecmis-not small mb-3"><%= talep.karar.gerekce %></div><% } %>
+            <%- include('islem-formu', { talep: talep, islemler: islemler, donus: donus }) %>
+            <div class="text-secondary small mt-3">Giren: <%= talep.kaydedenAd || '–' %> · <%= y.tarih(talep.olusturulma) %></div>
           </div>
-          <div class="card-footer<%= izin('talep.sil') ? '' : ' d-none' %>">
-            <form method="post" action="/talepler/<%= talep._id %>/sil" data-onay="Talep silinecek (çiftçi kaydı kalır). Devam edilsin mi?">
-              <button class="btn btn-ghost-danger btn-sm w-100"><i class="ti ti-trash me-1"></i> Talebi sil</button>
-            </form>
+          <% if (silebilir) { %>
+            <div class="card-footer">
+              <form method="post" action="/talepler/<%= talep._id %>/sil" data-onay="Başvuru ve geçmişi silinecek (çiftçi kaydı kalır). Devam edilsin mi?">
+                <button class="btn btn-ghost-danger btn-sm w-100"><i class="ti ti-trash me-1"></i> Başvuruyu sil</button>
+              </form>
+            </div>
+          <% } %>
+        </div>
+
+        <% if (degistirilebilir) { %>
+          <div class="card mb-3">
+            <div class="card-header"><h3 class="card-title">Değerleri değiştir</h3></div>
+            <div class="card-body"><%- include('degistir-formu', { talep: talep, proje: proje, donus: donus }) %></div>
           </div>
+        <% } %>
+
+        <div class="card mb-3">
+          <div class="card-header"><h3 class="card-title">Değerlendirme</h3><% if (deg.puan != null) { %><div class="card-actions"><span class="badge bg-purple-lt">Puan <%= y.sayi(deg.puan) %></span></div><% } %></div>
+          <div class="card-body"><%- include('degerlendirme-ozeti', { deg: deg }) %></div>
+        </div>
+
+        <div class="card mb-3">
+          <div class="card-header"><h3 class="card-title">Geçmiş ve notlar</h3></div>
+          <div class="card-body"><%- include('gecmis', { talep: talep }) %></div>
         </div>
       </div>
     </div>

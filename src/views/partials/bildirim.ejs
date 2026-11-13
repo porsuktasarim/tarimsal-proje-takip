@@ -18,14 +18,21 @@
     'ciftci-talepli': ['warning', 'ti-alert-triangle', 'Talebi bulunan çiftçinin kaydı silinemez.'],
     'talep-kaydedildi': ['success', 'ti-check', 'Talep kaydedildi.'],
     'talep-durum': ['success', 'ti-check', 'Talep durumu değiştirildi.'],
-    'talep-silindi': ['success', 'ti-trash', 'Talep silindi.']
+    'talep-silindi': ['success', 'ti-trash', 'Talep silindi.'],
+    'talep-gonderildi': ['success', 'ti-send', 'Başvuru kaydedildi ve koordinatöre gönderildi.'],
+    'talep-gonderilemedi': ['warning', 'ti-alert-triangle', 'Başvuru kaydedildi ancak gönderilemedi; ayrıntıdan yeniden gönderilebilir.'],
+    'talep-kilitli': ['warning', 'ti-lock', 'Gönderilmiş başvurunun formu değiştirilemez. Değerlendirmede değerler değiştirilir ve not düşülür; form düzeltmesini yalnızca Sistem Yöneticisi yapabilir.'],
+    'islem-yapildi': ['success', 'ti-check', 'İşlem yapıldı.'],
+    'islem-yapilamadi': ['danger', 'ti-alert-triangle', 'İşlem yapılamadı.'],
+    'degisiklik-kaydedildi': ['success', 'ti-check', 'Değişiklik kaydedildi; önceki değerler geçmişte duruyor.'],
+    'toplu-islem': ['success', 'ti-checks', 'Seçilen başvurularda işlem yapıldı.']
   };
   var b = bildirim && metinler[bildirim];
 %>
 <% if (b) { %>
   <div class="alert alert-<%= b[0] %> alert-dismissible" role="alert">
     <div class="alert-icon"><i class="ti <%= b[1] %>"></i></div>
-    <div><%= b[2] %></div>
+    <div><%= b[2] %><% if (locals.bildirimHata) { %> <%= bildirimHata %><% } %></div>
     <a class="btn-close" data-bs-dismiss="alert" aria-label="Kapat"></a>
   </div>
 <% } %>

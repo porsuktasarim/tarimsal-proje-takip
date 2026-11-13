@@ -1,0 +1,32 @@
+<%
+  // Başvuru geçmişi (en yenisi üstte). Parametreler: talep
+  var td = sabitler.talepDurumlari;
+  var adlar = { olusturma: 'Başvuru girildi', gonderme: 'Gönderildi', teslim_alma: 'Teslim alındı', degisiklik: 'Değer değiştirildi', not: 'Not', geri_gonderme: 'Yürütücüye gönderildi', karar: 'Karar', karar_geri_alma: 'Karar geri alındı', teslim: 'Teslim edildi', teslim_geri_alma: 'Teslim geri alındı', duzenleme: 'Başvuru formu düzenlendi' };
+  var ikonlar = { olusturma: 'ti-file-plus', gonderme: 'ti-send', teslim_alma: 'ti-inbox', degisiklik: 'ti-pencil', not: 'ti-message', geri_gonderme: 'ti-arrow-back-up', karar: 'ti-gavel', karar_geri_alma: 'ti-arrow-back', teslim: 'ti-truck-delivery', teslim_geri_alma: 'ti-arrow-back', duzenleme: 'ti-edit' };
+  var kayitlar = (talep.gecmis || []).slice().reverse();
+  var dg = function (v) { return v == null || v === '' ? '–' : y.sayi(v); };
+%>
+<% if (!kayitlar.length) { %>
+  <div class="text-secondary small">Geçmiş kaydı yok.</div>
+<% } else { %>
+  <ul class="list-unstyled gecmis-listesi mb-0">
+    <% kayitlar.forEach(function (g) { var d = td[g.durum]; %>
+      <li class="gecmis-kaydi">
+        <div class="d-flex align-items-start gap-2">
+          <span class="avatar avatar-xs rounded bg-<%= g.tur === 'karar' && d ? d.renk : 'secondary' %>-lt"><i class="ti <%= ikonlar[g.tur] || 'ti-point' %>"></i></span>
+          <div class="flex-fill">
+            <div class="small">
+              <strong><%= g.tur === 'karar' && d ? d.ad : (adlar[g.tur] || g.tur) %></strong>
+              <% if (g.onceki && d && g.tur !== 'karar' && adlar[g.tur] !== d.ad) { %><span class="text-secondary">→ <%= d.ad %></span><% } %>
+            </div>
+            <div class="text-secondary small"><%= g.kisiAd || '–' %><%= g.rolAd ? ' · ' + g.rolAd : '' %> · <%= y.tarih(g.tarih) %> <%= new Date(g.tarih).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }) %></div>
+            <% (g.degisiklikler || []).forEach(function (x) { %>
+              <div class="small"><%= x.ad %>: <span class="text-decoration-line-through text-secondary"><%= dg(x.eski) %></span> → <strong><%= dg(x.yeni) %></strong> <%= x.birim || '' %></div>
+            <% }) %>
+            <% if (g.not) { %><div class="gecmis-not small mt-1"><%= g.not %></div><% } %>
+          </div>
+        </div>
+      </li>
+    <% }) %>
+  </ul>
+<% } %>

@@ -65,7 +65,7 @@ const varsayilanlar = {
     },
     {
       kod: 'koordinator', ad: 'Proje Koordinatörü', aciklama: 'İşi yürüten il müdürlüğü personeli.', renk: 'blue', ilceKisitli: false,
-      yetkiler: ['pano.gor', 'proje.gor', 'proje.yonet', 'talep.gor', 'talep.gir', 'talep.onayla', 'talep.sil',
+      yetkiler: ['pano.gor', 'proje.gor', 'proje.yonet', 'talep.gor', 'talep.gir', 'talep.degerlendir',
         'ciftci.gor', 'ciftci.yonet', 'gorev.gor', 'gorev.ver', 'ayar.genel', 'ayar.katalog']
     },
     {
@@ -91,17 +91,16 @@ const yetkiGruplari = [
     yetkiler: [
       { kod: 'talep.gor', ad: 'Çiftçi taleplerini görür' },
       { kod: 'talep.gir', ad: 'Talep girer ve düzenler' },
-      { kod: 'talep.onayla', ad: 'Talebi onaylar, reddeder, teslim edildi yapar' },
-      { kod: 'talep.sil', ad: 'Talep siler' },
+      { kod: 'talep.degerlendir', ad: 'Başvuruları değerlendirir: teslim alır, değiştirir, yürütücüye gönderir, karar verir' },
       { kod: 'ciftci.gor', ad: 'Çiftçi kayıtlarını ve icmalini görür' },
-      { kod: 'ciftci.yonet', ad: 'Çiftçi kaydı ekler, düzenler, siler' }
+      { kod: 'ciftci.yonet', ad: 'Çiftçi kaydı ekler, düzenler' }
     ]
   },
   {
     ad: 'Görevler',
     yetkiler: [
       { kod: 'gorev.gor', ad: 'Tüm görevleri görür' },
-      { kod: 'gorev.ver', ad: 'Görev verir, düzenler, siler' }
+      { kod: 'gorev.ver', ad: 'Görev verir, düzenler' }
     ]
   },
   {
@@ -145,12 +144,24 @@ const gorevDurumlari = {
   iptal: { ad: 'İptal', renk: 'red', ikon: 'ti-circle-x' }
 };
 
+// Başvuru aşamaları:
+//   taslak → (yürütücü gönderir) gonderildi → (koordinatör teslim alır) incelemede
+//   incelemede ⇄ yurutucude (ön inceleme sonrası yürütücü görüşü; gerektiği kadar tekrarlanır)
+//   incelemede → desteklendi | yedek | desteklenmedi (kesin karar) → teslim (dağıtım)
 const talepDurumlari = {
-  alindi: { ad: 'Talep alındı', renk: 'secondary', ikon: 'ti-inbox' },
-  onaylandi: { ad: 'Onaylandı', renk: 'green', ikon: 'ti-circle-check' },
-  teslim: { ad: 'Teslim edildi', renk: 'blue', ikon: 'ti-truck-delivery' },
-  reddedildi: { ad: 'Reddedildi', renk: 'red', ikon: 'ti-circle-x' }
+  taslak: { ad: 'Taslak', uzun: 'Yürütücüde taslak', renk: 'secondary', ikon: 'ti-pencil' },
+  gonderildi: { ad: 'Gönderildi', uzun: 'Koordinatöre gönderildi', renk: 'cyan', ikon: 'ti-send' },
+  incelemede: { ad: 'İncelemede', uzun: 'Değerlendirmede', renk: 'blue', ikon: 'ti-zoom-check' },
+  yurutucude: { ad: 'Yürütücüde', uzun: 'Yürütücü görüşü bekleniyor', renk: 'orange', ikon: 'ti-message-question' },
+  desteklendi: { ad: 'Desteklendi', uzun: 'Desteklenmesine karar verildi', renk: 'green', ikon: 'ti-circle-check', karar: true },
+  yedek: { ad: 'Yedek', uzun: 'Yedek listede', renk: 'yellow', ikon: 'ti-hourglass', karar: true },
+  desteklenmedi: { ad: 'Desteklenmedi', uzun: 'Desteklenmemesine karar verildi', renk: 'red', ikon: 'ti-circle-x', karar: true },
+  teslim: { ad: 'Teslim edildi', uzun: 'Destek teslim edildi', renk: 'teal', ikon: 'ti-truck-delivery' }
 };
+// Başvuru özetlerinde sayılmayanlar ve destek icmaline girenler
+const sayilmayanAsamalar = ['desteklenmedi'];
+const icmalAsamalari = ['desteklendi', 'teslim'];
+
 
 const oncelikler = {
   dusuk: { ad: 'Düşük', renk: 'secondary' },
@@ -161,5 +172,5 @@ const oncelikler = {
 
 module.exports = {
   varsayilanlar, normTipleri, normBirimOnerileri, ambalajBirimleri, projeDurumlari,
-  gorevDurumlari, oncelikler, talepDurumlari, yetkiGruplari, tumYetkiler, rolRenkSecenekleri
+  gorevDurumlari, oncelikler, talepDurumlari, sayilmayanAsamalar, icmalAsamalari, yetkiGruplari, tumYetkiler, rolRenkSecenekleri
 };

@@ -101,7 +101,7 @@
     <% if (!yeni) { %>
       <% if (kullanim > 0) { %>
         <span class="text-secondary small me-auto"><i class="ti ti-info-circle"></i> <%= kullanim %> projede kullanılıyor; ürün ya da çeşit adı değişirse projelerdeki kalemler de güncellenir.</span>
-      <% } else { %>
+      <% } else if (silebilir) { %>
         <button type="submit" formaction="/ayarlar/urunler/<%= urun._id %>/sil" formnovalidate class="btn btn-ghost-danger me-auto"
                 data-onay-dugme="Bu ürün katalogdan silinecek. Devam edilsin mi?"><i class="ti ti-trash me-1"></i> Sil</button>
       <% } %>

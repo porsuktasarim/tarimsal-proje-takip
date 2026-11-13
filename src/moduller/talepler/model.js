@@ -24,6 +24,20 @@ const satirSema = new mongoose.Schema({
   miktar: { type: Number, required: true, min: 0 }                      // parseldeki miktar (kalemin talep biriminde)
 }, { _id: true });
 
+// Başvuru geçmişi: her aşama değişikliği, değer değişikliği ve not bir kayıttır.
+// Kayıtlar değiştirilmez ve silinmez; değiştirilen değerin eskisi burada kalır.
+const gecmisSema = new mongoose.Schema({
+  tarih: { type: Date, default: Date.now },
+  kisi: { type: mongoose.Schema.Types.ObjectId, ref: 'Kisi' },
+  kisiAd: { type: String, trim: true },
+  rolAd: { type: String, trim: true },
+  tur: { type: String, trim: true },        // olusturma, gonderme, teslim_alma, degisiklik, not, geri_gonderme, karar, karar_geri_alma, teslim, duzenleme
+  onceki: { type: String, trim: true },     // önceki aşama
+  durum: { type: String, trim: true },      // yeni aşama
+  not: { type: String, trim: true },
+  degisiklikler: [{ _id: false, alan: String, ad: String, eski: mongoose.Schema.Types.Mixed, yeni: mongoose.Schema.Types.Mixed, birim: String }]
+}, { _id: true });
+
 const talepSema = new mongoose.Schema({
   projeId: { type: mongoose.Schema.Types.ObjectId, ref: 'Proje', required: true },
   ciftciId: { type: mongoose.Schema.Types.ObjectId, ref: 'Ciftci', required: true },
@@ -31,7 +45,20 @@ const talepSema = new mongoose.Schema({
   talepKalemleri: { type: [talepKalemiSema], default: [] },
   satirlar: { type: [satirSema], default: [] },
   hayvanlar: { type: mongoose.Schema.Types.Mixed, default: {} },       // { <hayvan türü kodu>: sayı } talep anındaki varlık
-  durum: { type: String, enum: Object.keys(talepDurumlari), default: 'alindi' },
+  durum: { type: String, enum: Object.keys(talepDurumlari), default: 'taslak' },   // başvuru aşaması
+  // Koordinatöre ilk gönderildiğindeki değerler (başvuru); değerlendirmede değişse de korunur
+  basvuru: {
+    tarih: { type: Date },
+    talepKalemleri: { type: mongoose.Schema.Types.Mixed },
+    hayvanlar: { type: mongoose.Schema.Types.Mixed }
+  },
+  karar: {
+    sonuc: { type: String, trim: true },
+    gerekce: { type: String, trim: true },
+    tarih: { type: Date },
+    kisiAd: { type: String, trim: true }
+  },
+  gecmis: { type: [gecmisSema], default: [] },
   aciklama: { type: String, trim: true },
   kaydeden: { type: mongoose.Schema.Types.ObjectId, ref: 'Kisi' },
   kaydedenAd: { type: String, trim: true }

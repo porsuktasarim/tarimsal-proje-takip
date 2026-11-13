@@ -5,9 +5,10 @@ const Urun = require('../ayarlar/modeller/Urun');
 const Kisi = require('../ayarlar/modeller/Kisi');
 const katalog = require('../ayarlar/katalog');
 const { projeHesabi, taleplerOzeti } = require('./hesap');
+const degerlendirmeHesabi = require('./degerlendirme-hesabi');
 const { yetkiGerekli } = require('../../core/yetki');
 const { projeDurumlari } = require('../../config/sabitler');
-const { sayiOku, diziyeCevir, tarihOku, anahtar } = require('../../core/yardimcilar');
+const { sayiOku, diziyeCevir, tarihOku, anahtar, kodUret } = require('../../core/yardimcilar');
 
 const router = express.Router();
 const V = 'projeler/views/';
@@ -67,6 +68,19 @@ function formuOku(govde, ayar, mevcut) {
       oncelikliAlan: sayiOku(govde.basvuru && govde.basvuru.oncelikliAlan),
       azamiAlan: sayiOku(govde.basvuru && govde.basvuru.azamiAlan)
     },
+    degerlendirme: {
+      formuller: diziyeCevir(govde.formuller)
+        .map((f) => ({
+          ad: metin(f.ad), ifade: metin(f.ifade), birim: metin(f.birim) || undefined,
+          ondalik: sayiOku(f.ondalik) != null ? Math.max(0, Math.min(6, Math.round(sayiOku(f.ondalik)))) : undefined,
+          puan: f.puan === '1' || f.puan === 'on'
+        }))
+        .filter((f) => f.ad || f.ifade)
+        .map((f) => ({ ...f, kod: kodUret(f.ad || 'formul') })),
+      limitler: diziyeCevir(govde.limitler)
+        .map((l) => ({ ad: metin(l.ad) || undefined, ifade: metin(l.ifade), ust: sayiOku(l.ust), birim: metin(l.birim) || undefined }))
+        .filter((l) => l.ifade || l.ust !== undefined || l.ad)
+    },
     koordinatorler: diziyeCevir(govde.koordinatorler).filter((id) => mongoose.isValidObjectId(id)),
     yurutuculer: diziyeCevir(govde.yurutuculer).filter((id) => mongoose.isValidObjectId(id))
   };
@@ -101,6 +115,7 @@ function formuOku(govde, ayar, mevcut) {
     if (!k.olcuBirimi) hatalar.push(`${i + 1}. kalemin dağıtım birimi seçilmelidir.`);
   });
   if (veri.ilceler.length === 0) hatalar.push('Projenin uygulanacağı en az bir ilçe seçilmelidir.');
+  hatalar.push(...degerlendirmeHesabi.tanimlariDenetle(veri, ayar));
   const oran = veri.finansman.ciftciKatkiOrani;
   if (oran != null && (oran < 0 || oran > 100)) hatalar.push('Çiftçi katkı oranı 0 ile 100 arasında olmalıdır.');
   const b = veri.basvuru;
@@ -176,7 +191,8 @@ async function katalogGetir() {
 
 async function formuGoster(res, durum, sablon) {
   const kisiler = await Kisi.find().sort({ adSoyad: 1 }).lean();
-  return res.status(durum).render(V + 'form', { ...sablon, katalog: await katalogGetir(), kisiler });
+  const degiskenler = degerlendirmeHesabi.degiskenTanimlari({ kalemler: (sablon.proje && sablon.proje.kalemler) || [] }, res.locals.ayar);
+  return res.status(durum).render(V + 'form', { ...sablon, katalog: await katalogGetir(), kisiler, degiskenler });
 }
 
 async function projeBul(req, res, next) {
@@ -240,8 +256,11 @@ router.get('/:id', sar(projeBul), sar(async (req, res) => {
       .sort({ sonTarih: 1, olusturulma: -1 })
   ]);
   const kisiBul = (id) => ekip.find((k) => String(k._id) === String(id));
-  const talepler = await mongoose.model('Talep').find({ projeId: req.proje._id, durum: { $ne: 'reddedildi' } }).lean();
+  const tumTalepler = await mongoose.model('Talep').find({ projeId: req.proje._id }).select('-gecmis').lean();
+  const talepler = tumTalepler.filter((t) => t.durum !== 'desteklenmedi');
   const talepOzeti = taleplerOzeti(talepler, req.proje, res.locals.ayar);
+  const asamaSayilari = {};
+  tumTalepler.forEach((t) => { asamaSayilari[t.durum] = (asamaSayilari[t.durum] || 0) + 1; });
   res.render(V + 'detay', {
     baslik: req.proje.ad,
     proje: req.proje,
@@ -250,6 +269,7 @@ router.get('/:id', sar(projeBul), sar(async (req, res) => {
     yurutuculer: req.proje.yurutuculer.map(kisiBul).filter(Boolean),
     gorevler,
     talepOzeti,
+    asamaSayilari,
     katalogEklenen: parseInt(req.query.katalog, 10) || 0
   });
 }));

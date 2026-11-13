@@ -1,0 +1,59 @@
+<%
+  // Değerlendirme penceresinin içeriği (düzen şablonu olmadan)
+  var td = sabitler.talepDurumlari;
+  var d = td[talep.durum];
+  var ilk = {};
+  ((talep.basvuru && talep.basvuru.talepKalemleri) || []).forEach(function (t) { ilk[String(t.kalemId)] = t.miktar; });
+  var V = '../../talepler/views/';
+%>
+<div class="row g-3">
+  <div class="col-lg-7">
+    <div class="d-flex align-items-start mb-2">
+      <div>
+        <h3 class="mb-0"><a href="/talepler/<%= talep._id %>" class="text-reset"><%= ciftci.adSoyad %></a></h3>
+        <div class="text-secondary small"><span class="font-monospace"><%= ciftci.tcKimlikNo %></span> · <%= talep.ilce %><%= ciftci.mahalle ? ' / ' + ciftci.mahalle : '' %> · <%- ciftci.cks ? 'ÇKS var' : 'ÇKS yok' %><%= ciftci.telefon ? ' · ' + ciftci.telefon : '' %></div>
+      </div>
+      <span class="badge bg-<%= d.renk %>-lt ms-auto"><i class="ti <%= d.ikon %> me-1"></i><%= d.ad %></span>
+    </div>
+
+    <div class="table-responsive mb-3">
+      <table class="table table-sm table-vcenter mb-0">
+        <thead><tr><th>Kalem</th><th class="tablo-sayi">Başvuru</th><th class="tablo-sayi">Geçerli</th><th class="tablo-sayi">Parsel</th><th class="tablo-sayi">Dağıtım</th><th class="tablo-sayi">Bedel</th></tr></thead>
+        <tbody>
+          <% hesap.kalemler.forEach(function (hk) { var im = ilk[String(hk.kalem._id)]; %>
+            <tr>
+              <td><%= hk.kalem.urun %><%= hk.kalem.cesit ? ' · ' + hk.kalem.cesit : '' %></td>
+              <td class="tablo-sayi text-nowrap text-secondary"><%= im != null ? y.sayi(im) + ' ' + hk.talepBirimi : '–' %></td>
+              <td class="tablo-sayi text-nowrap fw-bold"><%= y.sayi(hk.esasMiktari) %> <%= hk.talepBirimi %></td>
+              <td class="tablo-sayi text-nowrap"><%= hk.parselMiktari != null ? y.sayi(hk.parselMiktari) : '–' %></td>
+              <td class="tablo-sayi text-nowrap"><%= y.sayi(hk.miktar) %> <%= hk.kalem.olcuBirimi %></td>
+              <td class="tablo-sayi text-nowrap"><%= y.para(hk.bedel) %></td>
+            </tr>
+          <% }) %>
+        </tbody>
+        <tfoot><tr class="fw-bold"><td colspan="5">Toplam · çiftçi katkısı <%= y.para(hesap.ciftciKatkisi) %></td><td class="tablo-sayi text-nowrap"><%= y.para(hesap.bedel) %></td></tr></tfoot>
+      </table>
+    </div>
+    <div class="small text-secondary mb-3"><i class="ti ti-paw"></i> <%= y.hayvanMetni(talep.hayvanlar, ayar.hayvanTurleri) || 'Hayvan varlığı girilmemiş' %></div>
+
+    <div class="mb-3"><%- include(V + 'degerlendirme-ozeti', { deg: deg }) %></div>
+
+    <% if (degistirilebilir && izin('talep.degerlendir')) { %>
+      <div class="hr-text my-3">Değerleri değiştir</div>
+      <%- include(V + 'degistir-formu', { talep: talep, proje: proje, donus: donus }) %>
+    <% } else if (talep.durum === 'gonderildi') { %>
+      <div class="alert alert-info py-2 small mb-0">Değer değiştirmek için önce başvuru teslim alınmalıdır.</div>
+    <% } %>
+  </div>
+
+  <div class="col-lg-5">
+    <div class="card card-sm mb-3">
+      <div class="card-body">
+        <div class="fw-medium mb-2">İşlem</div>
+        <%- include(V + 'islem-formu', { talep: talep, islemler: islemler, donus: donus }) %>
+      </div>
+    </div>
+    <div class="fw-medium mb-2">Geçmiş ve notlar</div>
+    <%- include(V + 'gecmis', { talep: talep }) %>
+  </div>
+</div>

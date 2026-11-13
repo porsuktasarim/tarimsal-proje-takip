@@ -100,6 +100,9 @@ const toplamMetni = (toplamlar, bos = '–') => {
   return p.length ? p.join(' · ') : bos;
 };
 
+// HTML öznitelik ve metinleri için kaçış (elle kurulan HTML parçalarında)
+const kacis = (v) => String(v === undefined || v === null ? '' : v).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
 // Mongoose Map ya da düz nesneden değer okur.
 const mapDeger = (m, k) => {
   if (!m) return undefined;
@@ -108,5 +111,5 @@ const mapDeger = (m, k) => {
 };
 
 module.exports = {
-  sayi, tarih, inputTarih, tarihOku, sayiOku, diziyeCevir, anahtar, kodUret, sonucBirimi, miktar, para, tcGecerliMi, hayvanlariOku, hayvanMetni, toplamMetni, mapDeger
+  sayi, tarih, inputTarih, tarihOku, sayiOku, diziyeCevir, anahtar, kodUret, sonucBirimi, miktar, para, tcGecerliMi, hayvanlariOku, hayvanMetni, toplamMetni, kacis, mapDeger
 };

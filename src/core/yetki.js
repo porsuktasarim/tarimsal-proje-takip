@@ -6,6 +6,8 @@ const { tumYetkiler } = require('../config/sabitler');
 // - Diğer roller Ayarlar > Roller'de işaretlenen yetkilere sahiptir.
 // - Henüz Sistem Yöneticisi atanmamışsa (ilk kurulum) herkes tüm yetkilere
 //   sahiptir ve üst kısımda uyarı gösterilir.
+// - Kayıt silme (proje, talep, çiftçi, görev, kişi, rol, ürün, liste değerleri)
+//   yalnızca Sistem Yöneticisi tarafından yapılır.
 // - Rolü "ilçe kısıtlı" olan kişiler yalnızca sorumlu oldukları ilçelerin
 //   çiftçisini ve talebini girer.
 //
@@ -20,8 +22,21 @@ function kisiYetkileri(ben, ayar, adminVar) {
 }
 
 // res.locals.izin('talep.gir') ya da izin(['ayar.genel', 'ayar.katalog']) (herhangi biri)
+// Kayıt silme yalnızca Sistem Yöneticisinin işidir (ilk kurulumda, yönetici atanana kadar herkes).
+function silebilirMi(ben, adminVar) {
+  return !adminVar || !!(ben && ben.rol === 'admin');
+}
+
 function yetkiAraKatmani(req, res, next) {
   const yetkiler = kisiYetkileri(req.ben, res.locals.ayar, res.locals.adminVar);
+  req.silebilir = silebilirMi(req.ben, res.locals.adminVar);
+  res.locals.silebilir = req.silebilir;
+  // Tüm modüllerde .../sil istekleri yalnızca Sistem Yöneticisine açıktır.
+  if (req.method === 'POST' && /\/sil$/.test(req.path) && !req.silebilir) {
+    return res.status(403).render('hata', {
+      baslik: 'Yetkiniz yok', kod: 403, mesaj: 'Kayıtları yalnızca Sistem Yöneticisi silebilir.'
+    });
+  }
   const izin = (k) => (Array.isArray(k) ? k.some((x) => yetkiler.has(x)) : yetkiler.has(k));
   req.izin = izin;
   res.locals.izin = izin;
@@ -48,4 +63,4 @@ function calisilanIlceler(ben, ayar) {
   return ilceKisitliMi(ben, ayar) ? ben.ilceler.slice() : ayar.ilceler.slice();
 }
 
-module.exports = { kisiYetkileri, yetkiAraKatmani, yetkiGerekli, yetkisizSayfa, ilceKisitliMi, calisilanIlceler };
+module.exports = { silebilirMi, kisiYetkileri, yetkiAraKatmani, yetkiGerekli, yetkisizSayfa, ilceKisitliMi, calisilanIlceler };

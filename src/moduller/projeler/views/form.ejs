@@ -220,6 +220,87 @@
         </div>
       </div>
 
+      <%
+        var dgr = proje.degerlendirme || {};
+        var formuller = (dgr.formuller && dgr.formuller.length) ? dgr.formuller : [];
+        var limitler = (dgr.limitler && dgr.limitler.length) ? dgr.limitler : [];
+        var dv = function (v) { return v !== undefined && v !== null ? v : ''; };
+        var formulSatiri = function (i, f) {
+          return '<tr>' +
+            '<td><input type="text" name="formuller[' + i + '][ad]" value="' + y.kacis(dv(f.ad)) + '" class="form-control form-control-sm formul-ad" placeholder="ör. Ot ihtiyacı">' +
+            '<div class="small text-secondary font-monospace formul-kod">' + y.kacis(dv(f.kod)) + '</div></td>' +
+            '<td><input type="text" name="formuller[' + i + '][ifade]" value="' + y.kacis(dv(f.ifade)) + '" class="form-control form-control-sm font-monospace formul-ifade" placeholder="buyukbas * 3650 + kucukbas * 550"></td>' +
+            '<td><input type="text" name="formuller[' + i + '][birim]" value="' + y.kacis(dv(f.birim)) + '" class="form-control form-control-sm" placeholder="kg"></td>' +
+            '<td><input type="number" min="0" max="6" name="formuller[' + i + '][ondalik]" value="' + dv(f.ondalik) + '" class="form-control form-control-sm text-end" placeholder="2"></td>' +
+            '<td class="text-center"><input type="checkbox" class="form-check-input formul-puan" name="formuller[' + i + '][puan]" value="1"' + (f.puan ? ' checked' : '') + '></td>' +
+            '<td class="sil-sutunu"><button type="button" class="btn btn-ghost-danger btn-icon btn-sm" data-satir-sil title="Kaldır"><i class="ti ti-trash"></i></button></td></tr>';
+        };
+        var limitSatiri = function (i, l) {
+          return '<tr>' +
+            '<td><input type="text" name="limitler[' + i + '][ad]" value="' + y.kacis(dv(l.ad)) + '" class="form-control form-control-sm" placeholder="ör. Azami destek tutarı"></td>' +
+            '<td><input type="text" name="limitler[' + i + '][ifade]" value="' + y.kacis(dv(l.ifade)) + '" class="form-control form-control-sm font-monospace formul-ifade" list="dl-degiskenler" placeholder="destek"></td>' +
+            '<td class="text-center text-secondary">≤</td>' +
+            '<td><input type="number" step="any" name="limitler[' + i + '][ust]" value="' + dv(l.ust) + '" class="form-control form-control-sm text-end" placeholder="20000"></td>' +
+            '<td><input type="text" name="limitler[' + i + '][birim]" value="' + y.kacis(dv(l.birim)) + '" class="form-control form-control-sm" placeholder="TL"></td>' +
+            '<td class="sil-sutunu"><button type="button" class="btn btn-ghost-danger btn-icon btn-sm" data-satir-sil title="Kaldır"><i class="ti ti-trash"></i></button></td></tr>';
+        };
+        var gruplar = [];
+        degiskenler.forEach(function (d) { var g = gruplar.find(function (x) { return x.ad === d.grup; }); if (!g) { g = { ad: d.grup, liste: [] }; gruplar.push(g); } g.liste.push(d); });
+      %>
+      <div class="card mb-3">
+        <div class="card-header">
+          <div>
+            <h3 class="card-title"><span class="badge bg-primary-lt me-2">5</span> Başvuru değerlendirmesi</h3>
+            <p class="card-subtitle">Değerlendirme sayfasında her başvuru için hesaplanacak değerler ve üst limitler. İsteğe bağlıdır.</p>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="d-flex align-items-center mb-2">
+            <h4 class="mb-0">Formüller</h4>
+            <button type="button" class="btn btn-sm ms-auto" data-satir-ekle="formuller"><i class="ti ti-plus me-1"></i> Formül ekle</button>
+          </div>
+          <p class="text-secondary small mb-2">Her formül listede bir sütun olur; sırayla hesaplanır ve kendinden önceki formülleri adıyla kullanabilir (ör. <code>ot_acigi = ot_ihtiyaci - kuru_ot_uretimi</code>). "Puan" işaretlenen formüle göre başvurular sıralanır.</p>
+          <div class="table-responsive">
+            <table class="table table-sm table-vcenter satir-tablosu mb-2">
+              <thead><tr><th style="width:18%">Ad</th><th>Formül</th><th style="width:8%">Birim</th><th style="width:7%">Ondalık</th><th class="w-1">Puan</th><th class="w-1"></th></tr></thead>
+              <tbody data-satirlar="formuller"><% formuller.forEach(function (f, i) { %><%- formulSatiri(i, f) %><% }) %></tbody>
+            </table>
+            <div class="d-none text-secondary small py-2" data-satir-bos="formuller">Formül tanımlanmadı.</div>
+          </div>
+          <template id="formuller-sablon"><%- formulSatiri('__i__', {}) %></template>
+
+          <div class="d-flex align-items-center mb-2 mt-4">
+            <h4 class="mb-0">Üst limitler</h4>
+            <button type="button" class="btn btn-sm ms-auto" data-satir-ekle="limitler"><i class="ti ti-plus me-1"></i> Limit ekle</button>
+          </div>
+          <p class="text-secondary small mb-2">Bir değişkenin ya da formülün üst sınırı: maddi (<code>destek</code>, <code>bedel</code>), tohum miktarı (<code>yulaf_teslim</code>), alan (<code>toplam_da</code>)… Aşan başvurular listede işaretlenir; miktar kendiliğinden değişmez.</p>
+          <div class="table-responsive">
+            <table class="table table-sm table-vcenter satir-tablosu mb-2">
+              <thead><tr><th style="width:25%">Ad</th><th>Ölçüt (değişken ya da formül)</th><th class="w-1"></th><th style="width:14%">Üst değer</th><th style="width:9%">Birim</th><th class="w-1"></th></tr></thead>
+              <tbody data-satirlar="limitler"><% limitler.forEach(function (l, i) { %><%- limitSatiri(i, l) %><% }) %></tbody>
+            </table>
+            <div class="d-none text-secondary small py-2" data-satir-bos="limitler">Limit tanımlanmadı.</div>
+          </div>
+          <template id="limitler-sablon"><%- limitSatiri('__i__', {}) %></template>
+
+          <details class="mt-3">
+            <summary class="text-primary">Kullanılabilir değişkenler ve işlevler</summary>
+            <div class="mt-2 small">
+              <% gruplar.forEach(function (g) { %>
+                <div class="mb-2"><span class="text-secondary me-1"><%= g.ad %>:</span>
+                  <% g.liste.forEach(function (d) { %><button type="button" class="btn btn-sm btn-ghost-secondary px-1 py-0 font-monospace" data-degisken="<%= d.ad %>" title="<%= d.aciklama %><%= d.birim ? ' (' + d.birim + ')' : '' %>"><%= d.ad %></button> <% }) %>
+                </div>
+              <% }) %>
+              <div class="text-secondary">Kalem değişkenleri ürün ve çeşit adından üretilir (Mısır ADA → <code>misir_ada_talep</code>); yeni eklenen kalemlerin değişkenleri proje kaydedilince listelenir.
+                İşlemler: <code>+ - * / ^ ( )</code>, karşılaştırma <code>&lt; &lt;= &gt; &gt;= == !=</code> (doğru 1, yanlış 0), <code>ve</code> <code>veya</code> <code>değil</code>.
+                İşlevler: <code>min(a; b)</code> <code>max(a; b)</code> <code>yuvarla(x; 2)</code> <code>yukari(x)</code> <code>asagi(x)</code> <code>mutlak(x)</code> <code>karekok(x)</code> <code>eger(koşul; doğruysa; yanlışsa)</code>.
+                Örnek puan: <code>cks * 10 + min(buyukbas; 50) + eger(toplam_da &lt;= 50; 20; 0)</code></div>
+            </div>
+            <datalist id="dl-degiskenler"><% degiskenler.forEach(function (d) { %><option value="<%= d.ad %>"><%= d.aciklama %></option><% }) %><% formuller.forEach(function (f) { %><option value="<%= f.kod %>"><%= f.ad %></option><% }) %></datalist>
+          </details>
+        </div>
+      </div>
+
       <div class="d-flex justify-content-end gap-2 mb-4">
         <a href="<%= yeni ? '/projeler' : '/projeler/' + proje._id %>" class="btn btn-ghost-secondary">Vazgeç</a>
         <button type="submit" class="btn btn-primary">

@@ -8,18 +8,27 @@ const { normOku } = require('../ayarlar/katalog');
 const { talepDurumlari } = require('../../config/sabitler');
 const { sayiOku, diziyeCevir, anahtar, sonucBirimi, hayvanlariOku } = require('../../core/yardimcilar');
 const { calisilanIlceler, ilceKisitliMi, yetkiGerekli } = require('../../core/yetki');
+const akis = require('./akis');
+const { degerlendirmeHesabi } = require('../projeler/degerlendirme-hesabi');
 
 const router = express.Router();
 const V = 'talepler/views/';
 
-// Görüntüleme talep.gor; giriş/düzenleme talep.gir; durum talep.onayla; silme talep.sil
+// Görüntüleme talep.gor; giriş/düzenleme talep.gir; akış işlemleri kendi yetkisine bakar
+// (akis.js); silme yalnızca Sistem Yöneticisi (core/yetki.js).
 router.use((req, res, next) => {
   let gerek = 'talep.gor';
-  if (/\/durum$/.test(req.path)) gerek = 'talep.onayla';
-  else if (/\/sil$/.test(req.path)) gerek = 'talep.sil';
+  if (/\/(islem|degistir)$/.test(req.path)) gerek = ['talep.gir', 'talep.degerlendir'];
+  else if (/\/sil$/.test(req.path)) gerek = 'talep.gor';
   else if (req.method !== 'GET' || /\/(yeni|duzenle)$/.test(req.path)) gerek = 'talep.gir';
   return yetkiGerekli(gerek)(req, res, next);
 });
+
+// Akış işlemlerinin bağlamı
+const baglam = (req, res) => ({ izin: req.izin, ben: req.ben, ayar: res.locals.ayar, kisitli: ilceKisitliMi(req.ben, res.locals.ayar) });
+// Formdan gelen dönüş adresi yalnızca uygulama içiyse kullanılır
+const donusAdresi = (v, varsayilan) => (typeof v === 'string' && /^\/[a-z]/i.test(v) && !v.startsWith('//') ? v : varsayilan);
+const bildirimEkle = (adres, kod) => adres + (adres.includes('?') ? '&' : '?') + 'bildirim=' + kod;
 const sar = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
 const metin = (v) => (v === undefined || v === null ? '' : String(v).trim());
 const Proje = () => mongoose.model('Proje');
@@ -114,7 +123,7 @@ router.get('/', sar(async (req, res) => {
   const ben = req.ben;
   const ayar = res.locals.ayar;
   const projeler = await Proje().find().sort({ olusturulma: -1 }).select('ad kisaAd durum donem').lean();
-  if (!projeler.length) return res.render(V + 'liste', { baslik: 'Çiftçi talepleri', projeler, proje: null, satirlar: [], filtre: {}, kisitli: false, toplam: {} });
+  if (!projeler.length) return res.render(V + 'liste', { baslik: 'Çiftçi talepleri', projeler, proje: null, satirlar: [], filtre: {}, kisitli: false, toplam: {}, bekleyenler: {} });
 
   const projeId = mongoose.isValidObjectId(req.query.proje) ? req.query.proje
     : String((projeler.find((p) => p.durum === 'aktif') || projeler.find((p) => p.durum === 'taslak') || projeler[0])._id);
@@ -128,6 +137,12 @@ router.get('/', sar(async (req, res) => {
   else if (ilce && ilce !== 'benim') filtre.ilce = ilce;
   if (req.query.durum && talepDurumlari[req.query.durum]) filtre.durum = req.query.durum;
 
+  // Yürütücünün görüşünü bekleyen ve taslakta kalan başvurular (aynı ilçe süzgeciyle)
+  const { durum: _d, ...ilceFiltresi } = filtre; // eslint-disable-line no-unused-vars
+  const bekleyenler = {
+    yurutucude: await Talep.countDocuments({ ...ilceFiltresi, durum: 'yurutucude' }),
+    taslak: await Talep.countDocuments({ ...ilceFiltresi, durum: 'taslak' })
+  };
   let talepler = await Talep.find(filtre).populate('ciftciId').sort({ ilce: 1, olusturulma: 1 });
   talepler = talepler.filter((t) => t.ciftciId);
   if (req.query.q) {
@@ -136,7 +151,7 @@ router.get('/', sar(async (req, res) => {
   }
 
   const satirlar = talepler.map((t) => ({ talep: t, ciftci: t.ciftciId, hesap: talepHesabi(t, proje, ayar) }));
-  const sayilan = satirlar.filter((s) => s.talep.durum !== 'reddedildi');
+  const sayilan = satirlar.filter((s) => s.talep.durum !== 'desteklenmedi');
   const toplam = {
     ciftci: sayilan.length,
     alan: sayilan.reduce((a, s) => a + s.hesap.toplamAlan, 0),
@@ -158,7 +173,7 @@ router.get('/', sar(async (req, res) => {
   }));
 
   res.render(V + 'liste', {
-    baslik: 'Çiftçi talepleri', projeler, proje, satirlar, toplam, kisitli, filtre: { ...req.query, ilce, proje: String(proje._id) }
+    baslik: 'Çiftçi talepleri', projeler, proje, satirlar, toplam, kisitli, bekleyenler, filtre: { ...req.query, ilce, proje: String(proje._id) }
   });
 }));
 
@@ -186,6 +201,10 @@ router.get('/yeni', sar(async (req, res) => {
 async function kaydet(req, res, mevcutTalep) {
   const ayar = res.locals.ayar;
   const ben = req.ben;
+  // Gönderilmiş başvurunun formu kilitlidir; yalnızca Sistem Yöneticisi düzeltebilir (geçmişe yazılır).
+  if (mevcutTalep && mevcutTalep.durum !== 'taslak' && !req.silebilir) {
+    return res.redirect(`/talepler/${mevcutTalep._id}?bildirim=talep-kilitli`);
+  }
   const projeId = mevcutTalep ? mevcutTalep.projeId : req.body.projeId;
   const proje = mongoose.isValidObjectId(projeId) ? await Proje().findById(projeId) : null;
   if (!proje) return res.redirect('/talepler/yeni');
@@ -216,7 +235,7 @@ async function kaydet(req, res, mevcutTalep) {
     return formGoster(res, 422, {
       baslik: mevcutTalep ? 'Talebi düzenle' : 'Talep gir',
       proje,
-      talep: { _id: mevcutTalep ? mevcutTalep._id : undefined, talepKalemleri, satirlar, aciklama, hayvanlar },
+      talep: { _id: mevcutTalep ? mevcutTalep._id : undefined, durum: mevcutTalep ? mevcutTalep.durum : undefined, talepKalemleri, satirlar, aciklama, hayvanlar },
       ciftci: ciftciVeri,
       ilceler: izinliIlceler,
       hatalar,
@@ -244,14 +263,26 @@ async function kaydet(req, res, mevcutTalep) {
   };
   let talep = mevcutTalep;
   if (talep) {
+    const eski = akis.anlik(talep);
     talep.set(veri);
     talep.markModified('hayvanlar');
-    await talep.save();
+    if (talep.durum !== 'taslak') {
+      talep.gecmis.push({ ...akis.kisiBilgisi(ben, ayar), tur: 'duzenleme', durum: talep.durum, degisiklikler: akis.farklar(eski, akis.anlik(talep), proje, ayar) });
+    }
   } else {
-    talep = await Talep.create({ ...veri, kaydeden: ben ? ben._id : undefined, kaydedenAd: ben ? ben.adSoyad : undefined });
+    talep = new Talep({
+      ...veri, durum: 'taslak', kaydeden: ben ? ben._id : undefined, kaydedenAd: ben ? ben.adSoyad : undefined,
+      gecmis: [{ ...akis.kisiBilgisi(ben, ayar), tur: 'olusturma', durum: 'taslak' }]
+    });
   }
-  const sonra = req.body.sonra === 'yeni' ? `/talepler/yeni?proje=${proje._id}&bildirim=talep-kaydedildi` : `/talepler/${talep._id}?bildirim=talep-kaydedildi`;
-  return res.redirect(sonra);
+  let bildirim = 'talep-kaydedildi';
+  if (req.body.sonra === 'gonder' || req.body.sonra === 'yeni-gonder') {
+    const r = akis.uygula(talep, 'gonder', { ...baglam(req, res), not: req.body.gonderNotu });
+    bildirim = r.hata ? 'talep-gonderilemedi' : 'talep-gonderildi';
+  }
+  await talep.save();
+  const yeniden = req.body.sonra === 'yeni' || req.body.sonra === 'yeni-gonder';
+  return res.redirect(yeniden ? `/talepler/yeni?proje=${proje._id}&bildirim=${bildirim}` : `/talepler/${talep._id}?bildirim=${bildirim}`);
 }
 
 router.post('/', sar(async (req, res) => kaydet(req, res, null)));
@@ -274,10 +305,17 @@ router.get('/:id', sar(talepBul), sar(async (req, res) => {
     const k = proje.kalemler.find((x) => String(x._id) === String(id));
     return (k && k.talepBirimi) || 'da';
   };
-  res.render(V + 'detay', { baslik: ciftci.adSoyad, talep: req.talep, proje, ciftci, hesap, kalemAdi, kalemBirimi });
+  const deg = degerlendirmeHesabi(req.talep, ciftci, proje, res.locals.ayar, hesap);
+  const islemler = akis.kullanilabilirIslemler(req.talep, baglam(req, res));
+  const duzenlenebilir = req.izin('talep.gir') && (req.talep.durum === 'taslak' || req.silebilir);
+  res.render(V + 'detay', {
+    baslik: ciftci.adSoyad, talep: req.talep, proje, ciftci, hesap, kalemAdi, kalemBirimi, deg, islemler, duzenlenebilir,
+    degistirilebilir: req.izin('talep.degerlendir') && req.talep.durum === 'incelemede', donus: req.originalUrl.split('?')[0]
+  });
 }));
 
 router.get('/:id/duzenle', sar(talepBul), sar(async (req, res) => {
+  if (req.talep.durum !== 'taslak' && !req.silebilir) return res.redirect(`/talepler/${req.talep._id}?bildirim=talep-kilitli`);
   const [proje, ciftci] = await Promise.all([Proje().findById(req.talep.projeId), Ciftci.findById(req.talep.ciftciId)]);
   if (!proje || !ciftci) return res.redirect('/talepler');
   const ilceler = calisilanIlceler(req.ben, res.locals.ayar);
@@ -289,12 +327,28 @@ router.get('/:id/duzenle', sar(talepBul), sar(async (req, res) => {
 
 router.post('/:id', sar(talepBul), sar(async (req, res) => kaydet(req, res, req.talep)));
 
-router.post('/:id/durum', sar(talepBul), sar(async (req, res) => {
-  if (talepDurumlari[req.body.durum]) {
-    req.talep.durum = req.body.durum;
-    await req.talep.save();
-  }
-  return res.redirect(`/talepler/${req.talep._id}?bildirim=talep-durum`);
+// Akış işlemi: gönder, teslim al, yürütücüye gönder, karar, not ...
+router.post('/:id/islem', sar(talepBul), sar(async (req, res) => {
+  const donus = donusAdresi(req.body.donus, `/talepler/${req.talep._id}`);
+  const r = akis.uygula(req.talep, String(req.body.islem || ''), { ...baglam(req, res), not: req.body.not });
+  if (r.hata) return res.redirect(bildirimEkle(donus, 'islem-yapilamadi') + '&hata=' + encodeURIComponent(r.hata));
+  await req.talep.save();
+  return res.redirect(bildirimEkle(donus, 'islem-yapildi'));
+}));
+
+// Değerlendirmede değer değişikliği (eski değer geçmişte kalır)
+router.post('/:id/degistir', sar(talepBul), sar(async (req, res) => {
+  const donus = donusAdresi(req.body.donus, `/talepler/${req.talep._id}`);
+  const proje = await Proje().findById(req.talep.projeId);
+  const ayar = res.locals.ayar;
+  const r = akis.degistir(req.talep, proje, {
+    talepKalemleri: talepKalemleriniOku(req.body, proje),
+    hayvanlar: hayvanlariOku(req.body.hayvanlar, ayar.hayvanTurleri),
+    not: req.body.not
+  }, baglam(req, res));
+  if (r.hata) return res.redirect(bildirimEkle(donus, 'islem-yapilamadi') + '&hata=' + encodeURIComponent(r.hata));
+  await req.talep.save();
+  return res.redirect(bildirimEkle(donus, 'degisiklik-kaydedildi'));
 }));
 
 router.post('/:id/sil', sar(talepBul), sar(async (req, res) => {

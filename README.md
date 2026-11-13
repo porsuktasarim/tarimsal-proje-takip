@@ -42,9 +42,21 @@
 - **Çiftçi icmali:** çiftçinin tüm projelerdeki talepleri, alanları, miktarları, bedelleri ve katkıları.
 - Proje sayfasında kalem ve ilçe bazında talep özeti (talep / hedef); Genel Bakış'ta talep eden çiftçi, talep alanı, hedef bütçe ve çiftçi katkısı.
 
+### Başvuru değerlendirmesi
+
+- **Akış:** yürütücü başvuruyu girer (taslak) ve koordinatöre gönderir → koordinatör teslim alır → ön incelemede hayvan sayısı ve talep edilen miktarlar değiştirilebilir, not düşülür → gerekirse yürütücüye geri gönderilir; yürütücü yalnızca not düşüp yeniden gönderir (gerektiği kadar tekrarlanır) → kesin karar: **Desteklendi**, **Yedek** ya da **Desteklenmedi** → desteklenenler destek icmaline girer, dağıtımda **Teslim edildi** yapılır. Karar gerekçeyle geri alınabilir.
+- **Geçmiş:** her işlem, değer değişikliği (eski → yeni) ve not başvurunun geçmişinde kalır; notlar ve geçmiş değiştirilemez, silinemez. Başvurudaki ilk değerler ayrıca saklanır ve "başvuru: 60 da" olarak gösterilir.
+- Gönderilen başvurunun formu kilitlenir; form düzeltmesini yalnızca Sistem Yöneticisi yapar (geçmişe yazılır).
+- Gerekçe zorunlu: Desteklenmedi, yürütücüye geri gönderme, kararı geri alma ve talep edilen miktarı düşürme.
+- **Değerlendirme sayfası:** projenin tüm başvuruları tek listede; aşama, ilçe, mahalle (ya da il geneli), ad/T.C. ve "limit üstü" süzgeçleri; sütunlara göre sıralama; her başvuru açılır pencerede değerlendirilir (teslim alma, değer değiştirme, not, yürütücüye gönderme, karar); seçilen başvurularda toplu işlem.
+- **Formüller:** proje başlatılırken değerlendirmede hesaplanacak değerler tanımlanır (ör. `ot_ihtiyaci = buyukbas * 3650 + kucukbas * 550`, `ot_acigi = ot_ihtiyaci - kuru_ot_uretimi`). Her formül listede bir sütun olur; biri **puan** işaretlenirse başvurular puana göre sıralanır. Değişkenler: hayvan sayıları, `cks`, `toplam_da`, `bedel`, `ciftci_katkisi`, `destek`, beklenen üretimler (`kuru_ot_uretimi` …) ve kalem bazında `<kalem>_talep`, `_parsel`, `_dagitim`, `_teslim`, `_bedel`. İşlevler: `min`, `max`, `yuvarla`, `yukari`, `asagi`, `mutlak`, `karekok`, `eger(koşul; a; b)`.
+- **Üst limitler:** bir değişkenin ya da formülün üst sınırı (maddi: `destek ≤ 20.000 TL`, tohum miktarı: `yulaf_teslim ≤ 600 kg`, alan: `toplam_da ≤ 50`). Aşan başvurular listede işaretlenir; miktar kendiliğinden değişmez.
+- **Destek icmali:** kesin desteklenen başvurular ilçe bazında (kalem miktarları, dağıtım, bedel, çiftçi katkısı, destek; ilçe ve genel toplam), yedek liste puana göre; yazdırılabilir.
+- **Silme:** sistemin tamamında kayıt silme (proje, başvuru, çiftçi, görev, kişi, rol, ürün, çeşit, liste değerleri) yalnızca Sistem Yöneticisi tarafından yapılır.
+
 ### Kişiler, roller ve görevler
 
-- **Roller ve yetkiler:** roller Ayarlar > Roller ve yetkiler'den eklenir, adlandırılır, renklendirilir ve silinir (kişisi ya da görevi olan rol silinemez). Her role işaretlenerek yetki verilir: Genel Bakış, projeleri görme/yönetme, talep görme/girme/onaylama/silme, çiftçi görme/yönetme, tüm görevleri görme, görev verme, ayarlar (genel, katalog, kişi ve roller). "İlçe kısıtlı" roldeki kişiler yalnızca sorumlu oldukları ilçelerin çiftçisini ve talebini girer. Hazır roller: İş Planı, Proje Koordinatörü, Proje Yürütücüsü.
+- **Roller ve yetkiler:** roller Ayarlar > Roller ve yetkiler'den eklenir, adlandırılır, renklendirilir ve silinir (kişisi ya da görevi olan rol silinemez). Her role işaretlenerek yetki verilir: Genel Bakış, projeleri görme/yönetme, talep görme/girme, başvuru değerlendirme, çiftçi görme/yönetme, tüm görevleri görme, görev verme, ayarlar (genel, katalog, kişi ve roller). "İlçe kısıtlı" roldeki kişiler yalnızca sorumlu oldukları ilçelerin çiftçisini ve talebini girer. Hazır roller: İş Planı, Proje Koordinatörü, Proje Yürütücüsü.
 - **Sistem Yöneticisi:** tüm yetkilere sahip sabit roldür ve yalnızca bir kişiye verilebilir. Sistem Yöneticisi atanana kadar yetki denetimi uygulanmaz (ilk kurulum) ve üstte uyarı görünür.
 - **Kişiler:** ad soyad, unvan, rol, birim, sorumlu ilçeler, iletişim; pasif yapılabilir.
 - **Giriş:** şifre yoktur. İlk kişi tanımlandıktan sonra sisteme girişte "Kimsiniz?" ekranında kişi seçilir; seçim tarayıcıda hatırlanır, üst çubuktaki menüden değiştirilebilir.

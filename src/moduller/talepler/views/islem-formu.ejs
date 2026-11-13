@@ -1,0 +1,21 @@
+<%
+  // Başvuru akışı düğmeleri. Parametreler: talep, islemler, donus
+  var notluVar = islemler.some(function (i) { return i.notZorunlu || i.kod === 'not'; });
+%>
+<% if (!islemler.length) { %>
+  <div class="text-secondary small">Bu aşamada sizin yapabileceğiniz bir işlem yok.</div>
+<% } else { %>
+  <form method="post" action="/talepler/<%= talep._id %>/islem" class="islem-formu" data-islem-formu>
+    <input type="hidden" name="donus" value="<%= donus %>">
+    <% if (notluVar) { %>
+      <label class="form-label small mb-1">Not / gerekçe</label>
+      <textarea name="not" rows="2" class="form-control form-control-sm mb-2" placeholder="Silinemez; geçmişte görünür"></textarea>
+    <% } %>
+    <div class="d-flex flex-wrap gap-2">
+      <% islemler.forEach(function (i) { %>
+        <button type="submit" name="islem" value="<%= i.kod %>" class="btn btn-sm <%= i.kod === 'not' ? '' : 'btn-outline-' + i.renk %>"
+                <% if (i.notZorunlu) { %>data-not-zorunlu="<%= i.notEtiket %>"<% } %>><i class="ti <%= i.ikon %> me-1"></i><%= i.ad %></button>
+      <% }) %>
+    </div>
+  </form>
+<% } %>

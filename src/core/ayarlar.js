@@ -133,7 +133,7 @@ async function yenidenAdlandir(liste, eski, yeni) {
 // Formdan gelen [{ eski, ad }] satırlarını ayar listesine uygular:
 // boş/tekrarlı değerleri denetler, yeniden adlandırmaları yayar,
 // kullanılan değerlerin silinmesini engeller.
-async function listeyiUygula(liste, satirlar, mevcut) {
+async function listeyiUygula(liste, satirlar, mevcut, silebilir = true) {
   const hatalar = [];
   const temiz = satirlar
     .map((s) => ({ eski: (s.eski || '').trim(), ad: (s.ad || '').trim() }))
@@ -150,6 +150,7 @@ async function listeyiUygula(liste, satirlar, mevcut) {
   const kalanEskiler = new Set(temiz.map((s) => s.eski).filter(Boolean));
   const silinenler = mevcut.filter((d) => !kalanEskiler.has(d));
   for (const d of silinenler) {
+    if (!silebilir) { hatalar.push(`"${d}" kaldırılamaz: silme yalnızca Sistem Yöneticisi tarafından yapılır.`); continue; }
     const n = await kullanimSay(liste, d);
     if (n > 0) hatalar.push(`"${d}" ${n} kayıtta kullanıldığı için silinemez.`);
   }

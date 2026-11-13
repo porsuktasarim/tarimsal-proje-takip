@@ -75,7 +75,7 @@
               <% if (gorev.tamamlanma) { %><dt class="col-5">Tamamlanma</dt><dd class="col-7"><%= y.tarih(gorev.tamamlanma) %></dd><% } %>
             </dl>
           </div>
-          <div class="card-footer<%= izin('gorev.ver') ? '' : ' d-none' %>">
+          <div class="card-footer<%= silebilir ? '' : ' d-none' %>">
             <form method="post" action="/gorevler/<%= gorev._id %>/sil" data-onay="Bu görev ve geçmişi silinecek. Devam edilsin mi?">
               <button class="btn btn-ghost-danger btn-sm w-100"><i class="ti ti-trash me-1"></i> Görevi sil</button>
             </form>

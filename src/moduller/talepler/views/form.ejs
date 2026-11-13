@@ -147,9 +147,16 @@
             </div>
           </div>
           <div class="d-flex flex-column gap-2">
-            <button type="submit" class="btn btn-primary"><i class="ti ti-device-floppy me-1"></i> Kaydet</button>
-            <% if (yeni) { %>
-              <button type="submit" name="sonra" value="yeni" class="btn"><i class="ti ti-plus me-1"></i> Kaydet ve yeni talep gir</button>
+            <% if (yeni || !talep.durum || talep.durum === 'taslak') { %>
+              <button type="submit" name="sonra" value="gonder" class="btn btn-primary"><i class="ti ti-send me-1"></i> Kaydet ve koordinatöre gönder</button>
+              <button type="submit" class="btn"><i class="ti ti-device-floppy me-1"></i> Taslak olarak kaydet</button>
+              <% if (yeni) { %>
+                <button type="submit" name="sonra" value="yeni-gonder" class="btn btn-ghost-primary"><i class="ti ti-plus me-1"></i> Gönder ve yeni başvuru gir</button>
+              <% } %>
+              <small class="text-secondary">Gönderilen başvurunun formu kilitlenir; değerlendirmede değerler değiştirilir ve not düşülür.</small>
+            <% } else { %>
+              <div class="alert alert-warning small py-2 mb-0">Gönderilmiş başvuru Sistem Yöneticisi olarak düzeltiliyor; değişiklikler geçmişe yazılır.</div>
+              <button type="submit" class="btn btn-primary"><i class="ti ti-device-floppy me-1"></i> Kaydet</button>
             <% } %>
             <a href="<%= yeni ? '/talepler?proje=' + proje._id : '/talepler/' + talep._id %>" class="btn btn-ghost-secondary">Vazgeç</a>
           </div>

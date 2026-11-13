@@ -124,3 +124,19 @@
 .talep-ozet { position: sticky; top: 1rem; }
 
 .ekip-listesi { max-height: 18rem; overflow-y: auto; }
+
+/* Başvuru geçmişi ve değerlendirme */
+.gecmis-listesi .gecmis-kaydi { padding: .5rem 0; border-bottom: 1px dashed var(--tblr-border-color); }
+.gecmis-listesi .gecmis-kaydi:last-child { border-bottom: 0; }
+.gecmis-not { white-space: pre-line; background: var(--tblr-bg-surface-secondary); border-left: 3px solid var(--tblr-primary); padding: .35rem .5rem; border-radius: 4px; }
+.degerlendirme-tablosu tr.limit-ustu > td:first-child { box-shadow: inset 3px 0 0 var(--tblr-yellow); }
+th.siralanabilir { cursor: pointer; user-select: none; white-space: nowrap; }
+th.siralanabilir::after { content: '⇅'; opacity: .35; margin-left: .25rem; font-size: .8em; }
+th.siralanabilir[data-yon="artan"]::after { content: '↑'; opacity: .8; }
+th.siralanabilir[data-yon="azalan"]::after { content: '↓'; opacity: .8; }
+.toplu-islem { position: sticky; bottom: 0; background: var(--tblr-bg-surface); z-index: 2; }
+@media print {
+  .page-wrapper { margin: 0 !important; }
+  .icmal-tablosu { font-size: 10px; }
+  .card { border: 0; box-shadow: none; }
+}

@@ -103,7 +103,7 @@ Object.entries(listeler).forEach(([alan, tanim]) => {
   router.post('/' + tanim.yol, sar(async (req, res) => {
     const mevcut = res.locals.ayar[alan];
     const satirlar = diziyeCevir(req.body.satirlar);
-    const sonuc = await ayarlar.listeyiUygula(alan, satirlar, mevcut);
+    const sonuc = await ayarlar.listeyiUygula(alan, satirlar, mevcut, req.silebilir);
     if (sonuc.hatalar.length) {
       const kullanim = await ayarlar.kullanimlar(alan, mevcut);
       return res.status(422).render(V + 'liste', {
@@ -141,7 +141,7 @@ router.post('/donemler', sar(async (req, res) => {
     varsayilan: String(req.body.varsayilanSira) === String(i)
   }));
 
-  const sonuc = await ayarlar.listeyiUygula('donemler', satirlar, a.donemAdlari);
+  const sonuc = await ayarlar.listeyiUygula('donemler', satirlar, a.donemAdlari, req.silebilir);
   satirlar.forEach((s) => {
     if (s.baslangic && s.bitis && s.bitis < s.baslangic) sonuc.hatalar.push(`"${s.ad}" döneminin bitişi başlangıcından önce olamaz.`);
   });
@@ -206,7 +206,8 @@ router.post('/normlar', sar(async (req, res) => {
   const kullanim = {};
   for (const n of mevcut) kullanim[n.kod] = await normKullanimi(n.kod);
   silinenler.forEach((n) => {
-    if (kullanim[n.kod] > 0) hatalar.push(`"${n.ad}" ${kullanim[n.kod]} projede kullanıldığı için silinemez.`);
+    if (!req.silebilir) hatalar.push(`"${n.ad}" kaldırılamaz: silme yalnızca Sistem Yöneticisi tarafından yapılır.`);
+    else if (kullanim[n.kod] > 0) hatalar.push(`"${n.ad}" ${kullanim[n.kod]} projede kullanıldığı için silinemez.`);
   });
 
   if (hatalar.length) {
@@ -360,6 +361,13 @@ router.get('/urunler/:id/duzenle', sar(urunBul), sar(async (req, res) => {
 router.post('/urunler/:id', sar(urunBul), sar(async (req, res) => {
   const veri = urunFormuOku(req.body, res.locals.ayar);
   const hatalar = await urunDenetle(veri, res.locals.ayar, req.urun._id);
+  if (!req.silebilir) {
+    const kalanlar = new Set(veri.cesitler.map((c) => c.eski).filter(Boolean));
+    (req.urun.cesitler || []).forEach((c) => {
+      const ad = typeof c === 'string' ? c : c.ad;
+      if (ad && !kalanlar.has(ad)) hatalar.push(`"${ad}" çeşidi kaldırılamaz: silme yalnızca Sistem Yöneticisi tarafından yapılır.`);
+    });
+  }
   if (hatalar.length) {
     veri._id = req.urun._id;
     return urunFormu(res, 422, {
@@ -436,7 +444,8 @@ router.post('/hayvan-turleri', sar(async (req, res) => {
   const kullanim = {};
   for (const h of mevcut) kullanim[h.kod] = await hayvanKullanimi(h.kod);
   mevcut.filter((h) => !satirlar.some((s) => s.kod === h.kod)).forEach((h) => {
-    if (kullanim[h.kod] > 0) hatalar.push(`"${h.ad}" ${kullanim[h.kod]} talepte girildiği için silinemez.`);
+    if (!req.silebilir) hatalar.push(`"${h.ad}" kaldırılamaz: silme yalnızca Sistem Yöneticisi tarafından yapılır.`);
+    else if (kullanim[h.kod] > 0) hatalar.push(`"${h.ad}" ${kullanim[h.kod]} talepte girildiği için silinemez.`);
   });
   if (hatalar.length) {
     return res.status(422).render(V + 'hayvan-turleri', { baslik: 'Hayvan türleri', satirlar, kullanim, hatalar });
@@ -495,6 +504,7 @@ router.post('/roller', sar(async (req, res) => {
   if (new Set(adlar).size !== adlar.length) hatalar.push('Aynı adla birden fazla rol tanımlanamaz.');
 
   for (const r of mevcut.filter((m) => m.kod !== 'admin' && !digerleri.some((d) => d.kod === m.kod))) {
+    if (!req.silebilir) { hatalar.push(`"${r.ad}" rolü kaldırılamaz: silme yalnızca Sistem Yöneticisi tarafından yapılır.`); continue; }
     const k = await rolKullanimi(r.kod);
     if (k.kisi) hatalar.push(`"${r.ad}" rolünde ${k.kisi} kişi olduğu için silinemez; önce kişilerin rolü değiştirilmelidir.`);
     if (k.gorev) hatalar.push(`"${r.ad}" rolüne verilmiş ${k.gorev} görev olduğu için silinemez.`);

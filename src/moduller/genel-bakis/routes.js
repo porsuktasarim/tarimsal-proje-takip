@@ -25,7 +25,7 @@ router.get('/', sar(async (req, res) => {
   const projeler = await Proje.find(donem ? { donem } : {}).sort({ olusturulma: -1 });
   const projeIdleri = projeler.map((p) => p._id);
   const gorevler = await Gorev.find({ projeId: { $in: projeIdleri } }).select('projeId durum sonTarih').lean();
-  const tumTalepler = await mongoose.model('Talep').find({ projeId: { $in: projeIdleri }, durum: { $ne: 'reddedildi' } }).lean();
+  const tumTalepler = await mongoose.model('Talep').find({ projeId: { $in: projeIdleri }, durum: { $ne: 'desteklenmedi' } }).lean();
 
   const bugun = new Date();
   bugun.setHours(0, 0, 0, 0);

@@ -1,0 +1,39 @@
+<%
+  // Değerlendirmede değer değişikliği. Parametreler: talep, proje, donus
+  var gecerli = {};
+  (talep.talepKalemleri || []).forEach(function (t) { gecerli[String(t.kalemId)] = t.miktar; });
+  var ilk = {};
+  ((talep.basvuru && talep.basvuru.talepKalemleri) || []).forEach(function (t) { ilk[String(t.kalemId)] = t.miktar; });
+  var hv = talep.hayvanlar || {};
+  var ilkHv = (talep.basvuru && talep.basvuru.hayvanlar) || {};
+%>
+<form method="post" action="/talepler/<%= talep._id %>/degistir" data-degistir-formu>
+  <input type="hidden" name="donus" value="<%= donus %>">
+  <div class="row g-2">
+    <% proje.kalemler.forEach(function (k) { var id = String(k._id); %>
+      <div class="col-12 col-sm-6">
+        <label class="form-label small mb-1 text-truncate d-block" title="<%= k.urun %><%= k.cesit ? ' · ' + k.cesit : '' %>"><%= k.urun %><%= k.cesit ? ' · ' + k.cesit : '' %></label>
+        <div class="input-group input-group-sm">
+          <input type="number" step="any" min="0" name="talepKalemleri[<%= id %>]" value="<%= gecerli[id] != null ? gecerli[id] : '' %>" class="form-control text-end" data-onceki="<%= gecerli[id] != null ? gecerli[id] : 0 %>">
+          <span class="input-group-text"><%= k.talepBirimi || 'da' %></span>
+        </div>
+        <% if (ilk[id] != null && ilk[id] !== gecerli[id]) { %><div class="small text-secondary">Başvuru: <%= y.sayi(ilk[id]) %> <%= k.talepBirimi || 'da' %></div><% } %>
+      </div>
+    <% }) %>
+    <% ayar.hayvanTurleri.forEach(function (h) { %>
+      <div class="col-6 col-sm-3">
+        <label class="form-label small mb-1"><%= h.ad %></label>
+        <div class="input-group input-group-sm">
+          <input type="number" step="1" min="0" name="hayvanlar[<%= h.kod %>]" value="<%= hv[h.kod] != null ? hv[h.kod] : '' %>" class="form-control text-end">
+          <span class="input-group-text px-1"><%= h.birim %></span>
+        </div>
+        <% if (ilkHv[h.kod] != null && ilkHv[h.kod] !== hv[h.kod]) { %><div class="small text-secondary">Başvuru: <%= y.sayi(ilkHv[h.kod]) %></div><% } %>
+      </div>
+    <% }) %>
+    <div class="col-12">
+      <label class="form-label small mb-1">Not / gerekçe <span class="text-secondary fw-normal">(miktar düşürülürken zorunlu)</span></label>
+      <textarea name="not" rows="2" class="form-control form-control-sm" placeholder="Silinemez; geçmişte görünür"></textarea>
+    </div>
+    <div class="col-12"><button type="submit" class="btn btn-sm btn-primary"><i class="ti ti-device-floppy me-1"></i> Değişikliği kaydet</button></div>
+  </div>
+</form>
