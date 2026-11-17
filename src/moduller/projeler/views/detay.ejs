@@ -20,6 +20,35 @@
       </div>
     <% } %>
 
+    <% var pm = proje.belgeler && proje.belgeler.length ? proje.belgeler[proje.belgeler.length - 1] : null; %>
+    <div class="card mb-3<%= pm ? '' : ' border-warning' %>" id="proje-metni">
+      <div class="card-body">
+        <div class="row g-2 align-items-center">
+          <div class="col-auto"><span class="avatar bg-<%= pm ? 'blue' : 'yellow' %>-lt"><i class="ti <%= pm ? (pm.tur === 'pdf' ? 'ti-file-type-pdf' : 'ti-file-type-docx') : 'ti-file-alert' %>"></i></span></div>
+          <div class="col">
+            <% if (pm) { %>
+              <div class="fw-medium">Proje metni: <a href="/projeler/<%= proje._id %>/metin"><%= pm.ad %></a></div>
+              <div class="small text-secondary"><%= pm.tur === 'pdf' ? 'PDF' : 'Word' %> · <%= y.sayi(pm.boyut / 1024 / 1024, 1) %> MB · <%= pm.yukleyenAd || '–' %> · <%= y.tarih(pm.tarih) %><%= proje.belgeler.length > 1 ? ' · ' + proje.belgeler.length + ' sürüm' : '' %></div>
+            <% } else { %>
+              <div class="fw-medium<%= metinGerekli ? ' text-danger' : '' %>">Proje metni yüklenmedi</div>
+              <div class="small text-secondary">Başvuruların değerlendirilebilmesi için proje metninin (PDF ya da Word) yüklenmesi gerekir.<%= metinYukleyebilir ? '' : ' Yükleme projenin koordinatörü ya da Sistem Yöneticisi tarafından yapılır.' %></div>
+            <% } %>
+          </div>
+          <% if (pm) { %>
+            <div class="col-auto"><a href="/projeler/<%= proje._id %>/metin" class="btn btn-primary btn-sm"><i class="ti ti-book me-1"></i> Oku</a></div>
+          <% } %>
+          <% if (metinYukleyebilir) { %>
+            <div class="col-12 col-md-auto">
+              <form method="post" action="/projeler/<%= proje._id %>/metin" enctype="multipart/form-data" class="d-flex gap-1">
+                <input type="file" name="projeMetni" class="form-control form-control-sm" accept=".pdf,.docx" required>
+                <button class="btn btn-sm text-nowrap"><i class="ti ti-upload me-1"></i><%= pm ? 'Yeni sürüm' : 'Yükle' %></button>
+              </form>
+            </div>
+          <% } %>
+        </div>
+      </div>
+    </div>
+
     <div class="row row-cards mb-3">
       <div class="col-sm-6 col-lg-3">
         <div class="card card-sm"><div class="card-body">

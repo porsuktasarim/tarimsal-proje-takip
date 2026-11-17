@@ -5,6 +5,10 @@ const { talepHesabi, projeHesabi } = require('../projeler/hesap');
 const { degerlendirmeHesabi, formulleri, limitleri } = require('../projeler/degerlendirme-hesabi');
 const akis = require('../talepler/akis');
 const bbhbIsletmeler = require('../bbhb/isletmeler');
+const { metinVarMi } = require('../projeler/proje-metni');
+
+// Proje metni yüklenmeden değerlendirme yapılamaz: proje sayfasına yönlendirilir
+const metinSayfasi = (proje) => `/projeler/${proje._id}?bildirim=proje-metni-gerekli&metin=gerekli#proje-metni`;
 const { anahtar, diziyeCevir } = require('../../core/yardimcilar');
 const { yetkiGerekli, ilceKisitliMi } = require('../../core/yetki');
 
@@ -49,6 +53,7 @@ router.get('/', sar(async (req, res) => {
   const ayar = res.locals.ayar;
   const { projeler, proje } = await projeSec(req);
   if (!proje) return res.render(V + 'liste', { baslik: 'Değerlendirme', projeler, proje: null });
+  if (!metinVarMi(proje)) return res.redirect(metinSayfasi(proje));
 
   const grup = ASAMA_GRUPLARI[req.query.asama] ? req.query.asama : (talepDurumlari[req.query.asama] ? null : 'bekleyen');
   const durumlar = grup ? ASAMA_GRUPLARI[grup].durumlar : [req.query.asama];
@@ -114,6 +119,7 @@ router.get('/:id/panel', sar(async (req, res) => {
   const talep = await Talep().findById(req.params.id).populate('ciftciId');
   if (!talep || !talep.ciftciId) return res.status(404).send('Başvuru bulunamadı.');
   const proje = await Proje().findById(talep.projeId);
+  if (!metinVarMi(proje)) return res.send(`<div class="alert alert-warning">Değerlendirme için önce <a href="${metinSayfasi(proje)}">proje metni</a> yüklenmelidir.</div>`);
   const ayar = res.locals.ayar;
   const hesap = talepHesabi(talep, proje, ayar);
   const bbhb = bbhbIsletmeler.ciftciBbhb(talep.ciftciId, await bbhbIsletmeler.isletmeHaritasi());
@@ -131,6 +137,9 @@ router.post('/toplu', sar(async (req, res) => {
   const islem = String(req.body.islem || '');
   const ek = donus.includes('?') ? '&' : '?';
   if (!ids.length || !akis.ISLEMLER[islem]) return res.redirect(`${donus}${ek}bildirim=islem-yapilamadi&hata=${encodeURIComponent('Başvuru ve işlem seçilmelidir.')}`);
+  const ilkTalep = await Talep().findById(ids[0]).select('projeId').lean();
+  const tProje = ilkTalep ? await Proje().findById(ilkTalep.projeId).select('belgeler').lean() : null;
+  if (tProje && !metinVarMi(tProje)) return res.redirect(metinSayfasi(tProje));
   const baglam = { izin: req.izin, ben: req.ben, ayar, kisitli: ilceKisitliMi(req.ben, ayar), not: req.body.not };
   let tamam = 0;
   const hatalar = new Set();

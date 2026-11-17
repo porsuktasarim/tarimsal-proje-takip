@@ -1,0 +1,31 @@
+<%- include('../../../views/partials/ust') %>
+<%- include('../../../views/partials/sayfa-basligi', {
+      ustBaslik: proje.kisaAd || proje.ad,
+      eylemler: '<a href="/projeler/' + proje._id + '/belge/' + belge.dosyaId + '?indir=1" class="btn"><i class="ti ti-download me-1"></i> İndir</a> <a href="/projeler/' + proje._id + '" class="btn btn-ghost-secondary">Projeye dön</a>'
+    }) %>
+<div class="page-body">
+  <div class="container-xl">
+    <div class="d-flex flex-wrap align-items-center gap-2 mb-2 small text-secondary">
+      <span><i class="ti <%= belge.tur === 'pdf' ? 'ti-file-type-pdf' : 'ti-file-type-docx' %> me-1"></i><strong class="text-body"><%= belge.ad %></strong></span>
+      <span>· <%= belge.yukleyenAd || '–' %> · <%= y.tarih(belge.tarih) %></span>
+      <% if (belgeler.length > 1) { %>
+        <form method="get" class="ms-auto d-flex align-items-center gap-1">
+          <label class="mb-0">Sürüm</label>
+          <select name="surum" class="form-select form-select-sm" onchange="this.form.submit()">
+            <% belgeler.slice().reverse().forEach(function (b, i) { %>
+              <option value="<%= b.dosyaId %>" <%= String(b.dosyaId) === String(belge.dosyaId) ? 'selected' : '' %>><%= belgeler.length - i %>. <%= b.ad %> (<%= y.tarih(b.tarih) %>)<%= i === 0 ? ' — geçerli' : '' %></option>
+            <% }) %>
+          </select>
+        </form>
+      <% } %>
+    </div>
+    <% if (belge.tur === 'pdf') { %>
+      <iframe src="/projeler/<%= proje._id %>/belge/<%= belge.dosyaId %>#view=FitH" class="proje-metni-pdf" title="<%= belge.ad %>"></iframe>
+    <% } else if (html) { %>
+      <div class="card"><div class="card-body proje-metni-word"><%- html %></div></div>
+    <% } else { %>
+      <div class="alert alert-warning"><%= donusumHatasi %></div>
+    <% } %>
+  </div>
+</div>
+<%- include('../../../views/partials/alt') %>

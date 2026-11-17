@@ -42,6 +42,14 @@
 - **Çiftçi icmali:** çiftçinin tüm projelerdeki talepleri, alanları, miktarları, bedelleri ve katkıları.
 - Proje sayfasında kalem ve ilçe bazında talep özeti (talep / hedef); Genel Bakış'ta talep eden çiftçi, talep alanı, hedef bütçe ve çiftçi katkısı.
 
+### Proje metni
+
+- Proje başlatılırken ya da sonradan proje sayfasından projenin metni (PDF ya da Word .docx) yüklenir; en fazla 30 MB. Eski .doc biçimi tarayıcıda gösterilemediği için kabul edilmez.
+- Metin indirilmeden tarayıcıda okunur: PDF sayfaya gömülü açılır, Word belgesi (başlıklar, tablolar, görseller) sayfaya çevrilerek gösterilir. İstenirse indirilebilir.
+- Her yükleme yeni sürümdür; eski sürümler saklanır ve okunabilir. Dosyalar veritabanında (GridFS) tutulur, ayrı klasör ya da birim gerekmez.
+- Yalnızca projenin koordinatörü ve Sistem Yöneticisi yükler; projede koordinatör atanmamışsa "Proje Koordinatörü" rolündekiler yükleyebilir.
+- **Değerlendirme proje metni yüklenmeden yapılamaz:** değerlendirme sayfası ve teslim alma, değer değiştirme, karar gibi işlemler proje sayfasına yönlendirir. Yürütücünün başvuru girmesi ve göndermesi etkilenmez.
+
 ### Başvuru değerlendirmesi
 
 - **Akış:** yürütücü başvuruyu girer (taslak) ve koordinatöre gönderir → koordinatör teslim alır → ön incelemede hayvan sayısı ve talep edilen miktarlar değiştirilebilir, not düşülür → gerekirse yürütücüye geri gönderilir; yürütücü yalnızca not düşüp yeniden gönderir (gerektiği kadar tekrarlanır) → kesin karar: **Desteklendi**, **Yedek** ya da **Desteklenmedi** → desteklenenler destek icmaline girer, dağıtımda **Teslim edildi** yapılır. Karar gerekçeyle geri alınabilir.
@@ -195,6 +203,7 @@ public/                     Uygulamaya özel CSS, JS, simge
 
 | Koleksiyon | İçerik |
 |---|---|
+| `dosyalar.files`, `dosyalar.chunks` | Yüklenen dosyalar (GridFS): proje metinleri |
 | `bbhb_sonuclari` | Değişmez BBHB hesaplamaları: kaynak (manuel/Türkvet), yaş referans tarihi, bölüm (il/ilçe/mahalle), işletmeci sonuçları (işletme no, ad, T.C., kategori detayları, toplam) |
 | `ayarlar` | Tek belge (`_id: genel`): kurum, il, birimler, dönemler, ilçeler, kalem türleri, ölçü birimleri, norm tanımları |
 | `urunler` | Ürün kataloğu: tür, ad, dağıtım birimi, ambalaj, normlar `{ kod: { deger, birim } }`, çeşitler (kendi normları ve ambalajıyla) |

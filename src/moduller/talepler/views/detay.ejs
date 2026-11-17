@@ -127,6 +127,7 @@
           <div class="card-body">
             <div class="text-secondary small mb-2"><%= d.uzun %><% if (talep.karar && talep.karar.sonuc) { %> · <%= talep.karar.kisiAd || '' %> <%= y.tarih(talep.karar.tarih) %><% } %></div>
             <% if (talep.karar && talep.karar.gerekce) { %><div class="gecmis-not small mb-3"><%= talep.karar.gerekce %></div><% } %>
+            <% if (metinEksik) { %><div class="alert alert-warning py-2 small">Değerlendirme işlemleri için önce <a href="/projeler/<%= proje._id %>#proje-metni">proje metni</a> yüklenmelidir.</div><% } %>
             <%- include('islem-formu', { talep: talep, islemler: islemler, donus: donus }) %>
             <div class="text-secondary small mt-3">Giren: <%= talep.kaydedenAd || '–' %> · <%= y.tarih(talep.olusturulma) %></div>
           </div>

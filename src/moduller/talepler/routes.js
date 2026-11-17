@@ -11,6 +11,10 @@ const { calisilanIlceler, ilceKisitliMi, yetkiGerekli } = require('../../core/ye
 const akis = require('./akis');
 const { degerlendirmeHesabi } = require('../projeler/degerlendirme-hesabi');
 const bbhbIsletmeler = require('../bbhb/isletmeler');
+const { metinVarMi } = require('../projeler/proje-metni');
+// Değerlendirme işlemleri (teslim alma, değer değiştirme, karar) proje metni ister
+const degerlendirmeIslemiMi = (kod) => akis.ISLEMLER[kod] && akis.ISLEMLER[kod].yetki === 'talep.degerlendir';
+const metinGerekliAdres = (projeId) => `/projeler/${projeId}?bildirim=proje-metni-gerekli&metin=gerekli#proje-metni`;
 
 const router = express.Router();
 const V = 'talepler/views/';
@@ -311,11 +315,13 @@ router.get('/:id', sar(talepBul), sar(async (req, res) => {
   const bbhbHarita = await bbhbIsletmeler.isletmeHaritasi();
   const bbhbOzeti = bbhbIsletmeler.ciftciBbhb(ciftci, bbhbHarita);
   const deg = degerlendirmeHesabi(req.talep, ciftci, proje, res.locals.ayar, hesap, bbhbOzeti);
-  const islemler = akis.kullanilabilirIslemler(req.talep, baglam(req, res));
+  const metinVar = metinVarMi(proje);
+  const islemler = akis.kullanilabilirIslemler(req.talep, baglam(req, res)).filter((i) => metinVar || !degerlendirmeIslemiMi(i.kod));
   const duzenlenebilir = req.izin('talep.gir') && (req.talep.durum === 'taslak' || req.silebilir);
   res.render(V + 'detay', {
     baslik: ciftci.adSoyad, talep: req.talep, proje, ciftci, hesap, kalemAdi, kalemBirimi, deg, islemler, duzenlenebilir,
-    degistirilebilir: req.izin('talep.degerlendir') && req.talep.durum === 'incelemede', donus: req.originalUrl.split('?')[0]
+    degistirilebilir: metinVar && req.izin('talep.degerlendir') && req.talep.durum === 'incelemede', donus: req.originalUrl.split('?')[0],
+    metinEksik: !metinVar && req.izin('talep.degerlendir')
   });
 }));
 
@@ -335,6 +341,10 @@ router.post('/:id', sar(talepBul), sar(async (req, res) => kaydet(req, res, req.
 // Akış işlemi: gönder, teslim al, yürütücüye gönder, karar, not ...
 router.post('/:id/islem', sar(talepBul), sar(async (req, res) => {
   const donus = donusAdresi(req.body.donus, `/talepler/${req.talep._id}`);
+  if (degerlendirmeIslemiMi(String(req.body.islem || ''))) {
+    const p = await Proje().findById(req.talep.projeId).select('belgeler').lean();
+    if (!metinVarMi(p)) return res.redirect(metinGerekliAdres(req.talep.projeId));
+  }
   const r = akis.uygula(req.talep, String(req.body.islem || ''), { ...baglam(req, res), not: req.body.not });
   if (r.hata) return res.redirect(bildirimEkle(donus, 'islem-yapilamadi') + '&hata=' + encodeURIComponent(r.hata));
   await req.talep.save();
@@ -345,6 +355,7 @@ router.post('/:id/islem', sar(talepBul), sar(async (req, res) => {
 router.post('/:id/degistir', sar(talepBul), sar(async (req, res) => {
   const donus = donusAdresi(req.body.donus, `/talepler/${req.talep._id}`);
   const proje = await Proje().findById(req.talep.projeId);
+  if (!metinVarMi(proje)) return res.redirect(metinGerekliAdres(req.talep.projeId));
   const ayar = res.locals.ayar;
   const r = akis.degistir(req.talep, proje, {
     talepKalemleri: talepKalemleriniOku(req.body, proje),

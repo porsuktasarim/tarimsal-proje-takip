@@ -30,7 +30,7 @@
   <div class="container-xl">
     <%- include('../../../views/partials/hatalar') %>
 
-    <form method="post" action="<%= eylem %>" autocomplete="off" id="proje-formu">
+    <form method="post" action="<%= eylem %>" autocomplete="off" id="proje-formu" enctype="multipart/form-data">
       <!-- 1. Genel bilgiler -->
       <div class="card mb-3">
         <div class="card-header">
@@ -78,6 +78,19 @@
             <div class="col-12">
               <label class="form-label">Açıklama</label>
               <textarea name="aciklama" rows="3" class="form-control" placeholder="Projenin amacı, dayanağı, kaynağı vb."><%= proje.aciklama || '' %></textarea>
+            </div>
+            <div class="col-12">
+              <% var mevcutMetin = proje.belgeler && proje.belgeler.length ? proje.belgeler[proje.belgeler.length - 1] : null; %>
+              <label class="form-label">Proje metni <span class="text-secondary fw-normal">(PDF ya da Word .docx; değerlendirme için zorunlu)</span></label>
+              <% if (mevcutMetin) { %>
+                <div class="small mb-1"><i class="ti ti-file-text me-1"></i>Yüklü: <a href="/projeler/<%= proje._id %>/metin" target="_blank"><%= mevcutMetin.ad %></a> · <%= mevcutMetin.yukleyenAd || '' %> <%= y.tarih(mevcutMetin.tarih) %></div>
+              <% } %>
+              <% if (metinYukleyebilir) { %>
+                <input type="file" name="projeMetni" class="form-control" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
+                <small class="form-hint"><%= mevcutMetin ? 'Yeni dosya seçilirse yeni sürüm olarak eklenir; eski sürümler saklanır.' : 'En fazla 30 MB. Form hatalı dönerse dosya yeniden seçilmelidir.' %></small>
+              <% } else { %>
+                <div class="form-hint"><i class="ti ti-lock me-1"></i>Proje metnini yalnızca projenin koordinatörü ve Sistem Yöneticisi yükleyebilir.</div>
+              <% } %>
             </div>
             <div class="col-12"><div class="hr-text my-2">Finansman ve başvuru</div></div>
             <% var fin = proje.finansman || {}; var bas = proje.basvuru || {}; %>

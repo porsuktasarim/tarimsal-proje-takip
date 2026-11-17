@@ -6,6 +6,8 @@ const Kisi = require('../ayarlar/modeller/Kisi');
 const katalog = require('../ayarlar/katalog');
 const { projeHesabi, taleplerOzeti } = require('./hesap');
 const degerlendirmeHesabi = require('./degerlendirme-hesabi');
+const projeMetni = require('./proje-metni');
+const dosyalar = require('../../core/dosyalar');
 const { yetkiGerekli } = require('../../core/yetki');
 const { projeDurumlari } = require('../../config/sabitler');
 const { sayiOku, diziyeCevir, tarihOku, anahtar, kodUret } = require('../../core/yardimcilar');
@@ -14,8 +16,9 @@ const router = express.Router();
 const V = 'projeler/views/';
 
 // Görüntüleme proje.gor, başlatma/düzenleme/durum/silme proje.yonet ister.
+// Proje metni yükleme ayrıca koordinatör/yönetici denetiminden geçer (proje-metni.js).
 router.use((req, res, next) => {
-  const goruntuleme = req.method === 'GET' && !/\/(yeni|duzenle)$/.test(req.path);
+  const goruntuleme = (req.method === 'GET' && !/\/(yeni|duzenle)$/.test(req.path)) || /\/metin$/.test(req.path);
   return yetkiGerekli(goruntuleme ? 'proje.gor' : 'proje.yonet')(req, res, next);
 });
 const sar = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
@@ -192,7 +195,10 @@ async function katalogGetir() {
 async function formuGoster(res, durum, sablon) {
   const kisiler = await Kisi.find().sort({ adSoyad: 1 }).lean();
   const degiskenler = degerlendirmeHesabi.degiskenTanimlari({ kalemler: (sablon.proje && sablon.proje.kalemler) || [] }, res.locals.ayar);
-  return res.status(durum).render(V + 'form', { ...sablon, katalog: await katalogGetir(), kisiler, degiskenler });
+  // Yeni projede yönetici ve koordinatör rolü, mevcut projede projenin koordinatörü yükleyebilir
+  const mevcutProje = sablon.mevcut || (sablon.proje && sablon.proje._id ? sablon.proje : null);
+  const metinYukleyebilir = projeMetni.yukleyebilirMi(res.locals.ben, mevcutProje, res.locals.adminVar);
+  return res.status(durum).render(V + 'form', { ...sablon, katalog: await katalogGetir(), kisiler, degiskenler, metinYukleyebilir });
 }
 
 async function projeBul(req, res, next) {
@@ -235,15 +241,22 @@ router.get('/yeni', sar(async (req, res) => {
   });
 }));
 
-router.post('/', sar(async (req, res) => {
+router.post('/', projeMetni.formYukleyici, sar(async (req, res) => {
   const ayar = res.locals.ayar;
   const { veri, hatalar } = formuOku(req.body, ayar);
+  if (req.dosyaHatasi) hatalar.push(req.dosyaHatasi);
   if (hatalar.length) {
     return formuGoster(res, 422, { baslik: 'Proje Başlat', proje: veri, hatalar, eylem: '/projeler' });
   }
   const eklenen = await katalogaIsle(veri.kalemler, ayar);
   const proje = await Proje.create(veri);
-  return res.redirect(`/projeler/${proje._id}?bildirim=olusturuldu${eklenen ? '&katalog=' + eklenen : ''}`);
+  let metinHatasi = null;
+  if (req.file && projeMetni.yukleyebilirMi(req.ben, proje, res.locals.adminVar)) {
+    metinHatasi = await projeMetni.ekle(proje, req.file, req.ben);
+    if (!metinHatasi) await proje.save();
+  }
+  const ek = metinHatasi ? '&hata=' + encodeURIComponent('Proje kaydedildi; proje metni yüklenemedi: ' + metinHatasi) : '';
+  return res.redirect(`/projeler/${proje._id}?bildirim=olusturuldu${eklenen ? '&katalog=' + eklenen : ''}${ek}`);
 }));
 
 router.get('/:id', sar(projeBul), sar(async (req, res) => {
@@ -270,7 +283,9 @@ router.get('/:id', sar(projeBul), sar(async (req, res) => {
     gorevler,
     talepOzeti,
     asamaSayilari,
-    katalogEklenen: parseInt(req.query.katalog, 10) || 0
+    katalogEklenen: parseInt(req.query.katalog, 10) || 0,
+    metinYukleyebilir: projeMetni.yukleyebilirMi(req.ben, req.proje, res.locals.adminVar),
+    metinGerekli: req.query.metin === 'gerekli'
   });
 }));
 
@@ -278,9 +293,10 @@ router.get('/:id/duzenle', sar(projeBul), sar(async (req, res) => formuGoster(re
   baslik: 'Projeyi Düzenle', proje: duzOlarak(req.proje), hatalar: [], eylem: `/projeler/${req.proje._id}`
 })));
 
-router.post('/:id', sar(projeBul), sar(async (req, res) => {
+router.post('/:id', projeMetni.formYukleyici, sar(projeBul), sar(async (req, res) => {
   const ayar = res.locals.ayar;
   const { veri, hatalar } = formuOku(req.body, ayar, req.proje);
+  if (req.dosyaHatasi) hatalar.push(req.dosyaHatasi);
   if (hatalar.length) {
     veri._id = req.proje._id;
     return formuGoster(res, 422, {
@@ -289,8 +305,64 @@ router.post('/:id', sar(projeBul), sar(async (req, res) => {
   }
   const eklenen = await katalogaIsle(veri.kalemler, ayar);
   req.proje.set(veri);
+  let metinHatasi = null;
+  if (req.file && projeMetni.yukleyebilirMi(req.ben, req.proje, res.locals.adminVar)) {
+    metinHatasi = await projeMetni.ekle(req.proje, req.file, req.ben);
+  }
   await req.proje.save();
-  return res.redirect(`/projeler/${req.proje._id}?bildirim=guncellendi${eklenen ? '&katalog=' + eklenen : ''}`);
+  const ek = metinHatasi ? '&hata=' + encodeURIComponent('Proje kaydedildi; proje metni yüklenemedi: ' + metinHatasi) : '';
+  return res.redirect(`/projeler/${req.proje._id}?bildirim=guncellendi${eklenen ? '&katalog=' + eklenen : ''}${ek}`);
+}));
+
+// Proje metni: yeni sürüm yükle (yalnız koordinatör / yönetici)
+router.post('/:id/metin', projeMetni.yukleyici.single('projeMetni'), sar(projeBul), sar(async (req, res) => {
+  const donus = `/projeler/${req.proje._id}`;
+  if (!projeMetni.yukleyebilirMi(req.ben, req.proje, res.locals.adminVar)) {
+    return res.redirect(`${donus}?bildirim=islem-yapilamadi&hata=${encodeURIComponent('Proje metnini yalnızca projenin koordinatörü ve Sistem Yöneticisi yükleyebilir.')}`);
+  }
+  const hata = await projeMetni.ekle(req.proje, req.file, req.ben);
+  if (hata) return res.redirect(`${donus}?bildirim=islem-yapilamadi&hata=${encodeURIComponent(hata)}`);
+  await req.proje.save();
+  return res.redirect(`${donus}?bildirim=proje-metni-yuklendi`);
+}), (e, req, res, next) => {
+  // multer hatası (boyut aşımı)
+  if (e && e.code === 'LIMIT_FILE_SIZE') return res.redirect(`/projeler/${req.params.id}?bildirim=islem-yapilamadi&hata=${encodeURIComponent('Proje metni en fazla 30 MB olabilir.')}`);
+  return next(e);
+});
+
+// Proje metnini tarayıcıda oku (PDF gömülü, Word HTML'e çevrilerek)
+router.get('/:id/metin', sar(projeBul), sar(async (req, res) => {
+  const belgeler = req.proje.belgeler || [];
+  if (!belgeler.length) return res.redirect(`/projeler/${req.proje._id}?metin=gerekli`);
+  const belge = belgeler.find((b) => String(b.dosyaId) === String(req.query.surum)) || belgeler[belgeler.length - 1];
+  let html = null;
+  let donusumHatasi = null;
+  if (belge.tur === 'docx') {
+    try {
+      const mammoth = require('mammoth');
+      const sonuc = await mammoth.convertToHtml({ buffer: await dosyalar.oku(belge.dosyaId) });
+      // Word içindeki bağlantılarda betik çalıştırılmasın
+      html = sonuc.value.replace(/href\s*=\s*"\s*(javascript|data|vbscript):[^"]*"/gi, 'href="#"');
+    } catch (e) {
+      donusumHatasi = 'Word dosyası görüntülenemedi; indirilerek açılabilir.';
+    }
+  }
+  res.render(V + 'metin', { baslik: 'Proje metni', proje: req.proje, belge, belgeler, html, donusumHatasi });
+}));
+
+// Dosyanın kendisi: PDF tarayıcıda açılır; ?indir=1 ile indirilir
+router.get('/:id/belge/:dosyaId', sar(projeBul), sar(async (req, res, next) => {
+  const belge = (req.proje.belgeler || []).find((b) => String(b.dosyaId) === String(req.params.dosyaId));
+  if (!belge) return next();
+  const bilgi = await dosyalar.bilgi(belge.dosyaId);
+  if (!bilgi) return next();
+  const tur = belge.tur === 'pdf' ? 'application/pdf' : 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+  const satirIci = belge.tur === 'pdf' && req.query.indir !== '1';
+  res.set('Content-Type', tur);
+  res.set('Content-Length', String(bilgi.length));
+  res.set('Content-Disposition', `${satirIci ? 'inline' : 'attachment'}; filename*=UTF-8''${encodeURIComponent(belge.ad || 'proje-metni.' + belge.tur)}`);
+  res.set('Cache-Control', 'private, max-age=3600');
+  dosyalar.okumaAkisi(belge.dosyaId).on('error', next).pipe(res);
 }));
 
 router.post('/:id/durum', sar(projeBul), sar(async (req, res) => {

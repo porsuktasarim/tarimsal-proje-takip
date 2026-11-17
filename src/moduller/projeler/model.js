@@ -78,6 +78,20 @@ const projeSema = new mongoose.Schema({
       default: []
     }
   },
+  // Proje metni (PDF ya da Word). Her yükleme yeni sürümdür; sonuncusu geçerlidir.
+  // Değerlendirme proje metni yüklenmeden yapılamaz.
+  belgeler: {
+    type: [new mongoose.Schema({
+      dosyaId: { type: mongoose.Schema.Types.ObjectId, required: true },   // GridFS (core/dosyalar.js)
+      ad: { type: String, trim: true },
+      tur: { type: String, enum: ['pdf', 'docx'] },
+      boyut: { type: Number },
+      yukleyen: { type: mongoose.Schema.Types.ObjectId, ref: 'Kisi' },
+      yukleyenAd: { type: String, trim: true },
+      tarih: { type: Date, default: Date.now }
+    }, { _id: false })],
+    default: []
+  },
   // Proje ekibi (Ayarlar > Kişiler)
   koordinatorler: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Kisi' }],
   yurutuculer: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Kisi' }]
@@ -89,6 +103,11 @@ projeSema.virtual('toplamHedefDekar').get(function () {
 
 projeSema.virtual('toplamHedefCiftci').get(function () {
   return this.ilceler.reduce((t, i) => t + (i.hedefCiftci || 0), 0);
+});
+
+// Geçerli proje metni (son yüklenen)
+projeSema.virtual('projeMetni').get(function () {
+  return this.belgeler && this.belgeler.length ? this.belgeler[this.belgeler.length - 1] : null;
 });
 
 projeSema.index({ birim: 1, durum: 1 });
