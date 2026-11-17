@@ -3,7 +3,7 @@
   <div class="card-header">
     <div>
       <h3 class="card-title">Hayvan türleri</h3>
-      <p class="card-subtitle">Çiftçi talebi girilirken işletmedeki hayvan varlığı bu türlerle sorulur. Talebin değerlendirilmesinde yardımcı bilgidir, hesaba girmez.</p>
+      <p class="card-subtitle">Çiftçi talebi girilirken işletmedeki hayvan varlığı bu türlerle sorulur. Talebin değerlendirilmesinde yardımcı bilgidir. BBHB katsayısı, beyan edilen sayıdan tahmini BBHB'yi (formüllerde <code>bbhb_beyan</code>) hesaplamak içindir; ırk ve yaş bilinmediğinden ortalama bir değer girilir. Türkvet/BBHB kaydı eşleşen çiftçide gerçek BBHB (<code>bbhb</code>) kullanılır.</p>
     </div>
     <div class="card-actions">
       <button type="button" class="btn btn-sm" data-satir-ekle="satirlar"><i class="ti ti-plus me-1"></i> Tür ekle</button>
@@ -11,7 +11,7 @@
   </div>
   <div class="table-responsive">
     <table class="table table-vcenter card-table satir-tablosu">
-      <thead><tr><th class="w-1">#</th><th>Tür</th><th style="width:10rem">Birim</th><th class="w-1 text-nowrap">Kullanım</th><th class="w-1"></th></tr></thead>
+      <thead><tr><th class="w-1">#</th><th>Tür</th><th style="width:10rem">Birim</th><th style="width:9rem">BBHB katsayısı</th><th class="w-1 text-nowrap">Kullanım</th><th class="w-1"></th></tr></thead>
       <tbody data-satirlar="satirlar">
         <% satirlar.forEach(function (s, i) { var n = (s.kod && kullanim[s.kod]) || 0; %>
           <tr>
@@ -21,6 +21,7 @@
               <input type="text" name="satirlar[<%= i %>][ad]" value="<%= s.ad || '' %>" class="form-control">
             </td>
             <td><input type="text" name="satirlar[<%= i %>][birim]" value="<%= s.birim || '' %>" class="form-control" placeholder="baş"></td>
+            <td><input type="number" step="any" min="0" name="satirlar[<%= i %>][bbhbKatsayisi]" value="<%= s.bbhbKatsayisi != null ? s.bbhbKatsayisi : '' %>" class="form-control text-end" placeholder="0"></td>
             <td class="text-nowrap"><% if (n) { %><span class="badge bg-blue-lt"><%= n %> talep</span><% } else { %><span class="text-secondary">–</span><% } %></td>
             <td class="sil-sutunu"><button type="button" class="btn btn-ghost-danger btn-icon" data-satir-sil <%= n ? 'disabled' : '' %> title="<%= n ? 'Talepte girildiği için silinemez' : 'Kaldır' %>"><i class="ti ti-trash"></i></button></td>
           </tr>
@@ -34,6 +35,7 @@
       <td class="text-secondary"><span class="satir-no"></span></td>
       <td><input type="hidden" name="satirlar[__i__][kod]" value=""><input type="text" name="satirlar[__i__][ad]" class="form-control" placeholder="ör. Kanatlı"></td>
       <td><input type="text" name="satirlar[__i__][birim]" class="form-control" placeholder="adet"></td>
+      <td><input type="number" step="any" min="0" name="satirlar[__i__][bbhbKatsayisi]" class="form-control text-end" placeholder="0"></td>
       <td><span class="badge bg-green-lt">Yeni</span></td>
       <td class="sil-sutunu"><button type="button" class="btn btn-ghost-danger btn-icon" data-satir-sil title="Kaldır"><i class="ti ti-trash"></i></button></td>
     </tr>

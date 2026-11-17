@@ -1,4 +1,5 @@
 const express = require('express');
+const bbhbIsletmeler = require('../bbhb/isletmeler');
 const mongoose = require('mongoose');
 const Ciftci = require('./model');
 const Talep = require('../talepler/model');
@@ -104,6 +105,7 @@ router.post('/', sar(async (req, res) => {
   veri.kaydeden = req.ben ? req.ben._id : undefined;
   veri.kaydedenAd = req.ben ? req.ben.adSoyad : undefined;
   const c = await Ciftci.create(veri);
+  await bbhbIsletmeler.ciftciyiEslestir(c);
   return res.redirect(`/ciftciler/${c._id}?bildirim=kaydedildi`);
 }));
 
@@ -126,7 +128,12 @@ router.get('/:id', sar(ciftciBul), sar(async (req, res) => {
     ciftciKatkisi: sayilanlar.reduce((a, s) => a + (s.hesap.ciftciKatkisi || 0), 0)
   };
   sayilanlar.forEach((s) => Object.entries(s.hesap.toplamlar).forEach(([b, v]) => { toplam.toplamlar[b] = (toplam.toplamlar[b] || 0) + v; }));
-  res.render(V + 'detay', { baslik: req.ciftci.adSoyad, ciftci: req.ciftci, satirlar, toplam });
+  // BBHB: bağlı işletmeler (aile işletmeleri dahil) ve eşleşme önerileri
+  const bbhbHarita = await bbhbIsletmeler.isletmeHaritasi();
+  const bbhb = bbhbIsletmeler.ciftciBbhb(req.ciftci, bbhbHarita);
+  const { oneriler } = bbhbIsletmeler.adaylar(req.ciftci, bbhbHarita);
+  const isletmeDuzenlenebilir = ['ciftci.yonet', 'talep.degerlendir', 'bbhb.hesapla'].some((y) => req.izin(y));
+  res.render(V + 'detay', { baslik: req.ciftci.adSoyad, ciftci: req.ciftci, satirlar, toplam, bbhb, oneriler, isletmeDuzenlenebilir });
 }));
 
 router.get('/:id/duzenle', sar(ciftciBul), (req, res) => {
@@ -153,6 +160,7 @@ router.post('/:id', sar(ciftciBul), sar(async (req, res) => {
   }
   req.ciftci.set(veri);
   await req.ciftci.save();
+  await bbhbIsletmeler.ciftciyiEslestir(req.ciftci);
   // Taleplerdeki ilçe çiftçinin ilçesini izler
   await Talep.updateMany({ ciftciId: req.ciftci._id }, { $set: { ilce: veri.ilce } });
   return res.redirect(`/ciftciler/${req.ciftci._id}?bildirim=kaydedildi`);

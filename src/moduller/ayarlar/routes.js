@@ -8,7 +8,7 @@ const {
 } = require('../../config/sabitler');
 const katalog = require('./katalog');
 const { yetkisizSayfa } = require('../../core/yetki');
-const { diziyeCevir, tarihOku, anahtar, kodUret } = require('../../core/yardimcilar');
+const { diziyeCevir, tarihOku, anahtar, kodUret, sayiOku } = require('../../core/yardimcilar');
 
 const router = express.Router();
 const V = 'ayarlar/views/';
@@ -426,7 +426,7 @@ router.post('/hayvan-turleri', sar(async (req, res) => {
   const mevcut = res.locals.ayar.hayvanTurleri;
   const hatalar = [];
   const satirlar = diziyeCevir(req.body.satirlar)
-    .map((s) => ({ kod: (s.kod || '').trim(), ad: (s.ad || '').trim(), birim: (s.birim || '').trim() }))
+    .map((s) => ({ kod: (s.kod || '').trim(), ad: (s.ad || '').trim(), birim: (s.birim || '').trim(), bbhbKatsayisi: sayiOku(s.bbhbKatsayisi) }))
     .filter((s) => s.ad || s.kod);
   const kodlar = new Set(satirlar.map((s) => s.kod).filter(Boolean));
   satirlar.forEach((s, i) => {

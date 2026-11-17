@@ -1,0 +1,60 @@
+<%- include('../../../views/partials/ust') %>
+<%- include('../../../views/partials/sayfa-basligi', { ustBaslik: 'BBHB hesaplama', eylemler: '<a href="/bbhb?sekme=kayitli" class="btn btn-ghost-secondary">Kayıtlı sonuçlar</a>' }) %>
+<%
+  var etiket = {};
+  kategoriler.forEach(function (g) { g.kategoriler.forEach(function (k) { etiket[g.grupKodu + '.' + k.kod] = g.baslik + ' · ' + k.etiket; }); });
+%>
+<div class="page-body">
+  <div class="container-xl">
+    <div class="card mb-3">
+      <div class="card-body">
+        <div class="row">
+          <div class="col-md-3"><div class="text-secondary small">Kaynak</div><div><%= sonuc.kaynakTipi === 'turkvet' ? 'Türkvet dosyası' : 'Manuel giriş' %></div><% if (sonuc.kaynakDosyalar.length) { %><div class="small text-secondary"><%= sonuc.kaynakDosyalar.join(', ') %></div><% } %></div>
+          <div class="col-md-3"><div class="text-secondary small">Kayıt</div><div><%= y.tarih(sonuc.createdAt) %> · <%= sonuc.olusturanAd || '–' %></div></div>
+          <div class="col-md-3"><div class="text-secondary small">Yaş referans tarihi / kural seti</div><div><%= y.tarih(sonuc.hesaplamaTarihi) %> · <%= sonuc.kuralSetiVersiyonu %></div></div>
+          <div class="col-md-3"><div class="text-secondary small">Genel toplam</div><div class="h2 mb-0"><%= y.sayi(sonuc.genelToplamBBHB) %> <span class="fs-5 text-secondary">BBHB</span></div></div>
+        </div>
+      </div>
+    </div>
+    <% sonuc.bolumler.forEach(function (b) { %>
+      <div class="card mb-3">
+        <div class="card-header"><h3 class="card-title"><%= [b.il, b.ilce, b.mahalle].filter(Boolean).join(' / ') %></h3><div class="card-actions text-secondary"><%= b.isletmeciSonuclari.length %> işletme</div></div>
+        <div class="table-responsive">
+          <table class="table table-sm table-vcenter card-table">
+            <thead><tr><th>İşletmeci</th><th>İşletme no</th><th>Kategori</th><th class="tablo-sayi">Adet</th><th class="tablo-sayi">Katsayı</th><th class="tablo-sayi">BBHB</th><th>Bağlı çiftçi</th></tr></thead>
+            <% b.isletmeciSonuclari.forEach(function (is) { var bc = bagliCiftciler(is.isletmeciId); %>
+              <tbody>
+                <% is.detaylar.forEach(function (d, i) { %>
+                  <tr>
+                    <% if (i === 0) { %>
+                      <td rowspan="<%= is.detaylar.length + 1 %>" class="align-top"><%= is.isletmeciAdi %><% if (is.tcKimlikNo) { %><div class="small text-secondary font-monospace"><%= is.tcKimlikNo %></div><% } %></td>
+                      <td rowspan="<%= is.detaylar.length + 1 %>" class="align-top small font-monospace"><%= is.isletmeciId %></td>
+                    <% } %>
+                    <td class="small"><%= etiket[d.grup + '.' + d.kategori] || d.kategori %></td>
+                    <td class="tablo-sayi"><%= d.adet %></td>
+                    <td class="tablo-sayi"><%= d.katsayi %></td>
+                    <td class="tablo-sayi"><%= y.sayi(d.bbhb) %></td>
+                    <% if (i === 0) { %>
+                      <td rowspan="<%= is.detaylar.length + 1 %>" class="align-top small">
+                        <% if (!bc.length) { %><span class="text-secondary">Eşleşmedi</span><% } %>
+                        <% bc.forEach(function (c) { %><div><a href="/ciftciler/<%= c._id %>"><%= c.adSoyad %></a> <span class="badge bg-<%= c.bag.eslesme === 'elle' ? 'secondary' : 'green' %>-lt"><%= c.bag.eslesme === 'tc' ? 'T.C.' : (c.bag.eslesme === 'ad-koy' ? 'ad+köy' : (c.bag.yakinlik || 'elle')) %></span></div><% }) %>
+                      </td>
+                    <% } %>
+                  </tr>
+                <% }) %>
+                <tr class="fw-bold"><td colspan="3" class="small">İşletme toplamı</td><td class="tablo-sayi"><%= y.sayi(is.isletmeciToplamBBHB) %></td></tr>
+              </tbody>
+            <% }) %>
+            <tfoot><tr class="fw-bold table-active"><td colspan="5">Bölüm toplamı</td><td class="tablo-sayi"><%= y.sayi(b.bolumToplamBBHB) %></td><td></td></tr></tfoot>
+          </table>
+        </div>
+      </div>
+    <% }) %>
+    <% if (silebilir) { %>
+      <form method="post" action="/bbhb/<%= sonuc._id %>/sil" data-onay="Bu BBHB kaydı kalıcı olarak silinecek. Devam edilsin mi?">
+        <button class="btn btn-ghost-danger"><i class="ti ti-trash me-1"></i> Kaydı sil</button>
+      </form>
+    <% } %>
+  </div>
+</div>
+<%- include('../../../views/partials/alt') %>

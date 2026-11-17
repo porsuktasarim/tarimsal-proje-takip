@@ -1,0 +1,45 @@
+<%- include('../../../views/partials/ust') %>
+<%- include('../../../views/partials/sayfa-basligi', { ustBaslik: 'BBHB hesaplama', eylemler: '' }) %>
+<%
+  var etiket = {};
+  kategoriler.forEach(function (g) { g.kategoriler.forEach(function (k) { etiket[g.grupKodu + '.' + k.kod] = g.baslik + ' · ' + k.etiket; }); });
+%>
+<div class="page-body">
+  <div class="container-xl">
+    <div class="alert alert-success">
+      <% if (sonuc.bolumler.length > 1) { %><%= sonuc.bolumler.length %> bölüm bulundu; her biri ayrı kayıt olarak saklanacak. <% } %>
+      Genel toplam BBHB: <strong><%= y.sayi(sonuc.genelToplamBBHB) %></strong>
+      <span class="text-secondary">· yaş referans tarihi <%= y.tarih(sonuc.hesaplamaTarihi) %> · kural seti <%= sonuc.kuralSetiVersiyonu %></span>
+    </div>
+    <% sonuc.bolumler.forEach(function (b) { %>
+      <div class="card mb-3">
+        <div class="card-header">
+          <h3 class="card-title"><%= [b.il, b.ilce, b.mahalle].filter(Boolean).join(' / ') %></h3>
+          <div class="card-actions text-secondary"><%= b.isletmeciSonuclari.length %> işletme · <strong><%= y.sayi(b.bolumToplamBBHB) %></strong> BBHB</div>
+        </div>
+        <div class="table-responsive">
+          <table class="table table-sm table-vcenter card-table">
+            <thead><tr><th>İşletmeci</th><th>İşletme no</th><th>Kategoriler</th><th class="tablo-sayi">BBHB</th></tr></thead>
+            <tbody>
+              <% b.isletmeciSonuclari.forEach(function (is) { %>
+                <tr>
+                  <td><%= is.isletmeciAdi %><% if (is.tcKimlikNo) { %><div class="small text-secondary font-monospace"><%= is.tcKimlikNo %></div><% } %></td>
+                  <td class="small font-monospace"><%= is.isletmeciId %></td>
+                  <td class="small"><%= is.detaylar.map(function (d) { return (etiket[d.grup + '.' + d.kategori] || d.kategori) + ': ' + d.adet + ' × ' + d.katsayi; }).join(' · ') %></td>
+                  <td class="tablo-sayi fw-bold"><%= y.sayi(is.isletmeciToplamBBHB) %></td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    <% }) %>
+    <form method="post" action="/bbhb/kaydet" class="d-flex gap-2">
+      <input type="hidden" name="sonuc" value="<%= JSON.stringify(sonuc) %>">
+      <input type="hidden" name="ciftciId" value="<%= ciftciId %>">
+      <button type="submit" class="btn btn-success"><i class="ti ti-device-floppy me-1"></i> Kaydet</button>
+      <a href="/bbhb" class="btn btn-ghost-secondary">Vazgeç</a>
+    </form>
+  </div>
+</div>
+<%- include('../../../views/partials/alt') %>

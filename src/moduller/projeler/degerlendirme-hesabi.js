@@ -39,6 +39,12 @@ function degiskenTanimlari(proje, ayar) {
   const ekle = (ad, aciklama, birim, grup) => liste.push({ ad, aciklama, birim: birim || '', grup });
   (ayar.hayvanTurleri || []).forEach((h) => ekle(h.kod, `${h.ad} sayısı`, h.birim, 'Çiftçi'));
   ekle('cks', 'ÇKS kaydı varsa 1, yoksa 0', '', 'Çiftçi');
+  ekle('bbhb', 'Bağlı işletmelerin BBHB toplamı (Türkvet/BBHB kaydı; yoksa 0)', 'BBHB', 'BBHB');
+  ekle('bbhb_var', 'Eşleşen BBHB kaydı varsa 1, yoksa 0', '', 'BBHB');
+  ekle('bbhb_beyan', 'Beyan edilen hayvan sayılarından tahmini BBHB (Ayarlar > Hayvan türleri katsayılarıyla)', 'BBHB', 'BBHB');
+  ekle('bbhb_gecerli', 'BBHB kaydı varsa bbhb, yoksa bbhb_beyan', 'BBHB', 'BBHB');
+  ekle('bbhb_buyukbas', 'BBHB kaydındaki büyükbaş sayısı (sığır, manda)', 'baş', 'BBHB');
+  ekle('bbhb_kucukbas', 'BBHB kaydındaki küçükbaş sayısı (koyun, keçi, kuzu, oğlak)', 'baş', 'BBHB');
   ekle('parsel_sayisi', 'Parsel satırı sayısı', '', 'Talep');
   ['da', 'adet', 'm²'].concat(ayar.talepBirimleri || []).filter((b, i, a) => a.indexOf(b) === i)
     .forEach((b) => ekle(`toplam_${birimKodu(b)}`, `Talep edilen toplam (${b} ile sayılan kalemler)`, b, 'Talep'));
@@ -94,12 +100,20 @@ function tanimlariDenetle(proje, ayar) {
 }
 
 // Bir başvurunun değişken değerleri
-function degiskenDegerleri(talep, ciftci, proje, ayar, hesap) {
+function degiskenDegerleri(talep, ciftci, proje, ayar, hesap, bbhbOzeti) {
   const h = hesap || talepHesabi(talep, proje, ayar);
   const d = {};
   const hv = talep.hayvanlar || {};
   (ayar.hayvanTurleri || []).forEach((t) => { d[t.kod] = Number(hv[t.kod]) || 0; });
   d.cks = ciftci && ciftci.cks ? 1 : 0;
+  // BBHB: eşleşen işletme kayıtları (aile işletmeleri dahil) ve beyandan tahmin
+  const bo = bbhbOzeti || null;
+  d.bbhb = bo && bo.var ? bo.toplam : 0;
+  d.bbhb_var = bo && bo.var ? 1 : 0;
+  d.bbhb_beyan = Number((ayar.hayvanTurleri || []).reduce((t, h) => t + (Number(hv[h.kod]) || 0) * (Number(h.bbhbKatsayisi) || 0), 0).toFixed(2));
+  d.bbhb_gecerli = d.bbhb_var ? d.bbhb : d.bbhb_beyan;
+  d.bbhb_buyukbas = bo && bo.var ? bo.buyukbas : 0;
+  d.bbhb_kucukbas = bo && bo.var ? bo.kucukbas : 0;
   d.parsel_sayisi = (talep.satirlar || []).length;
   ['da', 'adet', 'm²'].concat(ayar.talepBirimleri || []).forEach((b) => { d[`toplam_${birimKodu(b)}`] = (h.toplamlar && h.toplamlar[b]) || 0; });
   d.bedel = h.bedel || 0;
@@ -130,9 +144,9 @@ function degiskenDegerleri(talep, ciftci, proje, ayar, hesap) {
 }
 
 // Başvurunun formül değerleri, puanı ve limit aşımları
-function degerlendirmeHesabi(talep, ciftci, proje, ayar, hesap) {
+function degerlendirmeHesabi(talep, ciftci, proje, ayar, hesap, bbhbOzeti) {
   const h = hesap || talepHesabi(talep, proje, ayar);
-  const d = degiskenDegerleri(talep, ciftci, proje, ayar, h);
+  const d = degiskenDegerleri(talep, ciftci, proje, ayar, h, bbhbOzeti);
   const formuller = formulleri(proje).map((f) => {
     const r = formul.degerlendir(f.ifade, d);
     d[f.kod] = r.deger == null ? 0 : r.deger;
@@ -144,7 +158,7 @@ function degerlendirmeHesabi(talep, ciftci, proje, ayar, hesap) {
     const r = formul.degerlendir(l.ifade, d);
     if (r.deger != null && r.deger > l.ust + 1e-9) limitAsimlari.push({ ad: l.ad || l.ifade, ifade: l.ifade, deger: r.deger, ust: l.ust, birim: l.birim || '' });
   });
-  return { hesap: h, degiskenler: d, formuller, puan: puanF ? puanF.deger : null, limitAsimlari };
+  return { hesap: h, degiskenler: d, formuller, puan: puanF ? puanF.deger : null, limitAsimlari, bbhb: bbhbOzeti || null };
 }
 
 module.exports = {

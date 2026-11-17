@@ -47,6 +47,9 @@
           </div></div></div>
         </div>
 
+        <% if (izin('bbhb.gor') || isletmeDuzenlenebilir) { %>
+          <%- include('../../bbhb/views/ciftci-isletmeleri', { ciftci: ciftci, bbhb: bbhb, oneriler: oneriler, duzenlenebilir: isletmeDuzenlenebilir, donus: '/ciftciler/' + ciftci._id + '#isletmeler' }) %>
+        <% } %>
         <% if (!satirlar.length) { %>
           <div class="card"><div class="card-body text-secondary">Bu çiftçinin henüz talebi yok.</div></div>
         <% } %>

@@ -166,6 +166,20 @@ const gocler = [
       });
       if (roller.length) await db.collection('ayarlar').updateOne({ _id: 'genel' }, { $set: { roller } });
     }
+  },
+  {
+    no: 8,
+    aciklama: 'BBHB: rollere bbhb yetkileri, hayvan türlerine BBHB katsayısı',
+    async uygula(db, ayar) {
+      const ek = { koordinator: ['bbhb.gor', 'bbhb.hesapla'], yonetici: ['bbhb.gor'], yurutucu: ['bbhb.gor'] };
+      const roller = (ayar.roller || []).map((r) => ({ ...r, yetkiler: [...new Set([...(r.yetkiler || []), ...(ek[r.kod] || [])])] }));
+      const varsayilan = { buyukbas: 0.75, kucukbas: 0.1, ari: 0 };
+      const hayvanTurleri = (ayar.hayvanTurleri || []).map((h) => ({ ...h, bbhbKatsayisi: h.bbhbKatsayisi != null ? h.bbhbKatsayisi : (varsayilan[h.kod] != null ? varsayilan[h.kod] : 0) }));
+      const set = {};
+      if (roller.length) set.roller = roller;
+      if (hayvanTurleri.length) set.hayvanTurleri = hayvanTurleri;
+      if (Object.keys(set).length) await db.collection('ayarlar').updateOne({ _id: 'genel' }, { $set: set });
+    }
   }
 ];
 

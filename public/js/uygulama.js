@@ -550,6 +550,29 @@
     var k = e.target.parentNode.querySelector('.formul-kod');
     if (k) k.textContent = kodUret(e.target.value);
   });
+  // Hazır ot ihtiyacı formülleri
+  document.addEventListener('click', function (e) {
+    if (!e.target.closest('[data-formul-ornek]')) return;
+    var ekleDugme = document.querySelector('[data-satir-ekle="formuller"]');
+    var govde = document.querySelector('[data-satirlar="formuller"]');
+    if (!ekleDugme || !govde) return;
+    var mevcut = Array.prototype.map.call(govde.querySelectorAll('.formul-ad'), function (i) { return kodUret(i.value); });
+    [
+      ['Ot ihtiyacı', 'bbhb_gecerli * 12.5 * 365', 'kg', 0],
+      ['Ot ihtiyacı (beyan)', 'bbhb_beyan * 12.5 * 365', 'kg', 0],
+      ['Ot açığı', 'ot_ihtiyaci - kuru_ot_uretimi', 'kg', 0]
+    ].forEach(function (f) {
+      if (mevcut.indexOf(kodUret(f[0])) >= 0) return;
+      ekleDugme.click();
+      var tr = govde.lastElementChild;
+      tr.querySelector('.formul-ad').value = f[0];
+      tr.querySelector('.formul-kod').textContent = kodUret(f[0]);
+      tr.querySelector('.formul-ifade').value = f[1];
+      tr.querySelector('input[name$="[birim]"]').value = f[2];
+      tr.querySelector('input[name$="[ondalik]"]').value = f[3];
+    });
+  });
+
   // Puan tek formülde olur
   document.addEventListener('change', function (e) {
     if (!e.target.matches('.formul-puan') || !e.target.checked) return;
@@ -607,6 +630,51 @@
         satirlar.forEach(function (tr) { govde.appendChild(tr); });
       });
     });
+  });
+
+  // --- Çiftçiye işletme ekleme: BBHB işletmelerinde arama ---
+  document.querySelectorAll('[data-isletme-ekle]').forEach(function (f) {
+    var ara = f.querySelector('[data-isletme-ara]');
+    var gizli = f.querySelector('[data-isletme-id]');
+    var liste = f.querySelector('[data-isletme-sonuc]');
+    var dugme = f.querySelector('[data-isletme-ekle-dugme]');
+    var zaman = null;
+    var kacisM = function (v) { return String(v == null ? '' : v).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
+    ara.addEventListener('input', function () {
+      gizli.value = ''; dugme.disabled = true;
+      clearTimeout(zaman);
+      var q = ara.value.trim();
+      if (q.length < 2) { liste.classList.remove('show'); return; }
+      zaman = setTimeout(function () {
+        fetch('/bbhb/isletme-ara?q=' + encodeURIComponent(q)).then(function (r) { return r.json(); }).then(function (v) {
+          liste.innerHTML = v.length ? v.map(function (x) {
+            return '<button type="button" class="dropdown-item" data-id="' + kacisM(x.isletmeciId) + '" data-ad="' + kacisM(x.isletmeciAdi) + '">' +
+              '<div><strong>' + kacisM(x.isletmeciAdi) + '</strong> <span class="text-secondary font-monospace small">' + kacisM(x.isletmeciId) + '</span></div>' +
+              '<div class="small text-secondary">' + kacisM(x.ilce) + (x.mahalle ? ' / ' + kacisM(x.mahalle) : '') + ' · ' + x.bas.buyukbas + ' büyükbaş · ' + x.bas.kucukbas + ' küçükbaş · ' + x.bbhb + ' BBHB</div></button>';
+          }).join('') : '<span class="dropdown-item-text text-secondary small">Bulunamadı</span>';
+          liste.classList.add('show');
+        });
+      }, 250);
+    });
+    liste.addEventListener('click', function (e) {
+      var b = e.target.closest('[data-id]');
+      if (!b) return;
+      gizli.value = b.getAttribute('data-id');
+      ara.value = b.getAttribute('data-ad') + ' (' + b.getAttribute('data-id') + ')';
+      dugme.disabled = false;
+      liste.classList.remove('show');
+    });
+  });
+
+  // --- Değerlendirme: BBHB kaydındaki hayvan sayılarını değer formuna aktar ---
+  document.addEventListener('click', function (e) {
+    var d = e.target.closest('[data-bbhb-aktar]');
+    if (!d) return;
+    var f = d.closest('form');
+    var v = JSON.parse(d.getAttribute('data-bbhb-aktar'));
+    Object.keys(v).forEach(function (k) { var i = f.querySelector('input[name="hayvanlar[' + k + ']"]'); if (i) i.value = v[k]; });
+    var not = f.querySelector('textarea[name="not"]');
+    if (not && !not.value.trim()) not.value = d.getAttribute('data-not');
   });
 
   // --- Başvuru akışı: not/gerekçe zorunlu işlemler ---

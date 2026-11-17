@@ -34,13 +34,14 @@
         <tfoot><tr class="fw-bold"><td colspan="5">Toplam · çiftçi katkısı <%= y.para(hesap.ciftciKatkisi) %></td><td class="tablo-sayi text-nowrap"><%= y.para(hesap.bedel) %></td></tr></tfoot>
       </table>
     </div>
-    <div class="small text-secondary mb-3"><i class="ti ti-paw"></i> <%= y.hayvanMetni(talep.hayvanlar, ayar.hayvanTurleri) || 'Hayvan varlığı girilmemiş' %></div>
+    <div class="small text-secondary mb-3"><i class="ti ti-paw"></i> Beyan: <%= y.hayvanMetni(talep.hayvanlar, ayar.hayvanTurleri) || 'girilmemiş' %>
+      <% if (deg.bbhb && deg.bbhb.var) { %> · <i class="ti ti-horse"></i> BBHB kaydı: <%= y.sayi(deg.bbhb.buyukbas) %> büyükbaş, <%= y.sayi(deg.bbhb.kucukbas) %> küçükbaş, <strong><%= y.sayi(deg.bbhb.toplam) %> BBHB</strong> (<a href="/ciftciler/<%= ciftci._id %>#isletmeler"><%= deg.bbhb.isletmeSayisi %> işletme</a>)<% } else { %> · <a href="/ciftciler/<%= ciftci._id %>#isletmeler">BBHB kaydı eşleşmedi</a><% } %></div>
 
     <div class="mb-3"><%- include(V + 'degerlendirme-ozeti', { deg: deg }) %></div>
 
     <% if (degistirilebilir && izin('talep.degerlendir')) { %>
       <div class="hr-text my-3">Değerleri değiştir</div>
-      <%- include(V + 'degistir-formu', { talep: talep, proje: proje, donus: donus }) %>
+      <%- include(V + 'degistir-formu', { talep: talep, proje: proje, donus: donus, bbhb: deg.bbhb }) %>
     <% } else if (talep.durum === 'gonderildi') { %>
       <div class="alert alert-info py-2 small mb-0">Değer değiştirmek için önce başvuru teslim alınmalıdır.</div>
     <% } %>

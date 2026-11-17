@@ -104,7 +104,7 @@
                     <th class="w-1"><input type="checkbox" class="form-check-input" data-tumunu-sec></th>
                     <th data-sirala="metin">Çiftçi</th>
                     <th data-sirala="metin">İlçe / mahalle</th>
-                    <th>Hayvan</th>
+                    <th data-sirala="sayi">Hayvan / BBHB</th>
                     <th>Talep (geçerli)</th>
                     <th class="tablo-sayi" data-sirala="sayi">Bedel</th>
                     <th class="tablo-sayi" data-sirala="sayi">Çiftçi katkısı</th>
@@ -123,7 +123,9 @@
                           <%- c.cks ? '<span class="badge bg-green-lt ms-1">ÇKS</span>' : '<span class="badge bg-secondary-lt ms-1">ÇKS yok</span>' %></div>
                       </td>
                       <td data-deger="<%= t.ilce %> <%= c.mahalle || '' %>"><%= t.ilce %><% if (c.mahalle) { %><div class="small text-secondary"><%= c.mahalle %></div><% } %></td>
-                      <td class="small"><%= y.hayvanMetni(t.hayvanlar, ayar.hayvanTurleri) || '–' %></td>
+                      <td class="small" data-deger="<%= s.deg.degiskenler.bbhb_gecerli %>"><%= y.hayvanMetni(t.hayvanlar, ayar.hayvanTurleri) || '–' %>
+                        <% if (s.deg.bbhb && s.deg.bbhb.var) { %><div class="text-nowrap"><span class="badge bg-green-lt" title="Bağlı <%= s.deg.bbhb.isletmeSayisi %> işletme: <%= y.sayi(s.deg.bbhb.buyukbas) %> büyükbaş, <%= y.sayi(s.deg.bbhb.kucukbas) %> küçükbaş"><i class="ti ti-horse"></i> <%= y.sayi(s.deg.bbhb.toplam) %> BBHB</span></div>
+                        <% } else { %><div class="text-secondary text-nowrap" title="Beyandan tahmini BBHB">~<%= y.sayi(s.deg.degiskenler.bbhb_beyan) %> BBHB</div><% } %></td>
                       <td class="small">
                         <% h.kalemler.forEach(function (hk) { var im = s.ilk[String(hk.kalem._id)]; %>
                           <div class="text-nowrap"><%= kalemAdi(hk.kalem) %>: <strong><%= y.sayi(hk.esasMiktari) %> <%= hk.talepBirimi %></strong>

@@ -39,7 +39,7 @@ const ayarSema = new mongoose.Schema({
   normlar: { type: [normSema], default: [] },
   roller: { type: [rolSema], default: undefined },
   hayvanTurleri: {
-    type: [new mongoose.Schema({ kod: String, ad: String, birim: String }, { _id: false })],
+    type: [new mongoose.Schema({ kod: String, ad: String, birim: String, bbhbKatsayisi: Number }, { _id: false })],
     default: undefined
   },
   gocSurumu: { type: Number, default: 0 }   // uygulanmış veri dönüşümlerinin sürümü (core/gocler.js)

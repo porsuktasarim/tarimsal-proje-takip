@@ -1,0 +1,84 @@
+<%
+  // Çiftçinin hayvancılık işletmeleri (BBHB). Parametreler: ciftci, bbhb, oneriler, duzenlenebilir, donus
+  var etiket = function (b) { return b.eslesme === 'tc' ? 'T.C. eşleşmesi' : (b.eslesme === 'ad-koy' ? 'ad + köy eşleşmesi' : (b.yakinlik || 'elle eklendi')); };
+%>
+<div class="card mb-3" id="isletmeler">
+  <div class="card-header">
+    <div>
+      <h3 class="card-title">Hayvancılık işletmeleri (BBHB)</h3>
+      <p class="card-subtitle">Aile işletmesi: eşinin, babasının vb. işletmeleri de eklenebilir; toplam BBHB hepsinden hesaplanır.</p>
+    </div>
+    <% if (bbhb.var) { %><div class="card-actions"><span class="badge bg-green-lt fs-5"><%= y.sayi(bbhb.toplam) %> BBHB</span></div><% } %>
+  </div>
+  <% if (!bbhb.isletmeler.length) { %>
+    <div class="card-body text-secondary small">Bağlı işletme yok. Türkvet ya da manuel BBHB kaydı T.C. veya ad soyad + köy ile eşleşirse kendiliğinden bağlanır.</div>
+  <% } else { %>
+    <div class="table-responsive">
+      <table class="table table-sm table-vcenter card-table">
+        <thead><tr><th>İşletmeci</th><th>İşletme no</th><th>Yer</th><th class="tablo-sayi">Büyükbaş</th><th class="tablo-sayi">Küçükbaş</th><th class="tablo-sayi">BBHB</th><th>Bağ</th><% if (duzenlenebilir) { %><th class="w-1"></th><% } %></tr></thead>
+        <tbody>
+          <% bbhb.isletmeler.forEach(function (b) { var k = b.kayit; %>
+            <tr>
+              <td><%= k ? k.isletmeciAdi : b.isletmeciAdi %></td>
+              <td class="small font-monospace"><% if (k) { %><a href="/bbhb/<%= k.sonucId %>" class="text-reset"><%= b.isletmeciId %></a><% } else { %><%= b.isletmeciId %><% } %></td>
+              <td class="small"><%= (k ? k.ilce : b.ilce) || '' %><%= (k ? k.mahalle : b.mahalle) ? ' / ' + (k ? k.mahalle : b.mahalle) : '' %></td>
+              <% if (k) { %>
+                <td class="tablo-sayi"><%= y.sayi(k.bas.buyukbas) %></td>
+                <td class="tablo-sayi"><%= y.sayi(k.bas.kucukbas) %></td>
+                <td class="tablo-sayi fw-bold"><%= y.sayi(k.bbhb) %><div class="small text-secondary fw-normal"><%= y.tarih(k.tarih) %></div></td>
+              <% } else { %>
+                <td colspan="3" class="small text-warning">BBHB kaydı bulunamadı (silinmiş olabilir)</td>
+              <% } %>
+              <td><span class="badge bg-<%= b.eslesme === 'elle' ? 'secondary' : 'green' %>-lt"><%= etiket(b) %></span></td>
+              <% if (duzenlenebilir) { %>
+                <td>
+                  <form method="post" action="/bbhb/ciftci/<%= ciftci._id %>/kaldir" data-onay="İşletme bağı kaldırılsın mı? (BBHB kaydı silinmez; bu işletme bu çiftçiyle bir daha otomatik eşleşmez.)">
+                    <input type="hidden" name="isletmeciId" value="<%= b.isletmeciId %>"><input type="hidden" name="donus" value="<%= donus %>">
+                    <button class="btn btn-sm btn-ghost-danger btn-icon" title="Bağı kaldır"><i class="ti ti-unlink"></i></button>
+                  </form>
+                </td>
+              <% } %>
+            </tr>
+          <% }) %>
+        </tbody>
+        <% if (bbhb.isletmeSayisi > 1) { %>
+          <tfoot><tr class="fw-bold"><td colspan="3">Toplam (<%= bbhb.isletmeSayisi %> işletme)</td><td class="tablo-sayi"><%= y.sayi(bbhb.buyukbas) %></td><td class="tablo-sayi"><%= y.sayi(bbhb.kucukbas) %></td><td class="tablo-sayi"><%= y.sayi(bbhb.toplam) %></td><td colspan="<%= duzenlenebilir ? 2 : 1 %>"></td></tr></tfoot>
+        <% } %>
+      </table>
+    </div>
+  <% } %>
+  <% if (duzenlenebilir) { %>
+    <div class="card-body border-top">
+      <% if (oneriler.length) { %>
+        <div class="mb-3">
+          <div class="small fw-medium mb-1"><i class="ti ti-bulb me-1"></i> Olası eşleşmeler</div>
+          <% oneriler.forEach(function (o) { %>
+            <form method="post" action="/bbhb/ciftci/<%= ciftci._id %>/bagla" class="d-flex align-items-center gap-2 small mb-1">
+              <input type="hidden" name="isletmeciId" value="<%= o.isletmeciId %>"><input type="hidden" name="donus" value="<%= donus %>"><input type="hidden" name="yakinlik" value="kendisi">
+              <span><strong><%= o.isletmeciAdi %></strong> · <span class="font-monospace"><%= o.isletmeciId %></span> · <%= o.ilce %><%= o.mahalle ? ' / ' + o.mahalle : '' %> · <%= y.sayi(o.bbhb) %> BBHB <span class="text-secondary">(<%= o.neden %>)</span></span>
+              <button class="btn btn-sm ms-auto">Bağla</button>
+            </form>
+          <% }) %>
+        </div>
+      <% } %>
+      <form method="post" action="/bbhb/ciftci/<%= ciftci._id %>/bagla" class="row g-2 align-items-end" data-isletme-ekle>
+        <input type="hidden" name="donus" value="<%= donus %>">
+        <div class="col-md-6 position-relative">
+          <label class="form-label small mb-1">İşletme ekle (aile işletmesi)</label>
+          <input type="text" class="form-control form-control-sm" placeholder="İşletmeci adı, işletme no, mahalle…" data-isletme-ara autocomplete="off">
+          <input type="hidden" name="isletmeciId" data-isletme-id>
+          <div class="dropdown-menu w-100" data-isletme-sonuc></div>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label small mb-1">Yakınlık</label>
+          <input type="text" name="yakinlik" class="form-control form-control-sm" list="dl-yakinlik" placeholder="eşi, babası…">
+          <datalist id="dl-yakinlik"><option>kendisi</option><option>eşi</option><option>babası</option><option>annesi</option><option>oğlu</option><option>kızı</option><option>kardeşi</option><option>ortak işletme</option></datalist>
+        </div>
+        <div class="col-md-3 d-flex gap-1">
+          <button class="btn btn-sm btn-primary" data-isletme-ekle-dugme disabled><i class="ti ti-link me-1"></i> Bağla</button>
+          <% if (izin('bbhb.hesapla')) { %><a href="/bbhb?sekme=manuel&ciftci=<%= ciftci._id %>" class="btn btn-sm" title="Bu çiftçi için manuel BBHB hesapla"><i class="ti ti-calculator me-1"></i> BBHB gir</a><% } %>
+        </div>
+      </form>
+    </div>
+  <% } %>
+</div>

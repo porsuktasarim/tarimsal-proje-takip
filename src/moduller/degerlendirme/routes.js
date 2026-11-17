@@ -4,6 +4,7 @@ const { talepDurumlari, icmalAsamalari } = require('../../config/sabitler');
 const { talepHesabi, projeHesabi } = require('../projeler/hesap');
 const { degerlendirmeHesabi, formulleri, limitleri } = require('../projeler/degerlendirme-hesabi');
 const akis = require('../talepler/akis');
+const bbhbIsletmeler = require('../bbhb/isletmeler');
 const { anahtar, diziyeCevir } = require('../../core/yardimcilar');
 const { yetkiGerekli, ilceKisitliMi } = require('../../core/yetki');
 
@@ -34,9 +35,10 @@ async function projeSec(req) {
 const kalemAdi = (k) => k.urun + (k.cesit ? ' · ' + k.cesit : '');
 
 // Sayfadaki her başvurunun satır verisi
-function satirVerisi(t, proje, ayar) {
+function satirVerisi(t, proje, ayar, bbhbHarita) {
   const hesap = talepHesabi(t, proje, ayar);
-  const deg = degerlendirmeHesabi(t, t.ciftciId, proje, ayar, hesap);
+  const bbhb = bbhbHarita ? bbhbIsletmeler.ciftciBbhb(t.ciftciId, bbhbHarita) : null;
+  const deg = degerlendirmeHesabi(t, t.ciftciId, proje, ayar, hesap, bbhb);
   const ilk = {};
   ((t.basvuru && t.basvuru.talepKalemleri) || []).forEach((x) => { ilk[String(x.kalemId)] = x.miktar; });
   const notlar = (t.gecmis || []).filter((g) => g.not);
@@ -68,7 +70,8 @@ router.get('/', sar(async (req, res) => {
     const q = anahtar(req.query.q);
     talepler = talepler.filter((t) => anahtar(t.ciftciId.adSoyad).includes(q) || String(t.ciftciId.tcKimlikNo).includes(q));
   }
-  let satirlar = talepler.map((t) => satirVerisi(t, proje, ayar));
+  const bbhbHarita = await bbhbIsletmeler.isletmeHaritasi();
+  let satirlar = talepler.map((t) => satirVerisi(t, proje, ayar, bbhbHarita));
   const limitUstu = satirlar.filter((s) => s.deg.limitAsimlari.length).length;
   if (req.query.limit === '1') satirlar = satirlar.filter((s) => s.deg.limitAsimlari.length);
 
@@ -113,7 +116,8 @@ router.get('/:id/panel', sar(async (req, res) => {
   const proje = await Proje().findById(talep.projeId);
   const ayar = res.locals.ayar;
   const hesap = talepHesabi(talep, proje, ayar);
-  const deg = degerlendirmeHesabi(talep, talep.ciftciId, proje, ayar, hesap);
+  const bbhb = bbhbIsletmeler.ciftciBbhb(talep.ciftciId, await bbhbIsletmeler.isletmeHaritasi());
+  const deg = degerlendirmeHesabi(talep, talep.ciftciId, proje, ayar, hesap, bbhb);
   const islemler = akis.kullanilabilirIslemler(talep, { izin: req.izin, ben: req.ben, ayar, kisitli: ilceKisitliMi(req.ben, ayar) });
   const donus = typeof req.query.donus === 'string' && req.query.donus.startsWith('/degerlendirme') ? req.query.donus : `/degerlendirme?proje=${proje._id}`;
   res.render(V + 'panel', { talep, ciftci: talep.ciftciId, proje, hesap, deg, islemler, donus, degistirilebilir: talep.durum === 'incelemede' });
@@ -152,7 +156,8 @@ router.get('/icmal', sar(async (req, res) => {
   const filtre = { projeId: proje._id, durum: { $in: [...icmalAsamalari, 'yedek'] } };
   if (ilce) filtre.ilce = ilce;
   const talepler = (await Talep().find(filtre).populate('ciftciId').lean()).filter((t) => t.ciftciId);
-  const satirlar = talepler.map((t) => satirVerisi(t, proje, ayar));
+  const bbhbHarita = await bbhbIsletmeler.isletmeHaritasi();
+  const satirlar = talepler.map((t) => satirVerisi(t, proje, ayar, bbhbHarita));
   const desteklenen = satirlar.filter((s) => icmalAsamalari.includes(s.talep.durum))
     .sort((a, b) => a.talep.ilce.localeCompare(b.talep.ilce, 'tr') || a.ciftci.adSoyad.localeCompare(b.ciftci.adSoyad, 'tr'));
   const yedekler = satirlar.filter((s) => s.talep.durum === 'yedek').sort((a, b) => (b.deg.puan || 0) - (a.deg.puan || 0));

@@ -30,6 +30,16 @@
         <% if (ilkHv[h.kod] != null && ilkHv[h.kod] !== hv[h.kod]) { %><div class="small text-secondary">Başvuru: <%= y.sayi(ilkHv[h.kod]) %></div><% } %>
       </div>
     <% }) %>
+    <% var bo = locals.bbhb; if (bo && bo.var) {
+         var aktar = {}; ayar.hayvanTurleri.forEach(function (h) { if (h.kod === 'buyukbas') aktar.buyukbas = bo.buyukbas; if (h.kod === 'kucukbas') aktar.kucukbas = bo.kucukbas; }); %>
+      <div class="col-12">
+        <div class="alert alert-info py-2 mb-0 d-flex align-items-center gap-2 small">
+          <i class="ti ti-horse"></i>
+          <div>BBHB kaydı (<%= bo.isletmeSayisi %> işletme): <strong><%= y.sayi(bo.buyukbas) %></strong> büyükbaş · <strong><%= y.sayi(bo.kucukbas) %></strong> küçükbaş · <strong><%= y.sayi(bo.toplam) %></strong> BBHB</div>
+          <button type="button" class="btn btn-sm ms-auto" data-bbhb-aktar="<%= JSON.stringify(aktar) %>" data-not="Hayvan sayıları BBHB kaydına göre düzeltildi (<%= bo.isletmeSayisi %> işletme, <%= y.sayi(bo.toplam) %> BBHB).">Değerlere aktar</button>
+        </div>
+      </div>
+    <% } %>
     <div class="col-12">
       <label class="form-label small mb-1">Not / gerekçe <span class="text-secondary fw-normal">(miktar düşürülürken zorunlu)</span></label>
       <textarea name="not" rows="2" class="form-control form-control-sm" placeholder="Silinemez; geçmişte görünür"></textarea>

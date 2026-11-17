@@ -257,7 +257,8 @@
         <div class="card-body">
           <div class="d-flex align-items-center mb-2">
             <h4 class="mb-0">Formüller</h4>
-            <button type="button" class="btn btn-sm ms-auto" data-satir-ekle="formuller"><i class="ti ti-plus me-1"></i> Formül ekle</button>
+            <button type="button" class="btn btn-sm btn-ghost-secondary ms-auto me-1" data-formul-ornek title="BBHB ile ve beyan edilen hayvan sayılarıyla ot ihtiyacı, ot açığı"><i class="ti ti-wand me-1"></i> Ot ihtiyacı formülleri</button>
+            <button type="button" class="btn btn-sm" data-satir-ekle="formuller"><i class="ti ti-plus me-1"></i> Formül ekle</button>
           </div>
           <p class="text-secondary small mb-2">Her formül listede bir sütun olur; sırayla hesaplanır ve kendinden önceki formülleri adıyla kullanabilir (ör. <code>ot_acigi = ot_ihtiyaci - kuru_ot_uretimi</code>). "Puan" işaretlenen formüle göre başvurular sıralanır.</p>
           <div class="table-responsive">
@@ -294,7 +295,8 @@
               <div class="text-secondary">Kalem değişkenleri ürün ve çeşit adından üretilir (Mısır ADA → <code>misir_ada_talep</code>); yeni eklenen kalemlerin değişkenleri proje kaydedilince listelenir.
                 İşlemler: <code>+ - * / ^ ( )</code>, karşılaştırma <code>&lt; &lt;= &gt; &gt;= == !=</code> (doğru 1, yanlış 0), <code>ve</code> <code>veya</code> <code>değil</code>.
                 İşlevler: <code>min(a; b)</code> <code>max(a; b)</code> <code>yuvarla(x; 2)</code> <code>yukari(x)</code> <code>asagi(x)</code> <code>mutlak(x)</code> <code>karekok(x)</code> <code>eger(koşul; doğruysa; yanlışsa)</code>.
-                Örnek puan: <code>cks * 10 + min(buyukbas; 50) + eger(toplam_da &lt;= 50; 20; 0)</code></div>
+                Örnek puan: <code>cks * 10 + min(buyukbas; 50) + eger(toplam_da &lt;= 50; 20; 0)</code>.
+                Ot ihtiyacı: <code>bbhb_gecerli * 12.5 * 365</code> (1 BBHB = 500 kg canlı ağırlık, günlük kuru madde ihtiyacı %2,5 ≈ 12,5 kg; BBHB kaydı eşleşmişse kayıttaki, yoksa beyandan tahmini BBHB kullanılır). Yalnız beyanla: <code>bbhb_beyan * 12.5 * 365</code>, yalnız kayıtla: <code>bbhb * 12.5 * 365</code>.</div>
             </div>
             <datalist id="dl-degiskenler"><% degiskenler.forEach(function (d) { %><option value="<%= d.ad %>"><%= d.aciklama %></option><% }) %><% formuller.forEach(function (f) { %><option value="<%= f.kod %>"><%= f.ad %></option><% }) %></datalist>
           </details>

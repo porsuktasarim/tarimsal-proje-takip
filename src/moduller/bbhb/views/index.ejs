@@ -1,0 +1,180 @@
+<%- include('../../../views/partials/ust') %>
+<%- include('../../../views/partials/sayfa-basligi', { ustBaslik: 'Büyükbaş Hayvan Birimi', eylemler: '' }) %>
+<%
+  var hesaplar = izin('bbhb.hesapla');
+  var f = locals.form || {};
+  var c = locals.ciftci;
+  var deger = function (alan, varsayilan) { return f[alan] != null ? f[alan] : (varsayilan || ''); };
+  var adet = function (g, k) { return f.adet && f.adet[g] && f.adet[g][k] ? f.adet[g][k] : ''; };
+  var sekmeler = [];
+  if (hesaplar) sekmeler.push(['manuel', 'Manuel giriş', 'ti-pencil'], ['turkvet', 'Türkvet dosyası', 'ti-file-spreadsheet']);
+  sekmeler.push(['kayitli', 'Kayıtlı sonuçlar', 'ti-database'], ['isletmeler', 'İşletmeler ve eşleşme', 'ti-link']);
+%>
+<div class="page-body">
+  <div class="container-xl">
+    <%- include('../../../views/partials/bildirim') %>
+    <%- include('../../../views/partials/hatalar', { hatalar: hatalar }) %>
+    <div class="row g-3">
+      <div class="col-lg-9">
+        <div class="card">
+          <div class="card-header">
+            <ul class="nav nav-tabs card-header-tabs">
+              <% sekmeler.forEach(function (s) { %>
+                <li class="nav-item"><a href="/bbhb?sekme=<%= s[0] %><%= c ? '&ciftci=' + c._id : '' %>" class="nav-link<%= sekme === s[0] ? ' active' : '' %>"><i class="ti <%= s[2] %> me-1"></i><%= s[1] %></a></li>
+              <% }) %>
+            </ul>
+          </div>
+
+          <% if (sekme === 'manuel' && hesaplar) { %>
+            <form method="post" action="/bbhb/manuel/hesapla" class="card-body" autocomplete="off">
+              <% if (c) { %>
+                <input type="hidden" name="ciftciId" value="<%= c._id %>">
+                <div class="alert alert-info py-2"><i class="ti ti-user me-1"></i> <strong><%= c.adSoyad %></strong> için giriliyor; kaydedilince işletme bu çiftçiye bağlanır.</div>
+              <% } else if (locals.ciftciId) { %><input type="hidden" name="ciftciId" value="<%= ciftciId %>"><% } %>
+              <h3 class="mb-1">Rapor başlığı</h3>
+              <p class="text-secondary small">İl / ilçe / köy-mahalle.</p>
+              <div class="row g-2 mb-3">
+                <div class="col-md-4"><label class="form-label small">İl</label><input class="form-control" value="<%= ayar.il || 'İstanbul' %>" disabled></div>
+                <div class="col-md-4">
+                  <label class="form-label small required">İlçe</label>
+                  <select name="ilce" class="form-select" required>
+                    <option value="">Seçiniz</option>
+                    <% ayar.ilceler.forEach(function (i) { %><option <%= deger('ilce', c && c.ilce) === i ? 'selected' : '' %>><%= i %></option><% }) %>
+                  </select>
+                </div>
+                <div class="col-md-4"><label class="form-label small">Köy / mahalle</label><input name="mahalle" class="form-control" value="<%= deger('mahalle', c && c.mahalle) %>"></div>
+              </div>
+              <div class="row g-2 mb-3">
+                <div class="col-md-5"><label class="form-label small required">İşletmeci adı</label><input name="isletmeciAdi" class="form-control" value="<%= deger('isletmeciAdi', c && c.adSoyad) %>" placeholder="Ad Soyad / Firma" required></div>
+                <div class="col-md-3"><label class="form-label small">T.C. kimlik no</label><input name="tcKimlikNo" class="form-control font-monospace" maxlength="11" value="<%= deger('tcKimlikNo', c && c.tcKimlikNo) %>"></div>
+                <div class="col-md-4"><label class="form-label small">İşletme no</label><input name="isletmeNo" class="form-control font-monospace" value="<%= deger('isletmeNo') %>" placeholder="TR340000000000"></div>
+              </div>
+              <% kategoriler.forEach(function (g) { %>
+                <div class="border rounded p-2 mb-2">
+                  <div class="fw-medium small mb-2"><%= g.baslik %><% if (g.not) { %> <span class="text-secondary fw-normal">— <%= g.not %></span><% } %></div>
+                  <div class="row g-2">
+                    <% g.kategoriler.forEach(function (k) { %>
+                      <div class="col-6 col-md-4 col-lg-3">
+                        <label class="form-label small mb-0"><%= k.etiket %> <span class="text-secondary">(katsayı <%= k.katsayi %>)</span></label>
+                        <input type="number" min="0" step="1" name="adet[<%= g.grupKodu %>][<%= k.kod %>]" value="<%= adet(g.grupKodu, k.kod) %>" class="form-control form-control-sm" placeholder="0">
+                        <div class="text-secondary" style="font-size:11px"><%= k.kosul || 'yaş/cinsiyetten bağımsız' %></div>
+                      </div>
+                    <% }) %>
+                  </div>
+                </div>
+              <% }) %>
+              <button type="submit" class="btn btn-primary mt-2"><i class="ti ti-calculator me-1"></i> Hesapla</button>
+            </form>
+          <% } %>
+
+          <% if (sekme === 'turkvet' && hesaplar) { %>
+            <form method="post" action="/bbhb/turkvet/onizleme" enctype="multipart/form-data" class="card-body">
+              <p class="text-secondary small">İl / ilçe / köy-mahalle bilgisi dosyanın kendisinden okunur. Dosyada birden fazla mahalle varsa sonuç mahalle bazında ayrı bölümler halinde gösterilir ve ayrı kayıtlar olarak saklanır. Yüklenen dosyalar saklanmaz.</p>
+              <p class="text-secondary small">Beklenen sütunlar: Küpe Numarası, Tür, Irk, Cinsiyet, Doğum Tarihi, İl, İlçe, Mahalle, İşletme Sahibi Kişi/Firma, Bulunduğu İşletme. "T.C. kimlik no" sütunu varsa çiftçi eşleştirmesinde kullanılır.</p>
+              <div class="mb-2"><input type="file" class="form-control" name="dosyalar" accept=".xls,.xlsx,.csv" multiple required></div>
+              <button type="submit" class="btn btn-primary"><i class="ti ti-eye me-1"></i> Önizleme oluştur</button>
+            </form>
+          <% } %>
+
+          <% if (sekme === 'kayitli') { %>
+            <% if (!sonuclar.length) { %>
+              <div class="card-body text-secondary">Henüz kayıtlı sonuç yok.</div>
+            <% } else { %>
+              <div class="table-responsive">
+                <table class="table table-vcenter card-table table-sm">
+                  <thead><tr><th>Kayıt tarihi</th><th>Bölüm</th><th>Kaynak</th><th class="tablo-sayi">İşletme</th><th class="tablo-sayi">Genel toplam</th><th>Kaydeden</th><th class="w-1"></th></tr></thead>
+                  <tbody>
+                    <% sonuclar.forEach(function (s) { %>
+                      <tr>
+                        <td class="small text-nowrap"><%= y.tarih(s.createdAt) %> <%= new Date(s.createdAt).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }) %></td>
+                        <td class="small"><%= s.bolumler.map(function (b) { return [b.ilce, b.mahalle].filter(Boolean).join(' / '); }).join(', ') %></td>
+                        <td class="small"><%= s.kaynakTipi === 'turkvet' ? 'Türkvet' : 'Manuel' %><% if (s.kaynakDosyalar && s.kaynakDosyalar.length) { %><div class="text-secondary text-truncate" style="max-width:14rem"><%= s.kaynakDosyalar.join(', ') %></div><% } %></td>
+                        <td class="tablo-sayi"><%= s.bolumler.reduce(function (t, b) { return t + b.isletmeciSonuclari.length; }, 0) %></td>
+                        <td class="tablo-sayi fw-bold"><%= y.sayi(s.genelToplamBBHB) %></td>
+                        <td class="small text-secondary"><%= s.olusturanAd || '–' %></td>
+                        <td><a href="/bbhb/<%= s._id %>" class="btn btn-sm">Aç</a></td>
+                      </tr>
+                    <% }) %>
+                  </tbody>
+                </table>
+              </div>
+            <% } %>
+          <% } %>
+
+          <% if (sekme === 'isletmeler') { %>
+            <div class="card-body border-bottom">
+              <form class="row g-2" method="get" action="/bbhb">
+                <input type="hidden" name="sekme" value="isletmeler">
+                <div class="col-md-3">
+                  <select name="ilce" class="form-select" onchange="this.form.submit()">
+                    <option value="">Tüm ilçeler</option>
+                    <% ayar.ilceler.forEach(function (i) { %><option <%= filtre.ilce === i ? 'selected' : '' %>><%= i %></option><% }) %>
+                  </select>
+                </div>
+                <div class="col-md-4"><input type="search" name="q" value="<%= filtre.q %>" class="form-control" placeholder="Ad, işletme no, mahalle, T.C."></div>
+                <div class="col-auto d-flex align-items-center">
+                  <label class="form-check form-switch mb-0"><input class="form-check-input" type="checkbox" name="eslesmemis" value="1" <%= filtre.eslesmemis === '1' ? 'checked' : '' %> onchange="this.form.submit()"><span class="form-check-label">Yalnızca eşleşmemiş</span></label>
+                </div>
+                <% if (hesaplar) { %>
+                  <div class="col-auto ms-auto">
+                    <button type="submit" formmethod="post" formaction="/bbhb/eslestir" class="btn"><i class="ti ti-refresh me-1"></i> Eşleştirmeyi yenile</button>
+                  </div>
+                <% } %>
+              </form>
+              <div class="small text-secondary mt-2">Otomatik eşleşme: T.C. kimlik no aynıysa ya da ad soyad + ilçe + köy/mahalle aynıysa. Yalnızca ad soyad ve ilçe tutuyorsa çiftçi sayfasında öneri olarak çıkar. Aile işletmeleri çiftçi sayfasından elle eklenir.</div>
+            </div>
+            <% if (!isletmeListesi.length) { %>
+              <div class="card-body text-secondary">İşletme bulunamadı.</div>
+            <% } else { %>
+              <div class="table-responsive">
+                <table class="table table-vcenter card-table table-sm">
+                  <thead><tr><th>İşletmeci</th><th>İşletme no</th><th>İlçe / mahalle</th><th class="tablo-sayi">Büyükbaş</th><th class="tablo-sayi">Küçükbaş</th><th class="tablo-sayi">BBHB</th><th>Çiftçi</th></tr></thead>
+                  <tbody>
+                    <% isletmeListesi.forEach(function (is) { %>
+                      <tr>
+                        <td><%= is.isletmeciAdi %><% if (is.tcKimlikNo) { %><div class="small text-secondary font-monospace"><%= is.tcKimlikNo %></div><% } %></td>
+                        <td class="small font-monospace"><a href="/bbhb/<%= is.sonucId %>" class="text-reset"><%= is.isletmeciId %></a></td>
+                        <td class="small"><%= is.ilce %><%= is.mahalle ? ' / ' + is.mahalle : '' %></td>
+                        <td class="tablo-sayi"><%= y.sayi(is.bas.buyukbas) %></td>
+                        <td class="tablo-sayi"><%= y.sayi(is.bas.kucukbas) %></td>
+                        <td class="tablo-sayi fw-bold"><%= y.sayi(is.bbhb) %></td>
+                        <td class="small">
+                          <% if (!is.ciftciler.length) { %><span class="text-secondary">–</span><% } %>
+                          <% is.ciftciler.forEach(function (c) { %><div><a href="/ciftciler/<%= c._id %>"><%= c.adSoyad %></a> <span class="badge bg-<%= c.eslesme === 'elle' ? 'secondary' : 'green' %>-lt"><%= c.eslesme === 'tc' ? 'T.C.' : (c.eslesme === 'ad-koy' ? 'ad+köy' : (c.yakinlik || 'elle')) %></span></div><% }) %>
+                        </td>
+                      </tr>
+                    <% }) %>
+                  </tbody>
+                </table>
+              </div>
+            <% } %>
+          <% } %>
+        </div>
+      </div>
+
+      <div class="col-lg-3">
+        <div class="card mb-3">
+          <div class="card-body">
+            <h3 class="card-title mb-1">Kural seti</h3>
+            <span class="badge bg-blue-lt">Aktif versiyon: <%= versiyon %></span>
+            <p class="text-secondary small mt-2 mb-0"><%= kategoriSayisi %> kategori, 4342 sayılı Mera Kanunu esaslarına göre tanımlıdır.</p>
+          </div>
+        </div>
+        <div class="card mb-3">
+          <div class="card-body">
+            <h3 class="card-title mb-1">Nasıl çalışır</h3>
+            <p class="text-secondary small mb-2">Manuel giriş veya Türkvet dosyası ile hesaplanır, sonuç önizlenir, onaylanırsa kalıcı olarak kaydedilir. Kayıttan sonra işletmeler çiftçilerle otomatik eşleştirilir.</p>
+            <p class="text-secondary small mb-0">Eşleşen çiftçinin değerlendirmesinde gerçek BBHB ve hayvan sayıları görünür; formüllerde <code>bbhb</code>, beyandan tahmin <code>bbhb_beyan</code>, ikisinden geçerli olan <code>bbhb_gecerli</code> kullanılır.</p>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-body">
+            <h3 class="card-title mb-1">Sınıflandırma ölçütleri</h3>
+            <% kriterler.forEach(function (k) { %><p class="text-secondary small mb-1"><%= k %></p><% }) %>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<%- include('../../../views/partials/alt') %>

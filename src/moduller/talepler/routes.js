@@ -10,6 +10,7 @@ const { sayiOku, diziyeCevir, anahtar, sonucBirimi, hayvanlariOku } = require('.
 const { calisilanIlceler, ilceKisitliMi, yetkiGerekli } = require('../../core/yetki');
 const akis = require('./akis');
 const { degerlendirmeHesabi } = require('../projeler/degerlendirme-hesabi');
+const bbhbIsletmeler = require('../bbhb/isletmeler');
 
 const router = express.Router();
 const V = 'talepler/views/';
@@ -257,6 +258,8 @@ async function kaydet(req, res, mevcutTalep) {
       ...ciftciVeri, hayvanlar, hayvanTarihi: new Date(), kaydeden: ben ? ben._id : undefined, kaydedenAd: ben ? ben.adSoyad : undefined
     });
   }
+  // BBHB kayıtlarındaki işletmelerle otomatik eşleştirme (T.C. ya da ad soyad + köy)
+  await bbhbIsletmeler.ciftciyiEslestir(ciftci);
 
   const veri = {
     projeId: proje._id, ciftciId: ciftci._id, ilce: ciftci.ilce, talepKalemleri: talepKalemleri.filter((t) => t.miktar > 0), satirlar: satirlar.map(temizSatir), hayvanlar, aciklama
@@ -305,7 +308,9 @@ router.get('/:id', sar(talepBul), sar(async (req, res) => {
     const k = proje.kalemler.find((x) => String(x._id) === String(id));
     return (k && k.talepBirimi) || 'da';
   };
-  const deg = degerlendirmeHesabi(req.talep, ciftci, proje, res.locals.ayar, hesap);
+  const bbhbHarita = await bbhbIsletmeler.isletmeHaritasi();
+  const bbhbOzeti = bbhbIsletmeler.ciftciBbhb(ciftci, bbhbHarita);
+  const deg = degerlendirmeHesabi(req.talep, ciftci, proje, res.locals.ayar, hesap, bbhbOzeti);
   const islemler = akis.kullanilabilirIslemler(req.talep, baglam(req, res));
   const duzenlenebilir = req.izin('talep.gir') && (req.talep.durum === 'taslak' || req.silebilir);
   res.render(V + 'detay', {

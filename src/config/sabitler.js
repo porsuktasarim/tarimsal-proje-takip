@@ -50,9 +50,10 @@ const varsayilanlar = {
 
   // Talep değerlendirmesinde yardımcı bilgi olarak girilen hayvan varlığı
   hayvanTurleri: [
-    { kod: 'buyukbas', ad: 'Büyükbaş', birim: 'baş' },
-    { kod: 'kucukbas', ad: 'Küçükbaş', birim: 'baş' },
-    { kod: 'ari', ad: 'Arı', birim: 'koloni' }
+    // bbhbKatsayisi: beyan edilen sayıdan tahmini BBHB (ırk ve yaş bilinmediği için ortalama değer)
+    { kod: 'buyukbas', ad: 'Büyükbaş', birim: 'baş', bbhbKatsayisi: 0.75 },
+    { kod: 'kucukbas', ad: 'Küçükbaş', birim: 'baş', bbhbKatsayisi: 0.1 },
+    { kod: 'ari', ad: 'Arı', birim: 'koloni', bbhbKatsayisi: 0 }
   ],
 
   // Roller Ayarlar > Roller'den eklenip düzenlenir. "admin" (Sistem Yöneticisi)
@@ -61,16 +62,16 @@ const varsayilanlar = {
     { kod: 'admin', ad: 'Sistem Yöneticisi', aciklama: 'Tüm yetkilere sahiptir; tek kişiye verilir.', renk: 'red', ilceKisitli: false, yetkiler: [] },
     {
       kod: 'yonetici', ad: 'İş Planı', aciklama: 'Yöneticiler. Projelerin toplu istatistiklerini ve son durumunu izler.', renk: 'purple', ilceKisitli: false,
-      yetkiler: ['pano.gor', 'proje.gor', 'talep.gor', 'ciftci.gor', 'gorev.gor', 'gorev.ver']
+      yetkiler: ['pano.gor', 'proje.gor', 'talep.gor', 'ciftci.gor', 'gorev.gor', 'gorev.ver', 'bbhb.gor']
     },
     {
       kod: 'koordinator', ad: 'Proje Koordinatörü', aciklama: 'İşi yürüten il müdürlüğü personeli.', renk: 'blue', ilceKisitli: false,
       yetkiler: ['pano.gor', 'proje.gor', 'proje.yonet', 'talep.gor', 'talep.gir', 'talep.degerlendir',
-        'ciftci.gor', 'ciftci.yonet', 'gorev.gor', 'gorev.ver', 'ayar.genel', 'ayar.katalog']
+        'ciftci.gor', 'ciftci.yonet', 'gorev.gor', 'gorev.ver', 'ayar.genel', 'ayar.katalog', 'bbhb.gor', 'bbhb.hesapla']
     },
     {
       kod: 'yurutucu', ad: 'Proje Yürütücüsü', aciklama: 'Sahada çalışan personel.', renk: 'green', ilceKisitli: true,
-      yetkiler: ['pano.gor', 'proje.gor', 'talep.gor', 'talep.gir', 'ciftci.gor', 'ciftci.yonet']
+      yetkiler: ['pano.gor', 'proje.gor', 'talep.gor', 'talep.gir', 'ciftci.gor', 'ciftci.yonet', 'bbhb.gor']
     }
   ]
 };
@@ -94,6 +95,13 @@ const yetkiGruplari = [
       { kod: 'talep.degerlendir', ad: 'Başvuruları değerlendirir: teslim alır, değiştirir, yürütücüye gönderir, karar verir' },
       { kod: 'ciftci.gor', ad: 'Çiftçi kayıtlarını ve icmalini görür' },
       { kod: 'ciftci.yonet', ad: 'Çiftçi kaydı ekler, düzenler' }
+    ]
+  },
+  {
+    ad: 'BBHB (büyükbaş hayvan birimi)',
+    yetkiler: [
+      { kod: 'bbhb.gor', ad: 'BBHB sonuçlarını ve çiftçinin işletmelerini görür' },
+      { kod: 'bbhb.hesapla', ad: 'BBHB hesaplar ve kaydeder (manuel, Türkvet dosyası), işletmeleri çiftçilerle eşleştirir' }
     ]
   },
   {

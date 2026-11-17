@@ -54,9 +54,22 @@
 - **Destek icmali:** kesin desteklenen başvurular ilçe bazında (kalem miktarları, dağıtım, bedel, çiftçi katkısı, destek; ilçe ve genel toplam), yedek liste puana göre; yazdırılabilir.
 - **Silme:** sistemin tamamında kayıt silme (proje, başvuru, çiftçi, görev, kişi, rol, ürün, çeşit, liste değerleri) yalnızca Sistem Yöneticisi tarafından yapılır.
 
+### BBHB (büyükbaş hayvan birimi)
+
+Mera İzleme Sistemi'ndeki (misweb) BBHB modülü alınmıştır; katsayı tablosu (kural seti v1, 4342 sayılı Mera Kanunu esasları), sınıflandırma (ırk, yaş, cinsiyet) ve hesap çekirdeği aynıdır.
+
+- **Manuel giriş:** ilçe, köy/mahalle, işletmeci adı (isteğe bağlı T.C. ve işletme no) ve 20 kategoride adet; önizleme, onaylanırsa kayıt.
+- **Türkvet dosyası:** .xls/.xlsx/.csv, birden fazla dosya; il/ilçe/mahalle dosyadan okunur, her yerleşim ayrı kayıt olur. Dosyalar sunucuda saklanmaz. Beklenen sütunlar: Küpe Numarası, Tür, Irk, Cinsiyet, Doğum Tarihi, İl, İlçe, Mahalle, İşletme Sahibi Kişi/Firma, Bulunduğu İşletme; "T.C. kimlik no" sütunu varsa eşleştirmede kullanılır.
+- **Kayıtlar değişmez:** her hesaplama yeni kayıttır; bir işletmenin değeri her zaman en güncel kaydından okunur. Silme yalnızca Sistem Yöneticisi.
+- **Otomatik eşleştirme:** kayıttan sonra (ve çiftçi kaydedildiğinde) işletmeler çiftçilerle eşleştirilir: T.C. kimlik no aynıysa ya da ad soyad + ilçe + köy/mahalle aynıysa bağlanır; yalnızca ad soyad ve ilçe tutuyorsa çiftçi sayfasında öneri olarak çıkar. Karşılaştırmada büyük/küçük harf, Türkçe karakter ve "Mahallesi/Köyü" ekleri dikkate alınmaz. Kaldırılan otomatik bağ yeniden kurulmaz.
+- **Aile işletmesi:** çiftçi sayfasında eşinin, babasının vb. işletmeleri yakınlığıyla birlikte eklenir; çiftçinin BBHB'si bağlı işletmelerin toplamıdır.
+- **Başvuru girişi değişmez:** yürütücü beyan edilen hayvan sayılarını eskisi gibi girer. Değerlendirmede beyanın yanında BBHB kaydı (büyükbaş, küçükbaş, BBHB) görünür; "Değerlere aktar" ile hayvan sayıları kayda göre düzeltilir (eski değer geçmişte kalır).
+- **Formül değişkenleri:** `bbhb` (bağlı işletmelerin toplamı), `bbhb_var`, `bbhb_beyan` (beyan edilen sayılar × Ayarlar > Hayvan türleri'ndeki BBHB katsayısı), `bbhb_gecerli` (kayıt varsa kayıt, yoksa beyan), `bbhb_buyukbas`, `bbhb_kucukbas`.
+- **Ot ihtiyacı:** proje formundaki "Ot ihtiyacı formülleri" düğmesi `bbhb_gecerli * 12.5 * 365` (1 BBHB, günde ≈12,5 kg kuru madde), yalnız beyanla `bbhb_beyan * 12.5 * 365` ve `ot_acigi = ot_ihtiyaci - kuru_ot_uretimi` formüllerini ekler; değerler değiştirilebilir.
+
 ### Kişiler, roller ve görevler
 
-- **Roller ve yetkiler:** roller Ayarlar > Roller ve yetkiler'den eklenir, adlandırılır, renklendirilir ve silinir (kişisi ya da görevi olan rol silinemez). Her role işaretlenerek yetki verilir: Genel Bakış, projeleri görme/yönetme, talep görme/girme, başvuru değerlendirme, çiftçi görme/yönetme, tüm görevleri görme, görev verme, ayarlar (genel, katalog, kişi ve roller). "İlçe kısıtlı" roldeki kişiler yalnızca sorumlu oldukları ilçelerin çiftçisini ve talebini girer. Hazır roller: İş Planı, Proje Koordinatörü, Proje Yürütücüsü.
+- **Roller ve yetkiler:** roller Ayarlar > Roller ve yetkiler'den eklenir, adlandırılır, renklendirilir ve silinir (kişisi ya da görevi olan rol silinemez). Her role işaretlenerek yetki verilir: Genel Bakış, projeleri görme/yönetme, talep görme/girme, başvuru değerlendirme, BBHB görme/hesaplama, çiftçi görme/yönetme, tüm görevleri görme, görev verme, ayarlar (genel, katalog, kişi ve roller). "İlçe kısıtlı" roldeki kişiler yalnızca sorumlu oldukları ilçelerin çiftçisini ve talebini girer. Hazır roller: İş Planı, Proje Koordinatörü, Proje Yürütücüsü.
 - **Sistem Yöneticisi:** tüm yetkilere sahip sabit roldür ve yalnızca bir kişiye verilebilir. Sistem Yöneticisi atanana kadar yetki denetimi uygulanmaz (ilk kurulum) ve üstte uyarı görünür.
 - **Kişiler:** ad soyad, unvan, rol, birim, sorumlu ilçeler, iletişim; pasif yapılabilir.
 - **Giriş:** şifre yoktur. İlk kişi tanımlandıktan sonra sisteme girişte "Kimsiniz?" ekranında kişi seçilir; seçim tarayıcıda hatırlanır, üst çubuktaki menüden değiştirilebilir.
@@ -165,8 +178,10 @@ src/
   moduller/
     genel-bakis/            Toplu istatistik ve son durum panosu
     projeler/               Proje modeli, norm, miktar ve bütçe hesapları (hesap.js), sayfalar
-    talepler/               Çiftçi talepleri (talep edilen miktarlar ve parseller)
-    ciftciler/              Çiftçi kaydı ve çiftçi icmali
+    talepler/               Çiftçi talepleri, başvuru akışı (akis.js) ve geçmiş
+    degerlendirme/          Değerlendirme sayfası ve destek icmali
+    ciftciler/              Çiftçi kaydı, çiftçi icmali ve bağlı işletmeler
+    bbhb/                   BBHB hesaplama (misweb'den), Türkvet içe aktarma, işletme eşleştirme
     gorevler/               Görev modeli ve sayfaları
     ayarlar/                Ayar, Ürün ve Kişi modelleri, ayar sayfaları
 public/                     Uygulamaya özel CSS, JS, simge
@@ -176,6 +191,7 @@ public/                     Uygulamaya özel CSS, JS, simge
 
 | Koleksiyon | İçerik |
 |---|---|
+| `bbhb_sonuclari` | Değişmez BBHB hesaplamaları: kaynak (manuel/Türkvet), yaş referans tarihi, bölüm (il/ilçe/mahalle), işletmeci sonuçları (işletme no, ad, T.C., kategori detayları, toplam) |
 | `ayarlar` | Tek belge (`_id: genel`): kurum, il, birimler, dönemler, ilçeler, kalem türleri, ölçü birimleri, norm tanımları |
 | `urunler` | Ürün kataloğu: tür, ad, dağıtım birimi, ambalaj, normlar `{ kod: { deger, birim } }`, çeşitler (kendi normları ve ambalajıyla) |
 | `projeler` | Proje bilgileri, kalemler (ürün kimliği, ürün, çeşit, alan, dağıtım birimi, ambalaj, normlar), ilçe hedefleri, proje ekibi |
