@@ -23,8 +23,21 @@ const katla = (s) => String(s || '').toLocaleLowerCase('tr')
 const adAnahtari = (s) => katla(s);
 const yerAnahtari = (s) => katla(s).replace(/\b(mahallesi|mahalle|mah|mh|koyu|koy|belde|beldesi)\b/g, '').replace(/\s+/g, ' ').trim();
 
-// İşletmeci kimliği → en güncel değerler
+// İşletmeci kimliği → en güncel değerler. Değerlendirme ızgarasındaki her hücre
+// değişikliğinde yeniden hesap yapıldığı için kısa süre bellekte tutulur; BBHB
+// kaydedilince ya da silinince temizlenir.
+let onbellek = null;
+const ONBELLEK_SURESI = 30 * 1000;
+function onbellegiTemizle() { onbellek = null; }
+
 async function isletmeHaritasi() {
+  if (onbellek && Date.now() - onbellek.zaman < ONBELLEK_SURESI) return onbellek.harita;
+  const harita = await haritaOlustur();
+  onbellek = { zaman: Date.now(), harita };
+  return harita;
+}
+
+async function haritaOlustur() {
   const sonuclar = await BbhbSonuc.find({ durum: 'aktif' }).sort({ createdAt: -1 }).lean();
   const harita = new Map();
   sonuclar.forEach((s) => (s.bolumler || []).forEach((b) => (b.isletmeciSonuclari || []).forEach((is) => {
@@ -115,4 +128,4 @@ async function ozetHaritasi(ciftciler) {
   return sonuc;
 }
 
-module.exports = { GRUP_TURU, isletmeHaritasi, adaylar, ciftciyiEslestir, tumunuEslestir, ciftciBbhb, ozetHaritasi, adAnahtari, yerAnahtari };
+module.exports = { GRUP_TURU, onbellegiTemizle, isletmeHaritasi, adaylar, ciftciyiEslestir, tumunuEslestir, ciftciBbhb, ozetHaritasi, adAnahtari, yerAnahtari };

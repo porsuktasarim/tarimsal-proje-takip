@@ -9,7 +9,10 @@ const { metinVarMi } = require('../projeler/proje-metni');
 
 // Proje metni yüklenmeden değerlendirme yapılamaz: proje sayfasına yönlendirilir
 const metinSayfasi = (proje) => `/projeler/${proje._id}?bildirim=proje-metni-gerekli&metin=gerekli#proje-metni`;
-const { anahtar, diziyeCevir } = require('../../core/yardimcilar');
+const { anahtar, diziyeCevir, sayi, para, sayiOku, hayvanlariOku } = require('../../core/yardimcilar');
+const { normOku } = require('../ayarlar/katalog');
+const { uretimKodu } = require('../projeler/degerlendirme-hesabi');
+const { normsuzMu } = require('../projeler/hesap');
 const { yetkiGerekli, ilceKisitliMi } = require('../../core/yetki');
 
 const router = express.Router();
@@ -47,6 +50,47 @@ function satirVerisi(t, proje, ayar, bbhbHarita) {
   ((t.basvuru && t.basvuru.talepKalemleri) || []).forEach((x) => { ilk[String(x.kalemId)] = x.miktar; });
   const notlar = (t.gecmis || []).filter((g) => g.not);
   return { talep: t, ciftci: t.ciftciId, hesap, deg, ilk, notSayisi: notlar.length, sonNot: notlar.length ? notlar[notlar.length - 1] : null };
+}
+
+// Projede çıktı normu girilmiş kalemlerden beklenen üretim sütunları (ör. silaj üretimi)
+function uretimSutunlari(proje, ayar) {
+  return (ayar.ciktiNormlari || [])
+    .filter((n) => proje.kalemler.some((k) => !normsuzMu(k, ayar) && normOku(k.normlar, n.kod)))
+    .map((n) => ({ kod: uretimKodu(n.kod), ad: n.ad.replace(/\s*verimi$/i, '') + ' üretimi', birim: String(n.birim || 'kg').split('/')[0] }));
+}
+
+// Izgaradaki hesaplanan hücreler: anahtar → { deger, metin, ipucu }
+function hucreler(s, proje, uretimler) {
+  const h = s.hesap;
+  const d = s.deg.degiskenler;
+  const o = {};
+  const koy = (k, deger, metin, ipucu) => { o[k] = { deger: deger == null ? null : deger, metin, ipucu: ipucu || '' }; };
+  proje.kalemler.forEach((k) => {
+    const hk = h.kalemler.find((x) => String(x.kalem._id) === String(k._id));
+    koy(`dagitim:${k._id}`, hk ? hk.miktar : null, hk && hk.miktar != null ? `${sayi(hk.miktar)} ${k.olcuBirimi}` : '–',
+      hk && hk.esasKaynak === 'parsel' ? 'Talep miktarı girilmemiş; parsel toplamına göre' : '');
+  });
+  const bbhbVar = s.deg.bbhb && s.deg.bbhb.var;
+  koy('bbhb', d.bbhb_gecerli, bbhbVar ? sayi(d.bbhb) : `~${sayi(d.bbhb_beyan)}`,
+    bbhbVar ? `BBHB kaydı (${s.deg.bbhb.isletmeSayisi} işletme): ${sayi(s.deg.bbhb.buyukbas)} büyükbaş, ${sayi(s.deg.bbhb.kucukbas)} küçükbaş` : 'Kayıt eşleşmedi; beyan edilen sayılardan tahmin');
+  koy('bedel', h.bedel, para(h.bedel));
+  koy('katki', h.ciftciKatkisi, para(h.ciftciKatkisi));
+  uretimler.forEach((u) => koy(`u:${u.kod}`, d[u.kod], sayi(d[u.kod], 0)));
+  s.deg.formuller.forEach((f) => koy(`f:${f.kod}`, f.deger, f.hata ? 'hata' : sayi(f.deger, f.ondalik), f.hata || ''));
+  koy('limit', s.deg.limitAsimlari.length, s.deg.limitAsimlari.length ? 'limit üstü' : '',
+    s.deg.limitAsimlari.map((l) => `${l.ad}: ${sayi(l.deger)} > ${sayi(l.ust)} ${l.birim}`).join('\n'));
+  return o;
+}
+
+// Izgaradan gelen değerler: { talepKalemleri: { kalemId: sayı }, hayvanlar: { kod: sayı } }
+function izgaraDegerleri(g, proje, ayar) {
+  const tk = (g && g.talepKalemleri) || {};
+  return {
+    talepKalemleri: proje.kalemler
+      .map((k) => ({ kalemId: String(k._id), miktar: sayiOku(tk[String(k._id)]) }))
+      .filter((x) => x.miktar !== undefined && x.miktar > 0),
+    hayvanlar: hayvanlariOku((g && g.hayvanlar) || {}, ayar.hayvanTurleri)
+  };
 }
 
 router.get('/', sar(async (req, res) => {
@@ -105,12 +149,54 @@ router.get('/', sar(async (req, res) => {
   res.render(V + 'liste', {
     baslik: 'Değerlendirme', projeler, proje, satirlar, sayilar, mahalleler, limitUstu, puanVar, destek, butce, toplam,
     formuller: formulleri(proje), limitler: limitleri(proje), ASAMA_GRUPLARI, kalemAdi,
+    uretimler: uretimSutunlari(proje, ayar), hucreler,
     filtre: { proje: String(proje._id), asama: grup || req.query.asama, ilce, mahalle, q: req.query.q || '', limit: req.query.limit || '' },
     donus: '/degerlendirme?' + new URLSearchParams(Object.entries({
       proje: String(proje._id), asama: grup || req.query.asama, ilce, mahalle, q: req.query.q || '', limit: req.query.limit || ''
     }).filter(([, v]) => v)).toString(),
     toplu: Object.keys(akis.ISLEMLER).filter((k) => !['gonder', 'not'].includes(k)).map((k) => ({ kod: k, ...akis.ISLEMLER[k] }))
   });
+}));
+
+// Izgara: hücre değişince satırın yeniden hesabı (kaydetmez)
+router.post('/onizle', sar(async (req, res) => {
+  const ayar = res.locals.ayar;
+  const b = req.body || {};
+  if (!mongoose.isValidObjectId(b.id)) return res.status(400).json({ hata: 'Başvuru bulunamadı.' });
+  const t = await Talep().findById(b.id).populate('ciftciId').lean();
+  if (!t || !t.ciftciId) return res.status(404).json({ hata: 'Başvuru bulunamadı.' });
+  const proje = await Proje().findById(t.projeId);
+  const v = izgaraDegerleri(b, proje, ayar);
+  const kopya = { ...t, talepKalemleri: v.talepKalemleri, hayvanlar: v.hayvanlar };
+  const s = satirVerisi(kopya, proje, ayar, await bbhbIsletmeler.isletmeHaritasi());
+  return res.json({ hucreler: hucreler(s, proje, uretimSutunlari(proje, ayar)) });
+}));
+
+// Izgara: değişiklikleri kaydet. Her başvuruda eski değerler geçmişte kalır; miktar
+// düşürülüyorsa gerekçe zorunludur (akis.degistir).
+router.post('/kaydet', sar(async (req, res) => {
+  const ayar = res.locals.ayar;
+  const b = req.body || {};
+  const liste = Array.isArray(b.degisiklikler) ? b.degisiklikler : [];
+  const sonuc = { tamam: 0, hatalar: [] };
+  const projeler = {};
+  for (const d of liste) {
+    if (!mongoose.isValidObjectId(d.id)) continue;
+    const t = await Talep().findById(d.id).populate('ciftciId', 'adSoyad');
+    if (!t) continue;
+    const ad = t.ciftciId ? t.ciftciId.adSoyad : String(t._id);
+    const pid = String(t.projeId);
+    if (!projeler[pid]) projeler[pid] = await Proje().findById(pid);
+    const proje = projeler[pid];
+    if (!metinVarMi(proje)) { sonuc.hatalar.push({ id: d.id, ad, hata: 'Proje metni yüklenmemiş.' }); continue; }
+    const v = izgaraDegerleri(d, proje, ayar);
+    const r = akis.degistir(t, proje, { ...v, not: b.not }, { izin: req.izin, ben: req.ben, ayar });
+    if (r.hata) { if (r.hata !== 'Değişiklik yapılmadı.') sonuc.hatalar.push({ id: d.id, ad, hata: r.hata }); continue; }
+    t.depopulate('ciftciId');
+    await t.save();
+    sonuc.tamam += 1;
+  }
+  return res.json(sonuc);
 }));
 
 // Değerlendirme penceresi (liste sayfasında açılır)

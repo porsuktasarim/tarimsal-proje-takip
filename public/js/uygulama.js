@@ -579,6 +579,155 @@
     document.querySelectorAll('.formul-puan').forEach(function (c) { if (c !== e.target) c.checked = false; });
   });
 
+  // --- Değerlendirme ızgarası: hücre düzenleme, anında yeniden hesap, toplu kayıt ---
+  var izgara = document.querySelector('[data-izgara]');
+  if (izgara) {
+    var cubuk = document.querySelector('[data-izgara-kaydet]');
+    var notGiris = document.querySelector('[data-izgara-not]');
+    var zamanlayicilar = {};
+    var kacisI = function (v) { return String(v == null ? '' : v).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
+    var trSayi = function (v) { return Number(v).toLocaleString('tr-TR', { maximumFractionDigits: 2 }); };
+    var trPara = function (v) { return Number(v).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' TL'; };
+
+    var hucreDegistiMi = function (i) { return String(i.value).trim() !== String(i.getAttribute('data-ilk')).trim(); };
+    var satirDegistiMi = function (tr) { return Array.prototype.some.call(tr.querySelectorAll('.izgara-hucre'), hucreDegistiMi); };
+    var degisenSatirlar = function () { return Array.prototype.filter.call(izgara.tBodies[0].rows, satirDegistiMi); };
+    var satirVerisi = function (tr) {
+      var v = { id: tr.getAttribute('data-talep'), talepKalemleri: {}, hayvanlar: {} };
+      tr.querySelectorAll('.izgara-hucre').forEach(function (i) { v[i.getAttribute('data-alan')][i.getAttribute('data-anahtar')] = i.value; });
+      return v;
+    };
+
+    // Alt satırdaki toplamlar (sütun sırasına göre)
+    var toplamlar = function () {
+      var alt = izgara.querySelector('[data-toplam-satiri]');
+      if (!alt) return;
+      var sutun = 0;
+      Array.prototype.forEach.call(alt.cells, function (td) {
+        var tur = td.getAttribute('data-toplam-sutun');
+        if (tur) {
+          var t = 0, var_ = false;
+          Array.prototype.forEach.call(izgara.tBodies[0].rows, function (tr) {
+            var h = tr.cells[sutun];
+            var v = h ? parseFloat(h.getAttribute('data-deger')) : NaN;
+            if (!isNaN(v)) { t += v; var_ = true; }
+          });
+          td.textContent = var_ ? (tur === 'para' ? trPara(t) : trSayi(t)) : '';
+        }
+        sutun += td.colSpan || 1;
+      });
+    };
+    toplamlar();
+
+    var cubuguGuncelle = function () {
+      var n = degisenSatirlar().length;
+      cubuk.classList.toggle('d-none', n === 0);
+      cubuk.querySelector('[data-degisen-sayi]').textContent = n;
+    };
+
+    var onizle = function (tr) {
+      tr.classList.add('izgara-hesaplaniyor');
+      fetch('/degerlendirme/onizle', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(satirVerisi(tr)) })
+        .then(function (r) { return r.json(); })
+        .then(function (v) {
+          tr.classList.remove('izgara-hesaplaniyor');
+          if (!v.hucreler) return;
+          Object.keys(v.hucreler).forEach(function (k) {
+            var td = tr.querySelector('[data-hucre="' + k + '"]');
+            if (!td) return;
+            var h = v.hucreler[k];
+            if (td.textContent.trim() !== String(h.metin)) { td.classList.remove('izgara-yenilendi'); void td.offsetWidth; td.classList.add('izgara-yenilendi'); }
+            td.textContent = h.metin;
+            td.setAttribute('data-deger', h.deger == null ? '' : h.deger);
+            td.title = h.ipucu || '';
+          });
+          tr.classList.toggle('limit-ustu', !!(v.hucreler.limit && v.hucreler.limit.deger));
+          toplamlar();
+        })
+        .catch(function () { tr.classList.remove('izgara-hesaplaniyor'); });
+    };
+
+    izgara.addEventListener('input', function (e) {
+      var i = e.target;
+      if (!i.classList.contains('izgara-hucre')) return;
+      var td = i.closest('td');
+      td.classList.toggle('izgara-degisti', hucreDegistiMi(i));
+      var v = parseFloat(i.value);
+      td.setAttribute('data-deger', isNaN(v) ? 0 : v);
+      var tr = i.closest('tr');
+      tr.classList.toggle('izgara-satir-degisti', satirDegistiMi(tr));
+      cubuguGuncelle();
+      clearTimeout(zamanlayicilar[tr.id]);
+      zamanlayicilar[tr.id] = setTimeout(function () { onizle(tr); }, 250);
+    });
+
+    // Excel benzeri gezinme: Enter/↓ alt satır, ↑ üst satır, Esc geri al
+    izgara.addEventListener('keydown', function (e) {
+      var i = e.target;
+      if (!i.classList.contains('izgara-hucre')) return;
+      if (e.key === 'Escape') {
+        i.value = i.getAttribute('data-ilk');
+        i.dispatchEvent(new Event('input', { bubbles: true }));
+        return;
+      }
+      var yon = (e.key === 'Enter' || e.key === 'ArrowDown') ? 1 : (e.key === 'ArrowUp' ? -1 : 0);
+      if (!yon) return;
+      e.preventDefault();
+      var td = i.closest('td');
+      var sutun = Array.prototype.indexOf.call(td.parentNode.cells, td);
+      var tr = td.parentNode;
+      for (;;) {
+        tr = yon > 0 ? tr.nextElementSibling : tr.previousElementSibling;
+        if (!tr) return;
+        var hedef = tr.cells[sutun] && tr.cells[sutun].querySelector('.izgara-hucre:not([disabled])');
+        if (hedef) { hedef.focus(); hedef.select(); return; }
+      }
+    });
+    izgara.addEventListener('focusin', function (e) { if (e.target.classList.contains('izgara-hucre')) e.target.select(); });
+
+    document.querySelector('[data-izgara-vazgec]').addEventListener('click', function () {
+      izgara.querySelectorAll('.izgara-hucre').forEach(function (i) {
+        if (hucreDegistiMi(i)) { i.value = i.getAttribute('data-ilk'); i.dispatchEvent(new Event('input', { bubbles: true })); }
+      });
+    });
+
+    document.querySelector('[data-izgara-kaydet-dugme]').addEventListener('click', function () {
+      var satirlar = degisenSatirlar();
+      if (!satirlar.length) return;
+      var dusen = satirlar.some(function (tr) {
+        return Array.prototype.some.call(tr.querySelectorAll('.izgara-hucre[data-alan="talepKalemleri"]'), function (i) {
+          var a = parseFloat(i.getAttribute('data-ilk')) || 0, b = parseFloat(i.value) || 0;
+          return b < a;
+        });
+      });
+      if (dusen && !notGiris.value.trim()) {
+        notGiris.classList.add('is-invalid'); notGiris.placeholder = 'Talep edilen miktar düşürüldü; gerekçe yazılmalıdır'; notGiris.focus();
+        return;
+      }
+      var dugme = this;
+      dugme.disabled = true;
+      fetch('/degerlendirme/kaydet', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ degisiklikler: satirlar.map(satirVerisi), not: notGiris.value })
+      }).then(function (r) { return r.json(); }).then(function (v) {
+        dugme.disabled = false;
+        if (v.hatalar && v.hatalar.length) {
+          v.hatalar.forEach(function (h) { var tr = document.getElementById('b-' + h.id); if (tr) { tr.classList.add('izgara-hatali'); tr.title = h.hata; } });
+          var m = document.createElement('div');
+          m.className = 'alert alert-danger mt-2 mb-0';
+          m.innerHTML = '<strong>' + v.tamam + ' başvuru kaydedildi; ' + v.hatalar.length + ' başvuruda hata:</strong><br>' + v.hatalar.map(function (h) { return kacisI(h.ad) + ': ' + kacisI(h.hata); }).join('<br>');
+          cubuk.appendChild(m);
+          return;
+        }
+        window.onbeforeunload = null;
+        var u = new URL(location.href); u.searchParams.set('bildirim', 'degisiklik-kaydedildi'); u.searchParams.delete('hata');
+        location.href = u.toString();
+      }).catch(function () { dugme.disabled = false; });
+    });
+
+    window.onbeforeunload = function () { return degisenSatirlar().length ? 'Kaydedilmemiş değişiklikler var.' : undefined; };
+  }
+
   // --- Değerlendirme sayfası: pencere, seçim, sıralama ---
   var panel = document.getElementById('panel-penceresi');
   if (panel) {
@@ -676,6 +825,16 @@
     var not = f.querySelector('textarea[name="not"]');
     if (not && !not.value.trim()) not.value = d.getAttribute('data-not');
   });
+
+  // --- Talep listesi: geri gönderilmiş başvuru seçiliyse toplu gönderimde not zorunlu ---
+  var topluTalep = document.querySelector('form[action="/talepler/toplu-gonder"]');
+  if (topluTalep) {
+    topluTalep.addEventListener('submit', function (e) {
+      var not = topluTalep.querySelector('textarea[name="not"]');
+      var geri = topluTalep.querySelector('[data-secim][data-asama="yurutucude"]:checked');
+      if (geri && !not.value.trim()) { e.preventDefault(); not.classList.add('is-invalid'); not.placeholder = 'Geri gönderilmiş başvuru seçili; yürütücü görüşü yazılmalıdır'; not.focus(); }
+    });
+  }
 
   // --- Başvuru akışı: not/gerekçe zorunlu işlemler ---
   document.addEventListener('submit', function (e) {

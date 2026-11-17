@@ -113,6 +113,7 @@ router.post('/kaydet', sar(async (req, res) => {
   try { sonuc = JSON.parse(req.body.sonuc || ''); } catch (e) { sonuc = null; }
   if (!sonuc) return res.redirect('/bbhb?bildirim=islem-yapilamadi&hata=' + encodeURIComponent('Önizleme verisi okunamadı.'));
   const kayitlar = await servis.sonucuKaydet(sonuc, req.ben);
+  isletmeler.onbellegiTemizle();
   // Belirli bir çiftçinin sayfasından gelindiyse işletme o çiftçiye bağlanır
   if (mongoose.isValidObjectId(req.body.ciftciId)) {
     const c = await mongoose.model('Ciftci').findById(req.body.ciftciId);
@@ -198,6 +199,7 @@ router.get('/:id', sar(async (req, res, next) => {
 // Silme yalnızca Sistem Yöneticisi (core/yetki.js)
 router.post('/:id/sil', sar(async (req, res) => {
   if (mongoose.isValidObjectId(req.params.id)) await BbhbSonuc.findByIdAndDelete(req.params.id);
+  isletmeler.onbellegiTemizle();
   return res.redirect('/bbhb?sekme=kayitli&bildirim=islem-yapildi&hata=' + encodeURIComponent('Kayıt silindi.'));
 }));
 

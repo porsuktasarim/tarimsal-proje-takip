@@ -86,11 +86,14 @@
             <p class="empty-subtitle text-secondary">Bu süzgeçle listelenecek çiftçi talebi bulunmuyor.</p>
             <div class="empty-action"><a href="/talepler/yeni?proje=<%= proje._id %>" class="btn btn-primary"><i class="ti ti-plus me-1"></i> Talep gir</a></div>
           </div>
-        <% } else { %>
+        <% } else { var topluGonder = izin('talep.gir'); %>
+          <form method="post" action="/talepler/toplu-gonder" id="toplu-formu" data-islem-formu>
+          <input type="hidden" name="donus" value="<%= locals.donus || '' %>">
           <div class="table-responsive">
             <table class="table table-vcenter card-table">
               <thead>
                 <tr>
+                  <% if (topluGonder) { %><th class="w-1"><input type="checkbox" class="form-check-input" data-tumunu-sec title="Tümünü seç"></th><% } %>
                   <th>Çiftçi</th>
                   <th>İlçe</th>
                   <th>ÇKS</th>
@@ -104,6 +107,7 @@
               <tbody>
                 <% satirlar.forEach(function (s) { var t = s.talep, c = s.ciftci, h = s.hesap, d = td[t.durum]; %>
                   <tr class="<%= t.durum === 'desteklenmedi' ? 'opacity-50' : '' %>">
+                    <% if (topluGonder) { %><td><% if (t.durum === 'taslak' || t.durum === 'yurutucude') { %><input type="checkbox" class="form-check-input" name="ids" value="<%= t._id %>" data-secim data-asama="<%= t.durum %>"><% } %></td><% } %>
                     <td>
                       <a href="/talepler/<%= t._id %>" class="text-reset fw-medium"><%= c.adSoyad %></a>
                       <div class="text-secondary small font-monospace"><%= c.tcKimlikNo %></div>
@@ -129,7 +133,7 @@
               </tbody>
               <tfoot>
                 <tr class="fw-bold">
-                  <td colspan="4"><%= toplam.ciftci %> çiftçi <span class="fw-normal text-secondary">(desteklenmeyenler hariç)</span>
+                  <td colspan="<%= topluGonder ? 5 : 4 %>"><%= toplam.ciftci %> çiftçi <span class="fw-normal text-secondary">(desteklenmeyenler hariç)</span>
                     <% var th = y.hayvanMetni(toplam.hayvanlar, ayar.hayvanTurleri); if (th) { %><div class="small fw-normal text-secondary"><i class="ti ti-paw"></i> <%= th %></div><% } %></td>
                   <td class="tablo-sayi text-nowrap"><%= y.toplamMetni(toplam.toplamlar) %></td>
                   <td class="tablo-sayi small"><%= birimli(toplam.miktar) %></td>
@@ -139,6 +143,21 @@
               </tfoot>
             </table>
           </div>
+          <% if (topluGonder) { %>
+            <div class="card-footer toplu-islem">
+              <div class="row g-2 align-items-center">
+                <div class="col-12 col-lg-auto"><span class="text-secondary text-nowrap"><span data-secili-sayi>0</span> başvuru seçili</span></div>
+                <div class="col-12 col-lg">
+                  <textarea name="not" rows="1" class="form-control form-control-sm" placeholder="Yürütücü görüşü / not (geri gönderilen başvurularda zorunlu; seçilen tümüne yazılır)"></textarea>
+                </div>
+                <div class="col-12 col-lg-auto">
+                  <button type="submit" class="btn btn-sm btn-primary" data-toplu-dugme disabled><i class="ti ti-send me-1"></i> Seçilenleri koordinatöre gönder</button>
+                </div>
+              </div>
+              <div class="small text-secondary mt-1">Taslaktaki ve size geri gönderilmiş başvurular seçilebilir. Geri gönderilmiş başvurularda not yazılması zorunludur.</div>
+            </div>
+          <% } %>
+          </form>
         <% } %>
       </div>
     <% } %>

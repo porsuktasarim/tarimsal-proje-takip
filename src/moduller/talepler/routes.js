@@ -178,7 +178,8 @@ router.get('/', sar(async (req, res) => {
   }));
 
   res.render(V + 'liste', {
-    baslik: 'Çiftçi talepleri', projeler, proje, satirlar, toplam, kisitli, bekleyenler, filtre: { ...req.query, ilce, proje: String(proje._id) }
+    baslik: 'Çiftçi talepleri', projeler, proje, satirlar, toplam, kisitli, bekleyenler, filtre: { ...req.query, ilce, proje: String(proje._id) },
+    donus: req.originalUrl.replace(/([?&])(bildirim|hata)=[^&]*/g, '$1').replace(/[?&]+$/, '').replace(/[?&]{2,}/g, (m) => m[0])
   });
 }));
 
@@ -337,6 +338,26 @@ router.get('/:id/duzenle', sar(talepBul), sar(async (req, res) => {
 }));
 
 router.post('/:id', sar(talepBul), sar(async (req, res) => kaydet(req, res, req.talep)));
+
+// Toplu gönderme: seçilen taslak / geri gönderilmiş başvurular koordinatöre
+router.post('/toplu-gonder', sar(async (req, res) => {
+  const donus = donusAdresi(req.body.donus, '/talepler');
+  const ids = diziyeCevir(req.body.ids).filter((id) => mongoose.isValidObjectId(id));
+  if (!ids.length) return res.redirect(bildirimEkle(donus, 'islem-yapilamadi') + '&hata=' + encodeURIComponent('Başvuru seçilmelidir.'));
+  let tamam = 0;
+  const hatalar = new Set();
+  for (const id of ids) {
+    const t = await Talep.findById(id);
+    if (!t) continue;
+    const r = akis.uygula(t, 'gonder', { ...baglam(req, res), not: req.body.not });
+    if (r.hata) { hatalar.add(r.hata); continue; }
+    await t.save();
+    tamam += 1;
+  }
+  if (!tamam) return res.redirect(bildirimEkle(donus, 'islem-yapilamadi') + '&hata=' + encodeURIComponent([...hatalar].join(' ')));
+  const mesaj = hatalar.size ? `${tamam} başvuru gönderildi; ${ids.length - tamam} başvuru gönderilemedi: ${[...hatalar].join(' ')}` : `${tamam} başvuru koordinatöre gönderildi.`;
+  return res.redirect(bildirimEkle(donus, 'toplu-islem') + '&hata=' + encodeURIComponent(mesaj));
+}));
 
 // Akış işlemi: gönder, teslim al, yürütücüye gönder, karar, not ...
 router.post('/:id/islem', sar(talepBul), sar(async (req, res) => {
