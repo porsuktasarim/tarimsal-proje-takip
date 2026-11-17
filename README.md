@@ -136,14 +136,9 @@ docker compose up -d --build
 
 Uygulama `http://<sunucu-ip>:1763` adresinden açılır. Veriler `tpts-veri` Docker biriminde saklanır.
 
-### Güncelleme (otomatik)
+### Güncelleme
 
-`docker-compose.yml`'deki **guncelleyici** hizmeti GitHub'daki `main` dalını 5 dakikada bir denetler; yeni sürüm varsa çeker (`git reset --hard origin/main`) ve `docker compose up -d --build` ile uygulamayı yeniden kurar. Veritabanı birimi korunur; göçler uygulama açılırken kendiliğinden çalışır.
-
-- Bir kez, güncelleyicinin bulunduğu sürüm çekilip `docker compose up -d --build` çalıştırılmalıdır; sonrası kendiliğindendir.
-- Proje klasörü `git clone` ile kurulmuş olmalıdır. Sunucudaki klasörde yapılan elle değişiklikler (izlenen dosyalarda) güncellemede silinir; ayarlar `.env` gibi izlenmeyen dosyalarda tutulmalıdır.
-- Kayıtlar: `docker logs tarimsal-proje-takip-guncelleyici`. Denetim aralığı `GUNCELLEME_ARALIGI` (saniye) ile değiştirilir.
-- Güncelleyici, compose'u sunucunun kendisinden başlatıldığı klasör yoluyla çalıştırır (`${PWD}`); `docker compose` komutu proje klasöründe verilmelidir.
+Coolify ile kuruluysa GitHub'daki `main` dalına gönderilen her sürüm Coolify tarafından kendiliğinden kurulur (Coolify > uygulama > Advanced > Deployment > Auto deploy). Veritabanı birimi korunur; göçler uygulama açılırken kendiliğinden çalışır. `docker-compose.yml`'de `${...}` değişkenli birim yolu kullanılmamalıdır; Coolify bu dosyayı güvenlik gereği yüklemez.
 
 Elle güncelleme:
 
@@ -191,7 +186,6 @@ src/
     degerlendirme/          Değerlendirme sayfası ve destek icmali
     ciftciler/              Çiftçi kaydı, çiftçi icmali ve bağlı işletmeler
     bbhb/                   BBHB hesaplama (misweb'den), Türkvet içe aktarma, işletme eşleştirme
-deploy/guncelleyici.sh      Otomatik güncelleyici (GitHub'da yeni sürüm → docker compose up -d --build)
     gorevler/               Görev modeli ve sayfaları
     ayarlar/                Ayar, Ürün ve Kişi modelleri, ayar sayfaları
 public/                     Uygulamaya özel CSS, JS, simge
