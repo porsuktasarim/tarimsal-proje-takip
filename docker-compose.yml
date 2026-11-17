@@ -18,5 +18,21 @@ services:
     volumes:
       - tpts-veri:/data/db
 
+  # Otomatik güncelleme: GitHub'da yeni sürüm olunca çeker ve
+  # "docker compose up -d --build" ile uygulamayı yeniden kurar (deploy/guncelleyici.sh).
+  # Proje klasörü sunucudaki yoluyla aynı yolda bağlanır (proje ve volume adları değişmesin).
+  guncelleyici:
+    image: docker:27-cli
+    container_name: tarimsal-proje-takip-guncelleyici
+    restart: unless-stopped
+    working_dir: ${PWD}
+    entrypoint: ["sh", "deploy/guncelleyici.sh"]
+    environment:
+      - GUNCELLEME_ARALIGI=300
+      - GUNCELLEME_DALI=main
+    volumes:
+      - ${PWD}:${PWD}
+      - /var/run/docker.sock:/var/run/docker.sock
+
 volumes:
   tpts-veri:

@@ -136,7 +136,16 @@ docker compose up -d --build
 
 Uygulama `http://<sunucu-ip>:1763` adresinden açılır. Veriler `tpts-veri` Docker biriminde saklanır.
 
-### Güncelleme
+### Güncelleme (otomatik)
+
+`docker-compose.yml`'deki **guncelleyici** hizmeti GitHub'daki `main` dalını 5 dakikada bir denetler; yeni sürüm varsa çeker (`git reset --hard origin/main`) ve `docker compose up -d --build` ile uygulamayı yeniden kurar. Veritabanı birimi korunur; göçler uygulama açılırken kendiliğinden çalışır.
+
+- Bir kez, güncelleyicinin bulunduğu sürüm çekilip `docker compose up -d --build` çalıştırılmalıdır; sonrası kendiliğindendir.
+- Proje klasörü `git clone` ile kurulmuş olmalıdır. Sunucudaki klasörde yapılan elle değişiklikler (izlenen dosyalarda) güncellemede silinir; ayarlar `.env` gibi izlenmeyen dosyalarda tutulmalıdır.
+- Kayıtlar: `docker logs tarimsal-proje-takip-guncelleyici`. Denetim aralığı `GUNCELLEME_ARALIGI` (saniye) ile değiştirilir.
+- Güncelleyici, compose'u sunucunun kendisinden başlatıldığı klasör yoluyla çalıştırır (`${PWD}`); `docker compose` komutu proje klasöründe verilmelidir.
+
+Elle güncelleme:
 
 ```bash
 git pull
@@ -182,6 +191,7 @@ src/
     degerlendirme/          Değerlendirme sayfası ve destek icmali
     ciftciler/              Çiftçi kaydı, çiftçi icmali ve bağlı işletmeler
     bbhb/                   BBHB hesaplama (misweb'den), Türkvet içe aktarma, işletme eşleştirme
+deploy/guncelleyici.sh      Otomatik güncelleyici (GitHub'da yeni sürüm → docker compose up -d --build)
     gorevler/               Görev modeli ve sayfaları
     ayarlar/                Ayar, Ürün ve Kişi modelleri, ayar sayfaları
 public/                     Uygulamaya özel CSS, JS, simge
