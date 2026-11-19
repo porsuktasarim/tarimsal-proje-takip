@@ -2,15 +2,11 @@
 <%
   var satir = function (a, i) {
     var sec = function (d, liste) { return Object.keys(liste).map(function (k) { return '<option value="' + k + '"' + (d === k ? ' selected' : '') + '>' + (liste[k].ad || liste[k]) + '</option>'; }).join(''); };
-    // Rol seçici: açılır kutuda onay kutuları; özetinde seçili rollerin adları
-    var rolSec = function (alan, secili, bosYazi) {
-      secili = secili || [];
-      var adlar = roller.filter(function (r) { return secili.indexOf(r.kod) >= 0; }).map(function (r) { return r.ad; });
-      return '<details class="rol-secici" data-bos="' + bosYazi + '"><summary class="form-select form-select-sm text-truncate">' + (adlar.join(', ') || bosYazi) + '</summary>' +
-        '<div class="rol-secici-liste">' + roller.map(function (r) {
-          return '<label class="form-check mb-1"><input type="checkbox" class="form-check-input" name="adimlar[' + i + '][' + alan + ']" value="' + r.kod + '"' + (secili.indexOf(r.kod) >= 0 ? ' checked' : '') + '>' +
-            '<span class="form-check-label"><span class="badge bg-' + (r.renk || 'secondary') + '-lt">' + r.ad + '</span></span></label>';
-        }).join('') + '</div></details>';
+    // Sorumlu rol: tek seçim; altında onaylayan (en üst) rol
+    var rolSec = function (secili) {
+      return '<select name="adimlar[' + i + '][sorumlu]" class="form-select form-select-sm sorumlu-sec"><option value="">–</option>' +
+        roller.filter(function (r) { return r.kod !== 'admin'; }).map(function (r) { return '<option value="' + r.kod + '"' + (secili === r.kod ? ' selected' : '') + '>' + r.ad + '</option>'; }).join('') +
+        '</select><div class="small text-secondary mt-1 onay-ipucu">' + (secili && onayHaritasi[secili] ? 'Onay: ' + onayHaritasi[secili] : (secili ? 'Onay yok (en üst rol)' : '')) + '</div>';
     };
     return '<tr' + (a.alt ? ' class="surec-alt"' : '') + '>' +
       '<td class="text-secondary text-nowrap"><span class="satir-no"></span>' +
@@ -20,8 +16,7 @@
       '<td><input type="hidden" name="adimlar[' + i + '][kod]" value="' + (a.kod || '') + '">' +
         '<input type="text" name="adimlar[' + i + '][ad]" value="' + String(a.ad || '').replace(/"/g, '&quot;') + '" class="form-control form-control-sm mb-1" placeholder="Adım adı">' +
         '<input type="text" name="adimlar[' + i + '][aciklama]" value="' + String(a.aciklama || '').replace(/"/g, '&quot;') + '" class="form-control form-control-sm" placeholder="Açıklama (isteğe bağlı)"></td>' +
-      '<td>' + rolSec('yapan', a.yapan, 'Seçilmedi') + '</td>' +
-      '<td>' + rolSec('onaylayan', a.onaylayan, 'Onay yok') + '</td>' +
+      '<td>' + rolSec(a.sorumlu) + '</td>' +
       '<td><select name="adimlar[' + i + '][veri]" class="form-select form-select-sm"><option value="">–</option>' + sec(a.veri || '', VERILER) + '</select></td>' +
       '<td class="sil-sutunu"><button type="button" class="btn btn-ghost-danger btn-icon" data-satir-sil title="Kaldır"><i class="ti ti-trash"></i></button></td></tr>';
   };
@@ -30,7 +25,7 @@
   <div class="card-header">
     <div>
       <h3 class="card-title">Proje süreci</h3>
-      <p class="card-subtitle">Tüm projelerin sayfasındaki süreç listesi. Her adımda sorumlu roller seçilir (Ayarlar › Roller): <strong>Yapan</strong> roller adımı "yapıldı" olarak işaretler; <strong>Onaylayan</strong> seçilirse onay, yapan kısmı bitmeden verilemez ve onaylanmış adımı yapan geri alamaz. Kişi hem yapan hem onaylayan rolündeyse iki kısmı birlikte işaretler; projede yapan rolden kimse yoksa onaylayan ikisini de işaretler. Kişinin projenin ekibinde (koordinatör/yürütücü) olması gerekir; ekip atanmamış projede rolü uyan herkes işaretler. "Alt" işaretli adım bir önceki ana adımın alt adımıdır; ana adım, alt adımları bitince tamamlanır ve sorumlu seçilmez.</p>
+      <p class="card-subtitle">Tüm projelerin sayfasındaki süreç listesi. Her adıma bir <strong>sorumlu rol</strong> seçilir (Ayarlar › Roller). Roller yetkileriyle sıralanır: bir rolün yetkilerinin tamamı başka bir rolde de varsa o rol üsttedir. Sorumlunun üstünde rol varsa adımı <strong>en üstteki rol onaylar</strong> (ör. Proje Yürütücüsü yapar, Proje Koordinatörü onaylar); onay, sorumlu kısmı bitmeden verilemez. Kişinin projenin ekibinde olması gerekir. "Alt" işaretli adım bir önceki ana adımın alt adımıdır; ana adım, alt adımları bitince tamamlanır.</p>
     </div>
     <div class="card-actions">
       <button type="button" class="btn btn-sm" data-satir-ekle="adimlar"><i class="ti ti-plus me-1"></i> Adım ekle</button>
@@ -39,13 +34,13 @@
   <%- include('../../../views/partials/hatalar', { hatalar: hatalar }) %>
   <div class="table-responsive">
     <table class="table table-vcenter card-table satir-tablosu">
-      <thead><tr><th class="w-1">#</th><th class="w-1">Alt</th><th style="min-width: 18rem">Adım</th><th style="width: 10rem">Yapan</th><th style="width: 10rem">Onaylayan</th><th style="width: 11rem">Durum bilgisi ve bağlantı</th><th class="w-1"></th></tr></thead>
+      <thead><tr><th class="w-1">#</th><th class="w-1">Alt</th><th style="min-width: 18rem">Adım</th><th style="width: 12rem">Sorumlu</th><th style="width: 11rem">Durum bilgisi ve bağlantı</th><th class="w-1"></th></tr></thead>
       <tbody data-satirlar="adimlar">
         <% adimlar.forEach(function (a, i) { %><%- satir(a, i) %><% }) %>
       </tbody>
     </table>
   </div>
-  <template id="adimlar-sablon"><%- satir({ yapan: [], onaylayan: [] }, '__i__') %></template>
+  <template id="adimlar-sablon"><%- satir({ sorumlu: '' }, '__i__') %></template>
   <div class="card-footer d-flex justify-content-between">
     <button type="submit" name="varsayilan" value="1" class="btn btn-ghost-secondary" onclick="return confirm('Süreç varsayılan adımlara döndürülsün mü? Projelerdeki işaretler adım koduna bağlı olduğundan aynı kodlu adımlarda korunur.')">Varsayılana dön</button>
     <button type="submit" class="btn btn-primary"><i class="ti ti-device-floppy me-1"></i> Kaydet</button>
@@ -53,16 +48,12 @@
 </form>
 <div class="small text-secondary mt-2">Adım silinirse projelerdeki işareti görünmez olur; aynı adım yeniden eklenmez, yeni kodla eklenir. Adın değiştirilmesi işaretleri etkilemez.</div>
 <script>
-  // Dışarı tıklanınca açık rol seçicileri kapat
-  document.addEventListener('click', function (e) {
-    document.querySelectorAll('.rol-secici[open]').forEach(function (d) { if (!d.contains(e.target)) d.removeAttribute('open'); });
-  });
-  // Rol seçicinin özetini seçime göre güncelle
+  // Sorumlu değişince onaylayan ipucunu güncelle
+  var ONAY = <%- JSON.stringify(onayHaritasi) %>;
   document.addEventListener('change', function (e) {
-    var d = e.target.closest('.rol-secici');
-    if (!d) return;
-    var adlar = Array.prototype.map.call(d.querySelectorAll('input:checked'), function (x) { return x.closest('label').innerText.trim(); });
-    d.querySelector('summary').textContent = adlar.join(', ') || d.getAttribute('data-bos');
+    if (!e.target.classList.contains('sorumlu-sec')) return;
+    var v = e.target.value;
+    e.target.parentElement.querySelector('.onay-ipucu').textContent = v ? (ONAY[v] ? 'Onay: ' + ONAY[v] : 'Onay yok (en üst rol)') : '';
   });
 </script>
 <%- include('_son') %>

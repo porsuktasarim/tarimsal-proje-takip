@@ -194,8 +194,3 @@ tr:has(input[name$="[alt]"]:checked) td:nth-child(3) { padding-left: 2.25rem; po
 tr:has(input[name$="[alt]"]:checked) td:nth-child(3)::before { content: "↳"; position: absolute; left: .9rem; top: .9rem; color: var(--tblr-secondary); }
 /* İzleme raporları: pasif kayıtlar */
 tr.izleme-pasif td { opacity: .55; }
-/* Ayarlar › Süreç: rol seçici */
-.rol-secici { position: relative; }
-.rol-secici > summary { list-style: none; cursor: pointer; }
-.rol-secici > summary::-webkit-details-marker { display: none; }
-.rol-secici-liste { position: absolute; z-index: 20; min-width: 14rem; margin-top: 2px; padding: .5rem .75rem; background: var(--tblr-bg-surface); border: 1px solid var(--tblr-border-color); border-radius: var(--tblr-border-radius); box-shadow: var(--tblr-box-shadow-dropdown); }

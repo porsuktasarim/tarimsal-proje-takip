@@ -1,30 +1,40 @@
 // Proje süreci: adımlar Ayarlar › Süreç'te tanımlanır (ayar.surecAdimlari).
 //
-// Her adımda sorumlu roller seçilir (Ayarlar › Roller'deki roller):
-//   yapan      adımı "yapıldı" olarak işaretleyen roller
-//   onaylayan  (isteğe bağlı) yapan işaretledikten sonra onaylayan roller
-// Onaylayan seçilmişse onay, yapan kısmı tamamlanmadan verilemez; onaylanmış adımı yapan geri alamaz.
-// Kişi hem yapan hem onaylayan rollerden birine uyuyorsa iki kısmı birlikte işaretler. Projede yapan
-// rollerden kimse yoksa (ör. yürütücü atanmamış) onaylayan iki kısmı da işaretler.
-// Kişinin rolü uysa da projenin ekibinde (koordinatör/yürütücü) olması gerekir; ekip atanmamışsa
-// rolü uyan herkes işaretler. Projede koordinatör olarak atanan kişi bu projede "Proje Koordinatörü",
-// yürütücü olarak atanan "Proje Yürütücüsü" rolünü de taşır (ikisine de atanan iki kısmı birlikte işaretler).
-// Sistem Yöneticisi her adımı işaretler.
+// Her adımın bir sorumlu rolü vardır (Ayarlar › Roller). Roller yetkileriyle sıralanır: bir rolün
+// yetkilerinin tamamı başka bir rolde de varsa o rol üsttedir. Sorumlu rol adımı "yapıldı" olarak
+// işaretler; sorumlunun üstünde rol varsa adımı en üstteki rol onaylar (ör. Proje Yürütücüsü yapar,
+// Proje Koordinatörü onaylar). En üstteki rol sorumluysa adım tek aşamalıdır.
+// Onay, sorumlu kısmı bitmeden verilemez; onaylanmış adımı sorumlu geri alamaz. Kişi hem sorumlu hem
+// onaylayan rolündeyse iki kısmı birlikte işaretler; projede sorumlu rolden kimse yoksa onaylayan
+// ikisini de işaretler.
+// Kişinin projenin ekibinde (koordinatör/yürütücü) olması gerekir; ekip atanmamışsa rolü uyan herkes
+// işaretler. Projede koordinatör olarak atanan kişi bu projede "Proje Koordinatörü", yürütücü olarak
+// atanan "Proje Yürütücüsü" rolünü de taşır. Sistem Yöneticisi her adımı işaretler.
 // Alt adımları olan ana adım, tüm alt adımlar tamamlanınca tamamlanmış sayılır.
 //
-// Proje kaydı: proje.surec[kod] = { ilce: { tamam, tarih, kisiAd } (yapan kısmı, onaylı adımlarda),
-//   il: { ... } (tek aşamalı adımda yapan, iki aşamalıda onay), notlar: [{ metin, kisiAd, tarih }] }
+// Proje kaydı: proje.surec[kod] = { ilce: { tamam, tarih, kisiAd } (sorumlu kısmı, onaylı adımlarda),
+//   il: { ... } (tek aşamalıda sorumlu, iki aşamalıda onay), notlar: [{ metin, kisiAd, tarih }] }
 
-// Eski "sorumlu" alanından (il / ilce / il-ilce) rol seçimine geçiş
-const ESKI_SORUMLU = {
-  il: { yapan: ['koordinator'], onaylayan: [] },
-  ilce: { yapan: ['yurutucu'], onaylayan: ['koordinator'] },
-  'il-ilce': { yapan: ['yurutucu'], onaylayan: ['koordinator'] }
-};
-function adimNormal(a) {
-  const yeni = Array.isArray(a.yapan) && a.yapan.length;
-  const eski = ESKI_SORUMLU[a.sorumlu] || ESKI_SORUMLU.il;
-  return { ...a, yapan: yeni ? a.yapan : eski.yapan, onaylayan: yeni ? (a.onaylayan || []) : eski.onaylayan };
+// Eski kayıtlar: il / ilce / il-ilce ya da yapan dizisi → sorumlu rol
+const ESKI_SORUMLU = { il: 'koordinator', ilce: 'yurutucu', 'il-ilce': 'yurutucu' };
+const sorumluRolu = (a) => (Array.isArray(a.yapan) && a.yapan.length ? a.yapan[0] : (ESKI_SORUMLU[a.sorumlu] || a.sorumlu || 'koordinator'));
+
+// Rolün üstündeki en üst rol(ler): yetkileri bu rolün yetkilerini kapsayan ve kendisi başka bir
+// rolce kapsanmayan roller (Sistem Yöneticisi hariç)
+function enUstRoller(kod, ayar) {
+  const roller = (ayar.roller || []).filter((r) => r.kod !== 'admin');
+  const yetki = (r) => new Set(r.yetkiler || []);
+  const kapsar = (ust, alt) => { const u = yetki(ust); const a = yetki(alt); return u.size > a.size && [...a].every((x) => u.has(x)); };
+  const ben = roller.find((r) => r.kod === kod);
+  if (!ben) return [];
+  const ustler = roller.filter((r) => r.kod !== kod && kapsar(r, ben));
+  return ustler.filter((r) => !ustler.some((x) => x.kod !== r.kod && kapsar(x, r))).map((r) => r.kod);
+}
+
+function adimNormal(a, ayar) {
+  if (a._n) return a;
+  const sorumlu = sorumluRolu(a);
+  return { ...a, sorumlu, yapan: [sorumlu], onaylayan: ayar ? enUstRoller(sorumlu, ayar) : (sorumlu === 'yurutucu' ? ['koordinator'] : []), _n: true };
 }
 const rolAdlari = (kodlar, ayar) => (kodlar || []).map((k) => (ayar.rolHaritasi[k] || {}).ad || k);
 const rolRengi = (kodlar, ayar) => ((ayar.rolHaritasi[(kodlar || [])[0]] || {}).renk || 'secondary');
@@ -114,7 +124,7 @@ function adimDurumu(a, k) {
 
 // Proje sayfası için tam görünüm: ağaç, her adımın kaydı ve durumu, sayaçlar
 function gorunum(proje, ayar, b) {
-  const ana = agac(ayar.surecAdimlari.map(adimNormal));
+  const ana = agac(ayar.surecAdimlari.map((a) => adimNormal(a, ayar)));
   let toplam = 0;
   let biten = 0;
   const isle = (a) => {
@@ -175,7 +185,7 @@ function isaretle(proje, ayar, b, kod, taraf, deger, ek) {
   if (!ham) return 'Adım bulunamadı.';
   const ana = agac(ayar.surecAdimlari).find((x) => x.kod === kod);
   if (ana && ana.altlar.length) return 'Bu adım alt adımları tamamlanınca kendiliğinden tamamlanır.';
-  const a = adimNormal(ham);
+  const a = adimNormal(ham, ayar);
   const y = adimYetkisi(a, b);
   const k = kayitOku(proje.surec, kod);
   const d = adimDurumu(a, k);
@@ -209,7 +219,7 @@ function notYazabilirMi(ayar, b, kod) {
   if (b.admin || b.ekipte) return true;
   const a = (ayar.surecAdimlari || []).find((x) => x.kod === kod);
   if (!a) return false;
-  const y = adimYetkisi(a, b);
+  const y = adimYetkisi(adimNormal(a, ayar), b);
   return y.yapar || y.onaylar;
 }
 
@@ -219,4 +229,4 @@ function notEkle(proje, kod, metin, kisiAd) {
   proje.surec = { ...(proje.surec || {}), [kod]: k };
 }
 
-module.exports = { VERILER, projeRolu, baglam, adimNormal, adimYetkisi, gorunum, ipuclari, isaretle, notEkle, notYazabilirMi, agac, eslesir, rolAdlari };
+module.exports = { VERILER, projeRolu, baglam, adimNormal, enUstRoller, adimYetkisi, gorunum, ipuclari, isaretle, notEkle, notYazabilirMi, agac, eslesir, rolAdlari };

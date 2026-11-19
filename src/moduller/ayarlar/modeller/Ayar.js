@@ -33,9 +33,8 @@ const ayarSema = new mongoose.Schema({
   surecAdimlari: {                                   // proje süreci şablonu (Ayarlar › Süreç)
     type: [new mongoose.Schema({
       kod: String, ad: String, aciklama: String, alt: Boolean, veri: String,
-      yapan: { type: [String], default: undefined },       // adımı yapan roller
-      onaylayan: { type: [String], default: undefined },   // onaylayan roller (boşsa tek aşamalı)
-      sorumlu: String                                      // eski sürüm (il / ilce / il-ilce); okunurken rollere çevrilir
+      sorumlu: String,                                     // adımı yapan rol; üstteki en üst rol onaylar
+      yapan: { type: [String], default: undefined }        // ara sürüm (v0.14.1); okunurken sorumluya çevrilir
     }, { _id: false })],
     default: undefined
   },         // kurum logosu (GridFS); izleme formu ve yazılarda kullanılır

@@ -57,9 +57,15 @@ router.get('/genel', (req, res) => {
 // ---------------------------------------------------------------------------
 // Süreç: projelerin adım listesi (sorumlu, alt adım, durum bilgisi)
 // ---------------------------------------------------------------------------
+// Her rol için onaylayan en üst rol(ler)in adı (Ayarlar › Süreç'te ipucu olarak gösterilir)
+const onayHaritasi = (ayar) => {
+  const surec = require('../projeler/surec');
+  return Object.fromEntries(ayar.roller.map((r) => [r.kod, surec.rolAdlari(surec.enUstRoller(r.kod, ayar), ayar).join(', ')]));
+};
 router.get('/surec', (req, res) => {
   const surec = require('../projeler/surec');
-  res.render(V + 'surec', { baslik: 'Süreç', adimlar: res.locals.ayar.surecAdimlari.map(surec.adimNormal), roller: res.locals.ayar.roller, VERILER: surec.VERILER, hatalar: [] });
+  const ayar = res.locals.ayar;
+  res.render(V + 'surec', { baslik: 'Süreç', adimlar: ayar.surecAdimlari.map((a) => surec.adimNormal(a, ayar)), roller: ayar.roller, onayHaritasi: onayHaritasi(ayar), VERILER: surec.VERILER, hatalar: [] });
 });
 
 router.post('/surec', sar(async (req, res) => {
@@ -73,8 +79,7 @@ router.post('/surec', sar(async (req, res) => {
     kod: String(r.kod || '').trim(),
     ad: String(r.ad || '').trim(),
     aciklama: String(r.aciklama || '').trim() || undefined,
-    yapan: [].concat(r.yapan || []).filter((k) => res.locals.ayar.rolHaritasi[k]),
-    onaylayan: [].concat(r.onaylayan || []).filter((k) => res.locals.ayar.rolHaritasi[k]),
+    sorumlu: res.locals.ayar.rolHaritasi[r.sorumlu] ? r.sorumlu : undefined,
     alt: r.alt === 'on',
     veri: surec.VERILER[r.veri] ? r.veri : undefined
   })).filter((a) => a.ad).map((a, i) => {
@@ -87,13 +92,13 @@ router.post('/surec', sar(async (req, res) => {
   if (adimlar.length && adimlar[0].alt) adimlar[0].alt = false;
   const hatalar = [];
   if (!adimlar.length) hatalar.push('En az bir adım olmalıdır.');
-  // Alt adımı olan ana adımın sorumlusu yoktur; diğer adımlarda en az bir yapan rol seçilmelidir
+  // Alt adımı olan ana adımın sorumlusu yoktur; diğer adımlarda sorumlu rol seçilmelidir
   adimlar.forEach((a, i) => {
     const anaMi = !a.alt && adimlar[i + 1] && adimlar[i + 1].alt;
-    if (!anaMi && !a.yapan.length) hatalar.push(`"${a.ad}" adımında yapan rol seçilmelidir.`);
+    if (!anaMi && !a.sorumlu) hatalar.push(`"${a.ad}" adımında sorumlu rol seçilmelidir.`);
   });
   if (hatalar.length) {
-    return res.status(422).render(V + 'surec', { baslik: 'Süreç', adimlar, roller: res.locals.ayar.roller, VERILER: surec.VERILER, hatalar });
+    return res.status(422).render(V + 'surec', { baslik: 'Süreç', adimlar, roller: res.locals.ayar.roller, onayHaritasi: onayHaritasi(res.locals.ayar), VERILER: surec.VERILER, hatalar });
   }
   await ayarlar.guncelle({ surecAdimlari: adimlar });
   return res.redirect('/ayarlar/surec?bildirim=kaydedildi');
