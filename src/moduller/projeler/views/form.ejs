@@ -268,6 +268,10 @@
               <label class="form-label">Yetkili mahkeme</label>
               <input type="text" name="belgeAyarlari[mahkeme]" value="<%= ba.mahkeme || '' %>" class="form-control" placeholder="<%= ayar.il || 'İstanbul' %>">
             </div>
+            <div class="col-12">
+              <label class="form-label">Katkı payının yatırılacağı hesap</label>
+              <input type="text" name="belgeAyarlari[katkiHesabi]" value="<%= ba.katkiHesabi || '' %>" class="form-control" placeholder="Banka, şube, hesap adı ve IBAN (katkı payı dilekçesinde yazılır; boşsa noktalı çıkar)">
+            </div>
             <div class="col-12 small text-secondary">
               <i class="ti ti-signature me-1"></i>Sözleşmedeki ilçe müdürlüğü imzası ilçe bazındadır: <a href="/belgeler#ilce-mudurleri">Formlar › İlçe müdürleri</a> (ilçe sorumlusu düzenler; çıktı alınırken de değiştirilebilir).
             </div>

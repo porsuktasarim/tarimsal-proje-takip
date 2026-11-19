@@ -120,7 +120,8 @@ router.get('/:form', sar(async (req, res, next) => {
   const ilceler = calisilanIlceler(req.ben, ayar);
 
   // Başvuru başına formlar
-  if (tanim.tekil) {
+  // Hem bireysel hem toplu alınabilen formlarda (katkı payı dilekçesi) başvuru verilmişse bireysel
+  if (tanim.tekil && (req.query.talep || !tanim.liste)) {
     if (!mongoose.isValidObjectId(req.query.talep)) return res.status(400).send('Başvuru seçilmedi.');
     const talep = await Talep().findById(req.query.talep).lean();
     if (!talep) return next();
@@ -138,7 +139,7 @@ router.get('/:form', sar(async (req, res, next) => {
     }
     const model = tanim.tekil(v);
     // Alt bilgi: proje kısa adı | başvuranın T.C.'si - adı soyadı (sağda sayfa numarası)
-    model.altBilgi = `${proje.kisaAd || proje.ad} | ${ciftci.tcKimlikNo} - ${ciftci.adSoyad}`;
+    model.altBilgi = `${proje.kisaAd || proje.ad} | ${ciftci.tcKimlikNo} - ${ciftci.adSoyad} | ${model.formAdi || tanim.ad}`;
     return gonder(res, model, bicim, `${tanim.kod} ${tanim.ad} - ${ciftci.adSoyad}`);
   }
 
@@ -165,7 +166,7 @@ router.get('/:form', sar(async (req, res, next) => {
   const puanVar = satirlar.some((s) => s.deg && s.deg.puan != null);
   const ilceYetkilileri = await IlceYetkilisi.find({}).lean();
   const model = tanim.liste({ satirlar, proje, ayar, ilce, puanVar, ilceYetkilileri });
-  model.altBilgi = `${proje.kisaAd || proje.ad} | ${tanim.kod} ${tanim.ad}${ilce ? ' - ' + ilce : ''}`;
+  model.altBilgi = `${proje.kisaAd || proje.ad}${ilce ? ' | ' + ilce : ''} | ${model.formAdi || tanim.ad}`;
   return gonder(res, model, bicim, `${tanim.kod} ${tanim.ad} - ${proje.kisaAd || proje.ad}${ilce ? ' - ' + ilce : ''}`);
 }));
 

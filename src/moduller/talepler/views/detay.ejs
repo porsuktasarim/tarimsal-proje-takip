@@ -227,7 +227,7 @@
         <div class="card mb-3">
           <div class="card-header"><h3 class="card-title">Formlar</h3></div>
           <div class="list-group list-group-flush">
-            <% [['ek1', 'EK-1 Başvuru formu', true], ['ek2', 'EK-2 Hibe desteği sözleşmesi', uygulamada], ['ek4', 'EK-4 Teslim tutanağı', uygulamada], ['ek5', 'EK-5 Arazi kontrol tutanağı', uygulamada]].forEach(function (b) { %>
+            <% [['ek1', 'EK-1 Başvuru formu', true], ['ek2', 'EK-2 Hibe desteği sözleşmesi', uygulamada], ['katki', 'Katkı payı dilekçesi (dekont eki)', uygulamada], ['ek4', 'EK-4 Teslim tutanağı', uygulamada], ['ek5', 'EK-5 Arazi kontrol tutanağı', uygulamada]].forEach(function (b) { %>
               <div class="list-group-item d-flex align-items-center gap-1 py-2">
                 <span class="small flex-fill <%= b[2] ? '' : 'text-secondary' %>"><%= b[1] %><% if (b[0] === 'ek5' && b[2]) { %><span class="d-block text-secondary">Boş tutanak; doldurulmuşu Saha kontrolleri kartında</span><% } %></span>
                 <% if (!b[2]) { %>

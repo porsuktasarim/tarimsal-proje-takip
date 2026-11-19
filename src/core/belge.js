@@ -13,6 +13,8 @@
 //     satirYuksekligi? (her satırın en az yüksekliği, punto) }
 //       hücre: metin ya da { metin, kalin, hiza, birlesik (sütun sayısı), satirBirlesik (satır sayısı) }
 //       satirBirlesik ile kaplanan alt satırlardaki konumlara { kapali: true } yazılır.
+// Tabloya sayfaSonu: true verilirse sayfanın en altına sabitlenir (elle doldurulacak imza blokları);
+// üstteki içerik o alana taşarsa tablo sonraki sayfanın altına geçer. Excel'de sayfa olmadığından akışta kalır.
 // Belge düzeyinde: altBilgi (sol alt bilgi metni); sağda her zaman "Sayfa #/#" yazılır.
 //   { t: 'bosluk', yukseklik? }
 //   { t: 'liste', maddeler: [metin] }
@@ -123,11 +125,34 @@ function pdfOge(o) {
   }
 }
 
+// Sayfa sonuna sabitlenecek tablonun yüksekliği (punto): satır başına en az yükseklik + iç boşluk
+function pdfTabloYuksekligi(o) {
+  const satir = (o.satirlar || []).length + (o.toplam ? 1 : 0);
+  const yazi = o.kucuk ? 7 : 9;
+  return (o.basliklar ? yazi * 1.25 + 6 : 0) + satir * (Math.max(o.satirYuksekligi || 0, yazi * 1.25) + 4) + 10;
+}
+
 function pdfOlustur(belge) {
+  const yatay = belge.yon === 'yatay';
+  const kenar = yatay ? [28, 28, 28, 40] : [48, 40, 48, 48];
+  const sayfaYuksekligi = yatay ? 595.28 : 841.89;
+  const sayfaGenisligi = (yatay ? 841.89 : 595.28) - kenar[0] - kenar[2];
   const icerik = [];
   belge.sayfalar.forEach((s, i) => {
     s.ogeler.forEach((o, j) => {
       const p = pdfOge(o);
+      if (o.sayfaSonu) {
+        // Yer tutucu akışta alanı ayırır (sığmazsa sonraki sayfaya geçer), tablo o sayfanın altına yerleşir
+        const h = pdfTabloYuksekligi(o);
+        const yer = { canvas: [{ type: 'rect', x: 0, y: 0, w: 1, h, lineColor: '#ffffff' }] };
+        if (i > 0 && j === 0) yer.pageBreak = 'before';
+        icerik.push(yer);
+        p.margin = [0, 0, 0, 0];
+        p.absolutePosition = { x: kenar[0], y: sayfaYuksekligi - kenar[3] - h };
+        icerik.push({ stack: [p], width: sayfaGenisligi, absolutePosition: p.absolutePosition });
+        delete p.absolutePosition;
+        return;
+      }
       if (i > 0 && j === 0) p.pageBreak = 'before';
       icerik.push(p);
     });
@@ -135,7 +160,7 @@ function pdfOlustur(belge) {
   const tanim = {
     pageSize: 'A4',
     pageOrientation: belge.yon === 'yatay' ? 'landscape' : 'portrait',
-    pageMargins: belge.yon === 'yatay' ? [28, 28, 28, 40] : [48, 40, 48, 48],
+    pageMargins: kenar,
     footer: (sayfa, toplam) => ({
       columns: [
         { text: belge.altBilgi || '', alignment: 'left' },
@@ -220,7 +245,13 @@ function docxOge(o, sayfaGenisligi) {
         });
       });
       if (!satirlar.length) return [];
-      return [new docx.Table({ rows: satirlar, width: { size: sayfaGenisligi, type: docx.WidthType.DXA }, columnWidths: genislikler, borders: kenar }), docxParagraf([{ metin: '' }])];
+      const yuzen = o.sayfaSonu ? {
+        float: {
+          horizontalAnchor: docx.TableAnchorType.MARGIN, verticalAnchor: docx.TableAnchorType.MARGIN,
+          relativeVerticalPosition: docx.RelativeVerticalPosition.BOTTOM, overlap: docx.OverlapType.NEVER
+        }
+      } : {};
+      return [new docx.Table({ rows: satirlar, width: { size: sayfaGenisligi, type: docx.WidthType.DXA }, columnWidths: genislikler, borders: kenar, ...yuzen }), docxParagraf([{ metin: '' }])];
     }
     default:
       return [];

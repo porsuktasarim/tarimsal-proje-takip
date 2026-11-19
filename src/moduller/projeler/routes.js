@@ -78,6 +78,7 @@ function formuOku(govde, ayar, mevcut) {
       imzaYetkilisiAd: metin(govde.belgeAyarlari && govde.belgeAyarlari.imzaYetkilisiAd) || undefined,
       imzaYetkilisiUnvan: metin(govde.belgeAyarlari && govde.belgeAyarlari.imzaYetkilisiUnvan) || undefined,
       mahkeme: metin(govde.belgeAyarlari && govde.belgeAyarlari.mahkeme) || undefined,
+      katkiHesabi: metin(govde.belgeAyarlari && govde.belgeAyarlari.katkiHesabi) || undefined,
       donemTuru: metin(govde.belgeAyarlari && govde.belgeAyarlari.donemTuru) || undefined,
       komisyonBaskani: metin(govde.belgeAyarlari && govde.belgeAyarlari.komisyonBaskani) || undefined,
       komisyonUyeleri: String((govde.belgeAyarlari && govde.belgeAyarlari.komisyonUyeleri) || '').split(/[\n;]+/).map((x) => x.trim()).filter(Boolean)

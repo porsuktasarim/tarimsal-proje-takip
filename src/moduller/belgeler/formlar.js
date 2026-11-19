@@ -9,7 +9,7 @@
 // Her form core/belge.js belge modelini üretir; PDF, Word ve Excel aynı modelden çıkar.
 
 const { sayi, tarih } = require('../../core/yardimcilar');
-const { miktarHesabi, normsuzMu } = require('../projeler/hesap');
+const { miktarHesabi, normsuzMu, fiyatBirimi } = require('../projeler/hesap');
 
 const NOKTA = '……………………';
 // Etiket-değer kutularında (EK-1 düzeni) kullanılan yardımcılar
@@ -156,6 +156,7 @@ function ek1(v) {
   const satirlar = araziSatirlari(talep, ciftci, proje, ayar, hesap);
   return {
     ad: `EK-1 Başvuru formu — ${ciftci.adSoyad}`,
+    formAdi: `Ek-1 ${o.destekTuru} Hibe Desteği Başvuru Formu`,
     ogeler: [
       ...ustBaslik(o, 'EK-1', [`${buyuk(o.destekTuru)} HİBE DESTEĞİ BAŞVURU FORMU`]),
       { t: 'bosluk', yukseklik: 4 },
@@ -217,6 +218,7 @@ function ek2(v) {
   const b = (metin) => ({ t: 'baslik', metin, boyut: 3, hiza: 'sol' });
   return {
     ad: `EK-2 Hibe desteği sözleşmesi — ${ciftci.adSoyad}`,
+    formAdi: 'Ek-2 Hibe Desteği Sözleşmesi',
     ogeler: [
       { t: 'p', metin: 'EK-2', hiza: 'sag', kucuk: true },
       { t: 'baslik', metin: 'HİBE DESTEĞİ SÖZLEŞMESİ', boyut: 1 },
@@ -268,7 +270,7 @@ function ek2(v) {
 // EK-3 Kesin icmal
 function ek3(v) {
   const { satirlar, proje, ayar, ilce } = v;
-  const o = ortak(proje, ayar);
+  const o = ortak(proje, ayar, { kalemler: satirlar.flatMap((x) => x.hesap.kalemler) });
   const t = { alan: 0, islenmeyen: 0, nadas: 0, uygunOlmayan: 0, bedel: 0, destek: 0, girdi: {} };
   const satir = (s, i) => {
     const { talep, ciftci, hesap } = s;
@@ -292,6 +294,7 @@ function ek3(v) {
   const govde = satirlar.map(satir);
   return {
     ad: 'EK-3 Kesin icmal',
+    formAdi: `Ek-3 Hibe ile Ayni Olarak ${o.destekTuru} Temin Edilen Üreticilere İlişkin Kesin İcmal`,
     yon: 'yatay',
     ogeler: [
       { t: 'p', metin: 'EK-3', hiza: 'sag', kucuk: true },
@@ -321,6 +324,7 @@ function ek4(v) {
   const u = talep.uygulama || {};
   return {
     ad: `EK-4 Teslim tutanağı — ${ciftci.adSoyad}`,
+    formAdi: 'Ek-4 Teslim Tutanağı',
     ogeler: [
       { t: 'p', metin: 'EK-4', hiza: 'sag', kucuk: true },
       ...programBasligi(o),
@@ -362,6 +366,7 @@ function ek5(v) {
   while (duz.length < 2) duz.push({});
   return {
     ad: `EK-5 Arazi kontrol tutanağı — ${ciftci.adSoyad}`,
+    formAdi: `Ek-5 ${o.destekTuru} Hibe Desteğine Esas Arazi Kontrol Tutanağı`,
     ogeler: [
       ...ustBaslik(o, 'EK-5', [`${buyuk(o.destekTuru)} HİBE DESTEĞİNE ESAS ARAZİ KONTROL TUTANAĞI`]),
       {
@@ -396,6 +401,7 @@ function ek5(v) {
       ...(k.gorus ? [{ t: 'p', metin: `Görüşler: ${k.gorus}` }] : []),
       { t: 'bosluk', yukseklik: 6 },
       {
+        sayfaSonu: true,   // elle doldurulacağı için sayfanın en altında
         // Çerçevesiz; her düzenleyen için etiket ve ":" ile hizalı değer, imzaya 3 satır
         t: 'tablo', kenarsiz: true, dikeyHiza: 'ust', satirYuksekligi: 14, kucuk: duz.length > 2,
         genislik: duz.flatMap(() => [0.9, 1.6]),
@@ -424,6 +430,7 @@ function kontrolRaporu(v) {
   const oran = satirlar.length ? Math.round((100 * kontrolEdilen) / satirlar.length) : 0;
   return {
     ad: 'Arazi kontrol raporu',
+    formAdi: `${ortak(proje, ayar).destekTuru} Hibe Desteğine Esas Arazi Kontrol Raporu`,
     yon: 'yatay',
     ogeler: [
       { t: 'baslik', metin: `${buyuk(ortak(proje, ayar).destekTuru)} HİBE DESTEĞİNE ESAS ARAZİ KONTROL RAPORU`, boyut: 1 },
@@ -475,7 +482,94 @@ function asilYedek(v) {
   // Nihai değerlendirme ve onay il proje uygulama komisyonunda
   ogeler.push({ t: 'p', metin: 'Yukarıdaki asıl ve yedek listeler İl Proje Uygulama Komisyonunca incelenerek onaylanmıştır.', kucuk: true });
   ogeler.push(...komisyonImzalari(o));
-  return { ad: 'Asıl ve yedek liste', yon: 'yatay', ogeler };
+  return { ad: 'Asıl ve yedek liste', formAdi: 'Asıl ve Yedek Liste', yon: 'yatay', ogeler };
+}
+
+// ---------------------------------------------------------------------------
+// Üretici katkı payı dilekçesi (ödeme için): bireysel ya da toplu (proje/ilçe)
+const tl = (v) => (v == null ? '' : sayi(v, 2));
+const hesapMetni = (o) => (o.ba.katkiHesabi ? `${o.ba.katkiHesabi} hesabına` : '……………………………………………… hesabına');
+const projeAdi = (proje) => (/projes[iİı]$/i.test(String(proje.ad).trim()) ? proje.ad : `${proje.ad} Projesi`);
+const payBasliklari = (o) => [`Hibe Payı${o.hibeOrani != null ? ` (%${sayi(o.hibeOrani)})` : ''} (TL)`, `Üretici Payı${o.katkiOrani != null ? ` (%${sayi(o.katkiOrani)})` : ''} (TL)`];
+const birimFiyatMetni = (hk) => (hk.kalem.birimFiyat != null ? `${tl(hk.kalem.birimFiyat)} TL/${hk.fiyatBirimi || fiyatBirimi(hk.kalem)}` : '');
+const toplamlariAl = (liste) => liste.reduce((t, hk) => ({ bedel: t.bedel + (hk.bedel || 0), destek: t.destek + (hk.destek || 0), katki: t.katki + (hk.ciftciKatkisi || 0) }), { bedel: 0, destek: 0, katki: 0 });
+// Dilekçenin altındaki ad, T.C., telefon ve imza kutusu (çerçevesiz, ":" ile hizalı); boşsa elle doldurulur
+function imzaKutusu(baslik, kisi) {
+  const k = kisi || {};
+  return {
+    t: 'tablo', kenarsiz: true, dikeyHiza: 'ust', satirYuksekligi: 14, genislik: [1.6, 1.4, 1.1, 1.9],
+    satirlar: [
+      [{ metin: 'EK:', kalin: true }, '', { metin: baslik, kalin: true, birlesik: 2, hiza: 'orta' }],
+      ['1- Banka dekontu (1 adet)', '', 'Adı Soyadı', deger(k.adSoyad || '')],
+      ['', '', 'T.C. Kimlik No', deger(k.tcKimlikNo || '')],
+      ['', '', 'Telefon', deger(k.telefon || '')],
+      ['', '', etiket('İmza', 3), deger('', 3)],
+      ['', '', K, K], ['', '', K, K]
+    ]
+  };
+}
+function katkiBireysel(v) {
+  const { talep, ciftci, proje, ayar, hesap } = v;
+  const o = ortak(proje, ayar, hesap);
+  const kalemler = hesap.kalemler.filter((hk) => hk.teslim != null || hk.bedel != null);
+  const t = toplamlariAl(kalemler);
+  const [hibeB, ureticiB] = payBasliklari(o);
+  return {
+    ad: `Katkı payı dilekçesi — ${ciftci.adSoyad}`,
+    formAdi: 'Üretici Katkı Payı Dilekçesi',
+    ogeler: [
+      { t: 'p', metin: `…../…../${o.yil}`, hiza: 'sag' },
+      { t: 'bosluk', yukseklik: 6 },
+      { t: 'baslik', metin: `${buyuk(ilceMudurlugu(talep.ilce))}NE`, boyut: 3 },
+      { t: 'bosluk', yukseklik: 4 },
+      { t: 'p', metin: `Müdürlüğünüzce yürütülen ${projeAdi(proje)} kapsamında tarafıma hibe ile ayni olarak verilecek ${o.destekTuru.toLocaleLowerCase('tr')} için ödemem gereken ve aşağıda ayrıntısı bulunan üretici katkı payı tutarı olan ${tl(t.katki)} TL ${hesapMetni(o)} yatırılmış olup banka dekontu ekte sunulmuştur.` },
+      { t: 'p', metin: 'Gereğini bilgilerinize arz ederim.' },
+      {
+        t: 'tablo', kucuk: true, genislik: [1.7, 1.5, 1.2, 1.2, 1.2, 1.2], hizalar: ['sol', 'sag', 'sag', 'sag', 'sag', 'sag'],
+        basliklar: ['Bitki Türü', 'Miktar', 'Birim Fiyat', 'Toplam Tutar (TL)', hibeB, ureticiB],
+        satirlar: kalemler.map((hk) => [bitkiTuru(hk.kalem), hk.teslim != null ? teslimIfadesi(hk) : '', birimFiyatMetni(hk), tl(hk.bedel), tl(hk.destek), tl(hk.ciftciKatkisi)]),
+        toplam: [{ metin: 'TOPLAM', birlesik: 3, hiza: 'orta' }, tl(t.bedel), tl(t.destek), tl(t.katki)]
+      },
+      { t: 'bosluk', yukseklik: 14 },
+      imzaKutusu('Katkı Payını Ödeyen Üretici', ciftci)
+    ]
+  };
+}
+function katkiToplu(v) {
+  const { satirlar, proje, ayar, ilce } = v;
+  // Destek türü listedeki başvuruların kalemlerinden
+  const o = ortak(proje, ayar, { kalemler: satirlar.flatMap((x) => x.hesap.kalemler) });
+  const [hibeB, ureticiB] = payBasliklari(o);
+  const genel = { bedel: 0, destek: 0, katki: 0 };
+  const govde = satirlar.map((s, i) => {
+    const kl = s.hesap.kalemler.filter((hk) => hk.teslim != null || hk.bedel != null);
+    const t = toplamlariAl(kl);
+    genel.bedel += t.bedel; genel.destek += t.destek; genel.katki += t.katki;
+    return [String(i + 1), s.ciftci.adSoyad, s.ciftci.tcKimlikNo, [s.talep.ilce, s.ciftci.mahalle].filter(Boolean).join('/'),
+      kl.map((hk) => bitkiTuru(hk.kalem)).join('\n'), kl.map((hk) => (hk.teslim != null ? teslimIfadesi(hk) : '')).join('\n'),
+      kl.map(birimFiyatMetni).join('\n'), tl(t.bedel), tl(t.destek), tl(t.katki)];
+  });
+  const muhatap = ilce ? `${buyuk(ilceMudurlugu(ilce))}NE` : `${buyuk(o.mudurluk)}NE`;
+  return {
+    ad: 'Katkı payı dilekçesi (toplu)',
+    formAdi: 'Üretici Katkı Payı Dilekçesi (Toplu)',
+    yon: 'yatay',
+    ogeler: [
+      { t: 'p', metin: `…../…../${o.yil}`, hiza: 'sag' },
+      { t: 'baslik', metin: muhatap, boyut: 3 },
+      { t: 'p', metin: `Müdürlüğünüzce yürütülen ${projeAdi(proje)} kapsamında hibe ile ayni olarak ${o.destekTuru.toLocaleLowerCase('tr')} verilecek olan ve aşağıda listesi bulunan ${satirlar.length} üreticinin ödemesi gereken üretici katkı payları toplamı ${tl(genel.katki)} TL ${hesapMetni(o)} yatırılmış olup banka dekontu ekte sunulmuştur.` },
+      { t: 'p', metin: 'Gereğini bilgilerinize arz ederim.' },
+      {
+        t: 'tablo', kucuk: true, genislik: [0.45, 1.7, 1.25, 1.5, 1.5, 1.5, 1.2, 1.2, 1.2, 1.2],
+        hizalar: ['orta', 'sol', 'orta', 'sol', 'sol', 'sag', 'sag', 'sag', 'sag', 'sag'],
+        basliklar: ['Sıra No', 'Adı Soyadı', 'T.C. Kimlik No', 'İlçe/Köy/Mahalle', 'Bitki Türü', 'Miktar', 'Birim Fiyat', 'Toplam Tutar (TL)', hibeB, ureticiB],
+        satirlar: govde.length ? govde : [['1', '', '', '', '', '', '', '', '', '']],
+        toplam: [{ metin: 'TOPLAM', birlesik: 7, hiza: 'orta' }, tl(genel.bedel), tl(genel.destek), tl(genel.katki)]
+      },
+      { t: 'bosluk', yukseklik: 10 },
+      { ...imzaKutusu('Katkı Paylarını Yatıran', null), sayfaSonu: true }
+    ]
+  };
 }
 
 const FORMLAR = {
@@ -485,7 +579,8 @@ const FORMLAR = {
   ek4: { kod: 'EK-4', ad: 'Teslim tutanağı', tekil: ek4, kapsam: 'desteklenen' },
   ek5: { kod: 'EK-5', ad: 'Arazi kontrol tutanağı', tekil: ek5, kapsam: 'kontrol' },
   'kontrol-raporu': { kod: 'Kontrol raporu', ad: 'Tohum/fide hibe desteğine esas arazi kontrol raporu', liste: kontrolRaporu, kapsam: 'desteklenen' },
-  'asil-yedek': { kod: 'Asıl/yedek', ad: 'Asıl ve yedek liste', liste: asilYedek, kapsam: 'karar' }
+  'asil-yedek': { kod: 'Asıl/yedek', ad: 'Asıl ve yedek liste', liste: asilYedek, kapsam: 'karar' },
+  katki: { kod: 'Katkı payı', ad: 'Üretici katkı payı dilekçesi', tekil: katkiBireysel, liste: katkiToplu, kapsam: 'desteklenen' }
 };
 
 module.exports = { FORMLAR, ortak };

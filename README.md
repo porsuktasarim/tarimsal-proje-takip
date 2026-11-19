@@ -96,6 +96,9 @@ TAKE 2026 Uygulama Talimatı ekleri sisteme uyarlanmıştır. Her form tek bir b
 - **Alt bilgi:** her belgede solda "proje kısa adı | başvuranın T.C.'si - adı soyadı" (liste formlarında form adı ve ilçe), sağda "Sayfa #/#".
 - **EK-1 üretici bilgileri** yalnızca dış çerçeveli, eşit iki yarıda; etiketler tek sütunda, değerler ":" ile hizalı. Adres 6, imza 7 satırlık alan kaplar.
 - **EK-4 ve EK-5'teki etiket kutuları** (teslim alan/eden, üretici bilgileri, düzenleyenler) EK-1 düzeninde ama çerçevesizdir. EK-5'in parsel tablosu çizgilidir.
+- **Üretici katkı payı dilekçesi:** ödeme sırasında dekontla verilir. Bireysel (başvuru sayfası › Formlar) ya da toplu (Formlar sayfası, proje/ilçe) alınır. Her üretici için bitki türü, miktar (ambalajıyla), birim fiyat, toplam tutar, hibe payı ve üretici payı; TOPLAM satırı; "banka dekontu ekte" ibaresi. Toplu dilekçede yatıran kısmı boştur (herhangi bir üretici yatırabilir). Yatırılacak hesap proje formunun Formlar bölümünde girilir.
+- **EK-5 düzenleyenler** ve toplu dilekçenin yatıran kısmı sayfanın en altına sabitlenir (elle doldurulur).
+- **Alt bilgi** "proje kısa adı | T.C. - ad soyad | form adı" biçimindedir (ör. "Ek-5 Tohum Hibe Desteğine Esas Arazi Kontrol Tutanağı").
 - **Teslim miktarı** içerik ve ambalajıyla yazılır: "520 kg (13 çuval)", "50.000 adet (1 torba)" (EK-4 metni, EK-1/EK-2 toplam satırı).
 - **EK-2, EK-4, EK-5** başvuru desteklendi ya da teslim aşamasına geçince açılır; öncesinde başvuru sayfasında ve Formlar sayfasında "karardan sonra" olarak görünür. Doldurulmuş EK-5 her saha kontrolünün yanında, boş EK-5 Formlar kartındadır.
 - **Excel çıktıları** eşit genişlikte bir ızgaraya yerleşir (dikey 40, yatay 60 sütun); her tablo sütunu genişliği oranında birden çok hücreyi birleştirerek kaplar. Böylece aynı sayfadaki tablolar ve imza blokları birbirinin sütun genişliğini bozmaz.

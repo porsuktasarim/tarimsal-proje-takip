@@ -86,6 +86,7 @@ const projeSema = new mongoose.Schema({
     imzaYetkilisiAd: { type: String, trim: true },
     imzaYetkilisiUnvan: { type: String, trim: true },
     mahkeme: { type: String, trim: true },           // yetkili mahkeme ve icra daireleri (ör. İstanbul)
+    katkiHesabi: { type: String, trim: true },       // üretici katkı payının yatırılacağı hesap (banka, şube, IBAN)
     donemTuru: { type: String, trim: true },         // Güz / Bahar
     komisyonBaskani: { type: String, trim: true },
     komisyonUyeleri: { type: [String], default: undefined }
