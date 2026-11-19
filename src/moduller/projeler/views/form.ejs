@@ -250,7 +250,7 @@
             </div>
             <div class="col-md-4">
               <label class="form-label">Destek türü</label>
-              <input type="text" name="belgeAyarlari[destekTuru]" value="<%= ba.destekTuru || '' %>" class="form-control" list="dl-destek-turu" placeholder="Tohum">
+              <input type="text" name="belgeAyarlari[destekTuru]" value="<%= ba.destekTuru || '' %>" class="form-control" list="dl-destek-turu" placeholder="Kalem türlerinden (ör. Tohum/Fidan)">
               <datalist id="dl-destek-turu"><option>Tohum</option><option>Fide</option><option>Fidan</option><option>Aşılama</option></datalist>
             </div>
             <div class="col-md-6">
@@ -260,7 +260,7 @@
             <div class="col-md-3">
               <label class="form-label">Dönem</label>
               <select name="belgeAyarlari[donemTuru]" class="form-select">
-                <option value="">–</option>
+                <option value="">Proje döneminden</option>
                 <% ['Güz', 'Bahar'].forEach(function (d) { %><option <%= ba.donemTuru === d ? 'selected' : '' %>><%= d %></option><% }) %>
               </select>
             </div>
@@ -268,13 +268,8 @@
               <label class="form-label">Yetkili mahkeme</label>
               <input type="text" name="belgeAyarlari[mahkeme]" value="<%= ba.mahkeme || '' %>" class="form-control" placeholder="<%= ayar.il || 'İstanbul' %>">
             </div>
-            <div class="col-md-6">
-              <label class="form-label">Sözleşme imza yetkilisi</label>
-              <input type="text" name="belgeAyarlari[imzaYetkilisiAd]" value="<%= ba.imzaYetkilisiAd || '' %>" class="form-control" placeholder="Adı soyadı">
-            </div>
-            <div class="col-md-6">
-              <label class="form-label">İmza yetkilisinin unvanı</label>
-              <input type="text" name="belgeAyarlari[imzaYetkilisiUnvan]" value="<%= ba.imzaYetkilisiUnvan || '' %>" class="form-control" placeholder="İl Tarım ve Orman Müdürü">
+            <div class="col-12 small text-secondary">
+              <i class="ti ti-signature me-1"></i>Sözleşmedeki ilçe müdürlüğü imzası ilçe bazındadır: <a href="/belgeler#ilce-mudurleri">Formlar › İlçe müdürleri</a> (ilçe sorumlusu düzenler; çıktı alınırken de değiştirilebilir).
             </div>
             <div class="col-md-6">
               <label class="form-label">Kesin icmal: komisyon başkanı</label>

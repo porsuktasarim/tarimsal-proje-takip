@@ -14,6 +14,7 @@
 %>
 <div class="page-body">
   <div class="container-xl">
+    <%- include('../../../views/partials/bildirim') %>
     <% if (!proje) { %>
       <div class="card"><div class="card-body text-secondary">Henüz proje yok.</div></div>
     <% } else { %>
@@ -81,6 +82,8 @@
                               <div class="d-flex align-items-center justify-content-center"><span class="small me-1"><%= y.tarih(kn.tarih) %></span><%- bicimDugmeleri('/belgeler/ek5?talep=' + t._id + '&kontrol=' + kn._id) %></div>
                             <% }) %>
                             <div class="d-flex align-items-center justify-content-center"><span class="small text-secondary me-1">Boş</span><%- bicimDugmeleri('/belgeler/ek5?talep=' + t._id) %></div>
+                          <% } else if (k === 'ek2') { %>
+                            <a class="btn btn-sm btn-ghost-primary" href="/belgeler/hazirla/ek2?talep=<%= t._id %>" title="Sözleşme tarihi ve ilçe müdürü girilerek alınır"><i class="ti ti-file-pencil me-1"></i>Hazırla</a>
                           <% } else { %>
                             <%- bicimDugmeleri('/belgeler/' + k + '?talep=' + t._id) %>
                           <% } %>
@@ -92,6 +95,40 @@
               </table>
             </div>
           </div>
+        </div>
+      </div>
+      <div class="card mt-3" id="ilce-mudurleri">
+        <div class="card-header">
+          <div>
+            <h3 class="card-title">İlçe müdürleri</h3>
+            <p class="card-subtitle">EK-2 hibe desteği sözleşmesinde ilçe müdürlüğü adına imza. İlçe sorumlusu kendi ilçesini düzenler; çıktı alınırken ayrıca değiştirilebilir.</p>
+          </div>
+        </div>
+        <div class="table-responsive">
+          <table class="table table-vcenter card-table table-sm">
+            <thead><tr><th>İlçe</th><th>Adı soyadı</th><th>Unvanı</th><th></th></tr></thead>
+            <tbody>
+              <% yetkililer.forEach(function (x) { %>
+                <tr>
+                  <% if (x.duzenlenebilir) { %>
+                    <td><%= x.ilce %></td>
+                    <td colspan="3">
+                      <form method="post" action="/belgeler/ilce-yetkilisi" class="d-flex gap-2">
+                        <input type="hidden" name="ilce" value="<%= x.ilce %>">
+                        <input type="hidden" name="donus" value="/belgeler?proje=<%= proje._id %>#ilce-mudurleri">
+                        <input type="text" name="yetkiliAd" value="<%= x.kayit.ad || '' %>" class="form-control form-control-sm" placeholder="Adı soyadı">
+                        <input type="text" name="yetkiliUnvan" value="<%= x.kayit.unvan || '' %>" class="form-control form-control-sm" placeholder="İlçe Müdürü" style="max-width: 14rem">
+                        <button class="btn btn-sm"><i class="ti ti-device-floppy"></i></button>
+                      </form>
+                      <% if (x.kayit.guncelleyenAd) { %><div class="small text-secondary mt-1">Güncelleyen: <%= x.kayit.guncelleyenAd %> · <%= y.tarih(x.kayit.guncellenme) %></div><% } %>
+                    </td>
+                  <% } else { %>
+                    <td><%= x.ilce %></td><td><%= x.kayit.ad || '–' %></td><td><%= x.kayit.unvan || (x.kayit.ad ? 'İlçe Müdürü' : '') %></td><td></td>
+                  <% } %>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
         </div>
       </div>
     <% } %>

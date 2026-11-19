@@ -22,11 +22,17 @@ const basHarfli = (s) => {
   return t.toLocaleLowerCase('tr').replace(/(^|[\s(/-])(\S)/g, (_, a, b) => a + b.toLocaleUpperCase('tr'));
 };
 
-function ortak(proje, ayar) {
+// hesap verilirse (başvuru formları) destek türü yalnızca o başvurunun kalemlerinden alınır
+function ortak(proje, ayar, hesap) {
   const ba = proje.belgeAyarlari || {};
-  const turler = [...new Set((proje.kalemler || []).map((k) => k.tur).filter((t) => /tohum|fide|fidan|aşı/i.test(t)))];
+  // Destek türü kalem türlerinden (Tohum, Fidan…); Formlar bölümünde elle yazılırsa o geçer
+  const kalemler = hesap && hesap.kalemler && hesap.kalemler.length ? hesap.kalemler.map((hk) => hk.kalem) : (proje.kalemler || []);
+  const turler = [...new Set(kalemler.map((k) => String(k.tur || '').trim()).filter(Boolean))];
   const projeBasligi = /PROJES[İI]$/i.test(buyuk(proje.ad)) ? buyuk(proje.ad) : `${buyuk(proje.ad)} PROJESİ`;
-  const yil = (String(proje.donem || '').match(/\d{4}/) || [String(new Date().getFullYear())])[0];
+  // Yıl ve dönem projeden: dönem adındaki yıl, yoksa başlangıç/bitiş tarihinin yılı
+  const tarihYili = (t) => (t ? String(new Date(t).getFullYear()) : null);
+  const yil = (String(proje.donem || '').match(/\d{4}/) || [])[0] || tarihYili(proje.baslangicTarihi) || tarihYili(proje.bitisTarihi) || String(new Date().getFullYear());
+  const donemTuru = ba.donemTuru || (/güz/i.test(proje.donem || '') ? 'Güz' : (/bahar/i.test(proje.donem || '') ? 'Bahar' : ''));
   // Formlardaki program/kaynak adı: proje formundaki "Destek kaynağı" (eski kayıtlarda Formlar › program adı)
   const kaynak = String((proje.finansman && proje.finansman.destekKaynagi) || ba.programAdi || '').trim();
   const katki = proje.finansman && proje.finansman.ciftciKatkiOrani != null ? proje.finansman.ciftciKatkiOrani : null;
@@ -36,6 +42,7 @@ function ortak(proje, ayar) {
     program: buyuk(kaynak),
     projeBasligi,
     destekTuru: ba.destekTuru || turler.join('/') || 'Tohum/Fide/Fidan',
+    donemTuru,
     mudurluk: ba.mudurluk || ayar.kurum || 'İl Tarım ve Orman Müdürlüğü',
     il: ayar.il || 'İstanbul',
     yil,
@@ -94,7 +101,7 @@ function ustBaslik(o, ek, satirlar) {
 // EK-1 Başvuru formu
 function ek1(v) {
   const { talep, ciftci, proje, ayar, hesap } = v;
-  const o = ortak(proje, ayar);
+  const o = ortak(proje, ayar, hesap);
   const kad = ciftci.cinsiyet === 'kadin' ? '(X)' : '(  )';
   const erk = ciftci.cinsiyet === 'erkek' ? '(X)' : '(  )';
   const satirlar = araziSatirlari(talep, ciftci, proje, ayar, hesap);
@@ -135,9 +142,14 @@ function ek1(v) {
 // EK-2 Hibe desteği sözleşmesi
 function ek2(v) {
   const { talep, ciftci, proje, ayar, hesap } = v;
-  const o = ortak(proje, ayar);
+  const o = ortak(proje, ayar, hesap);
   const mud = ilceMudurlugu(talep.ilce);
-  const u = talep.uygulama || {};
+  const sec = v.secenekler || {};
+  // Sözleşme tarihi çıktı alınırken girilir; girilmezse gün ve ay boş, yıl projeden
+  const sozlesmeTarihi = sec.sozlesmeTarihi ? tarih(sec.sozlesmeTarihi) : `…../…../${o.yil}`;
+  // İmza: ilçe müdürü (Formlar sayfasında ilçe için kayıtlı ya da çıktı alınırken yazılan)
+  const yetkili = sec.yetkili || {};
+  const imza = yetkili.ad ? `${yetkili.ad}\n${yetkili.unvan || 'İlçe Müdürü'}` : '……………………………\nİlçe Müdürü';
   const satirlar = araziSatirlari(talep, ciftci, proje, ayar, hesap);
   const adres = [ciftci.adres, ciftci.mahalle, talep.ilce, o.il].filter(Boolean).join(', ');
   const p = (metin) => ({ t: 'p', metin });
@@ -150,7 +162,7 @@ function ek2(v) {
       p(`T.C. ${mud} ile ${n(adres)} adresinde mukim, ${ciftci.tcKimlikNo} T.C. No.lu ${ciftci.adSoyad} isimli üretici aşağıdaki hususlarda anlaşmışlardır:`),
       b('MADDE 1 – AMAÇ'),
       p(`1.1 Bu Sözleşmenin amacı; ${mud} tarafından yürütülen ve ${o.kaynak || NOKTA} kapsamında kaynak gönderilen ${proje.ad} ile ayni olarak ${o.destekTuru.toLocaleLowerCase('tr')} teminine esas hibe yapılmasıdır.`),
-      p(`1.2 Üretici, Madde 3'de belirtilen arazilerde, belirtilen bitki tür ve çeşitlerinde, kendilerine teslim edilen ${o.destekTuru.toLocaleLowerCase('tr')} kullanmak suretiyle ${o.yil} Yılı ${n(o.ba.donemTuru, 'Güz/Bahar')} döneminde tarımsal faaliyette bulunmayı kabul ve taahhüt eder.`),
+      p(`1.2 Üretici, Madde 3'de belirtilen arazilerde, belirtilen bitki tür ve çeşitlerinde, kendilerine teslim edilen ${o.destekTuru.toLocaleLowerCase('tr')} kullanmak suretiyle ${o.yil} Yılı ${o.donemTuru || 'Güz/Bahar'} döneminde tarımsal faaliyette bulunmayı kabul ve taahhüt eder.`),
       b('MADDE 2 – SÖZLEŞMENİN YÜRÜRLÜK TARİHİ VE SÜRESİ'),
       p('2.1 Bu Sözleşme her iki tarafça imzalandığı tarihte yürürlüğe girer ve ilgili ürünün ekiliş/dikilişine ait hasat bitiminde sona erer. Üretici, projenin uygulamasını zorlaştıracak veya geciktirecek her durum hakkında İl/İlçe Tarım ve Orman Müdürlüğünü derhal bilgilendirmekle mükelleftir.'),
       b('MADDE 3 – PROJENİN UYGULANMA BİÇİMİ'),
@@ -177,13 +189,13 @@ function ek2(v) {
       p('5.2 İl/İlçe Tarım ve Orman Müdürlüğü bu madde uyarınca sözleşmeyi feshetmeden önce, ihtiyati bir tedbir olarak önceden herhangi bir tebliğde bulunmaksızın ayni veya nakdi her türlü ödemeleri/yardımları/hibeleri askıya alabilir.'),
       b('MADDE 6 – TABİ OLUNAN YASA VE ANLAŞMAZLIKLARIN ÇÖZÜMÜ'),
       p(`6.1 Bu Sözleşme, T.C. Yasalarına tabidir. Yasal bir anlaşmazlık durumunda ${n(o.ba.mahkeme || o.il)} mahkemeleri ve/veya icra daireleri yetkilidir.`),
-      p(`6.2 İş bu Sözleşme ${kisaTarih(u.sozlesmeTarihi)} tarihinde iki nüsha olarak hazırlanmış ve bir adedi İl/İlçe Tarım ve Orman Müdürlüğü'ne bir adedi üreticiye verilmiştir.`),
+      p(`6.2 İş bu Sözleşme ${sozlesmeTarihi} tarihinde iki nüsha olarak hazırlanmış ve bir adedi İl/İlçe Tarım ve Orman Müdürlüğü'ne bir adedi üreticiye verilmiştir.`),
       { t: 'bosluk', yukseklik: 10 },
       {
         t: 'tablo', kenarsiz: true, genislik: [1, 1], hizalar: ['orta', 'orta'],
         satirlar: [
           [{ metin: 'Üretici', kalin: true, hiza: 'orta' }, { metin: mud, kalin: true, hiza: 'orta' }],
-          [ciftci.adSoyad, [o.ba.imzaYetkilisiAd, o.ba.imzaYetkilisiUnvan].filter(Boolean).join('\n') || '[İmza yetkilisinin adı, soyadı, unvanı]'],
+          [ciftci.adSoyad, imza],
           ['Tarih – İmza', 'Tarih – İmza']
         ]
       }
@@ -246,7 +258,7 @@ function ek3(v) {
 // EK-4 Teslim tutanağı
 function ek4(v) {
   const { talep, ciftci, proje, ayar, hesap, teslimEden } = v;
-  const o = ortak(proje, ayar);
+  const o = ortak(proje, ayar, hesap);
   const u = talep.uygulama || {};
   return {
     ad: `EK-4 Teslim tutanağı — ${ciftci.adSoyad}`,
@@ -276,7 +288,7 @@ function ek4(v) {
 // EK-5 Arazi kontrol tutanağı (kontrol yoksa boş şablon)
 function ek5(v) {
   const { talep, ciftci, proje, ayar, hesap, kontrol } = v;
-  const o = ortak(proje, ayar);
+  const o = ortak(proje, ayar, hesap);
   const k = kontrol || { parseller: [], kontrolEdenler: [] };
   const satirlar = araziSatirlari(talep, ciftci, proje, ayar, hesap);
   const parselBilgi = (i) => {

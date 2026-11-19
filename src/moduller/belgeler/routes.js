@@ -20,6 +20,21 @@ const Proje = () => mongoose.model('Proje');
 const Talep = () => mongoose.model('Talep');
 const Ciftci = () => mongoose.model('Ciftci');
 const Kisi = () => mongoose.model('Kisi');
+const IlceYetkilisi = require('./model');
+const { tarihOku } = require('../../core/yardimcilar');
+const metin = (v) => (typeof v === 'string' ? v.trim() : '');
+
+// İlçe müdürünü kim düzenler: Sistem Yöneticisi, genel ayar yetkisi olan ya da
+// ilçesi kendisine bağlı ve talep giren kişi (ilçe sorumlusu)
+const yetkiliDuzenlerMi = (req, ilce) => !!(req.silebilir || req.izin('ayar.genel') ||
+  (req.ben && (req.ben.ilceler || []).includes(ilce) && req.izin(['talep.gir', 'talep.degerlendir'])));
+// Çıktı alınırken girilen seçenekler (EK-2: sözleşme tarihi, imza yetkilisi)
+async function secenekleriOku(q, ilce) {
+  const kayit = await IlceYetkilisi.findOne({ ilce }).lean();
+  const ad = metin(q.yetkiliAd) || (kayit && kayit.ad) || '';
+  const unvan = metin(q.yetkiliUnvan) || (kayit && kayit.unvan) || '';
+  return { sozlesmeTarihi: tarihOku(q.sozlesmeTarihi), yetkili: { ad, unvan } };
+}
 
 // Formun kapsamına giren başvuru aşamaları
 const KAPSAM = {
@@ -58,9 +73,40 @@ router.get('/', sar(async (req, res) => {
     Object.entries(KAPSAM).forEach(([k, d]) => { sayilar[k] = talepler.filter((t) => d.includes(t.durum)).length; });
     sayilar.kontrol = talepler.reduce((a, t) => a + (t.kontroller || []).length, 0);
   }
+  const ilceListesi = res.locals.ayar.ilceler || [];
+  const yetkililer = await IlceYetkilisi.find({}).lean();
   res.render(V + 'index', {
+    yetkililer: ilceListesi.map((i) => ({ ilce: i, kayit: yetkililer.find((x) => x.ilce === i) || {}, duzenlenebilir: yetkiliDuzenlerMi(req, i) })),
     baslik: 'Formlar', projeler, proje, talepler, sayilar, FORMLAR, KAPSAM,
     ilce: req.query.ilce || '', ilceler: calisilanIlceler(req.ben, res.locals.ayar), bicimler: belge.BICIMLER
+  });
+}));
+
+// İlçe müdürü kaydı
+router.post('/ilce-yetkilisi', sar(async (req, res) => {
+  const ilce = metin(req.body.ilce);
+  const donus = typeof req.body.donus === 'string' && /^\/belgeler/.test(req.body.donus) ? req.body.donus : '/belgeler';
+  const ek = donus.includes('?') ? '&' : '?';
+  if (!(res.locals.ayar.ilceler || []).includes(ilce)) return res.redirect(donus + ek + 'bildirim=islem-yapilamadi');
+  if (!yetkiliDuzenlerMi(req, ilce)) return res.redirect(donus + ek + 'bildirim=islem-yapilamadi&hata=' + encodeURIComponent(`${ilce} ilçe müdürünü yalnızca ilçe sorumlusu düzenleyebilir.`));
+  await IlceYetkilisi.findOneAndUpdate({ ilce }, {
+    ilce, ad: metin(req.body.yetkiliAd) || undefined, unvan: metin(req.body.yetkiliUnvan) || undefined,
+    guncelleyenAd: req.ben ? req.ben.adSoyad : undefined
+  }, { upsert: true, new: true, setDefaultsOnInsert: true });
+  return res.redirect(donus + ek + 'bildirim=kaydedildi');
+}));
+
+// Çıktı öncesi bilgiler (EK-2: sözleşme tarihi ve ilçe müdürü)
+router.get('/hazirla/:form', sar(async (req, res, next) => {
+  const tanim = FORMLAR[req.params.form];
+  if (!tanim || !tanim.tekil || !mongoose.isValidObjectId(req.query.talep)) return next();
+  const talep = await Talep().findById(req.query.talep).select('ciftciId ilce projeId durum').populate('ciftciId', 'adSoyad').lean();
+  if (!talep || !talep.ciftciId) return next();
+  if (ilceKisitliMi(req.ben, res.locals.ayar) && !calisilanIlceler(req.ben, res.locals.ayar).includes(talep.ilce)) return res.status(403).send('Bu ilçenin başvurularına erişiminiz yok.');
+  const kayit = await IlceYetkilisi.findOne({ ilce: talep.ilce }).lean();
+  res.render(V + 'hazirla', {
+    baslik: `${tanim.kod} ${tanim.ad}`, tanim, form: req.params.form, talep, kayit: kayit || {},
+    duzenlenebilir: yetkiliDuzenlerMi(req, talep.ilce), donus: req.originalUrl
   });
 }));
 
@@ -81,7 +127,7 @@ router.get('/:form', sar(async (req, res, next) => {
     const [proje, ciftci] = await Promise.all([Proje().findById(talep.projeId).lean(), Ciftci().findById(talep.ciftciId).lean()]);
     if (!proje || !ciftci) return next();
     const hesap = talepHesabi(talep, proje, ayar);
-    const v = { talep, ciftci, proje, ayar, hesap };
+    const v = { talep, ciftci, proje, ayar, hesap, secenekler: await secenekleriOku(req.query, talep.ilce) };
     if (req.params.form === 'ek4' && talep.uygulama && talep.uygulama.teslimEden) {
       v.teslimEden = await Kisi().findById(talep.uygulama.teslimEden).select('adSoyad unvan').lean();
     }
