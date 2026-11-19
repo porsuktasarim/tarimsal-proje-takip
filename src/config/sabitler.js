@@ -99,6 +99,7 @@ const varsayilanlar = {
     },
     {
       kod: 'koordinator', ad: 'Proje Koordinatörü', aciklama: 'İşi yürüten il müdürlüğü personeli.', renk: 'blue', ilceKisitli: false,
+      astRoller: ['yurutucu'],
       yetkiler: ['pano.gor', 'proje.gor', 'proje.yonet', 'talep.gor', 'talep.gir', 'talep.degerlendir',
         'ciftci.gor', 'ciftci.yonet', 'gorev.gor', 'gorev.ver', 'ayar.genel', 'ayar.katalog', 'bbhb.gor', 'bbhb.hesapla']
     },

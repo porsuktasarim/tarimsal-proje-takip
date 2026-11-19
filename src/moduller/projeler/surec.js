@@ -1,9 +1,9 @@
 // Proje süreci: adımlar Ayarlar › Süreç'te tanımlanır (ayar.surecAdimlari).
 //
-// Her adımın bir sorumlu rolü vardır (Ayarlar › Roller). Roller yetkileriyle sıralanır: bir rolün
-// yetkilerinin tamamı başka bir rolde de varsa o rol üsttedir. Sorumlu rol adımı "yapıldı" olarak
-// işaretler; sorumlunun üstünde rol varsa adımı en üstteki rol onaylar (ör. Proje Yürütücüsü yapar,
-// Proje Koordinatörü onaylar). En üstteki rol sorumluysa adım tek aşamalıdır.
+// Her adımın bir sorumlu rolü vardır. Rollerin ast-üst ilişkisi Ayarlar › Roller'de belirlenir.
+// Sorumlu rol adımı "yapıldı" olarak işaretler; sorumlunun üstünde rol varsa adımı zincirin en
+// üstündeki rol onaylar (ör. Proje Yürütücüsü yapar, Proje Koordinatörü onaylar). Üstü olmayan rol
+// sorumluysa adım tek aşamalıdır.
 // Onay, sorumlu kısmı bitmeden verilemez; onaylanmış adımı sorumlu geri alamaz. Kişi hem sorumlu hem
 // onaylayan rolündeyse iki kısmı birlikte işaretler; projede sorumlu rolden kimse yoksa onaylayan
 // ikisini de işaretler.
@@ -19,16 +19,18 @@
 const ESKI_SORUMLU = { il: 'koordinator', ilce: 'yurutucu', 'il-ilce': 'yurutucu' };
 const sorumluRolu = (a) => (Array.isArray(a.yapan) && a.yapan.length ? a.yapan[0] : (ESKI_SORUMLU[a.sorumlu] || a.sorumlu || 'koordinator'));
 
-// Rolün üstündeki en üst rol(ler): yetkileri bu rolün yetkilerini kapsayan ve kendisi başka bir
-// rolce kapsanmayan roller (Sistem Yöneticisi hariç)
-function enUstRoller(kod, ayar) {
-  const roller = (ayar.roller || []).filter((r) => r.kod !== 'admin');
-  const yetki = (r) => new Set(r.yetkiler || []);
-  const kapsar = (ust, alt) => { const u = yetki(ust); const a = yetki(alt); return u.size > a.size && [...a].every((x) => u.has(x)); };
-  const ben = roller.find((r) => r.kod === kod);
-  if (!ben) return [];
-  const ustler = roller.filter((r) => r.kod !== kod && kapsar(r, ben));
-  return ustler.filter((r) => !ustler.some((x) => x.kod !== r.kod && kapsar(x, r))).map((r) => r.kod);
+// Rolün en üstteki üst rol(ler)i: Ayarlar › Roller'deki ast-üst ilişkisine göre zincirin tepesi.
+// Üstü olmayan rolün onaylayanı yoktur (ör. İş Planı hiçbir rolün üstü olarak tanımlanmadıkça onaylamaz).
+function enUstRoller(kod, ayar, gorulen = new Set()) {
+  if (gorulen.has(kod)) return [];
+  gorulen.add(kod);
+  const ustler = (ayar.roller || []).filter((r) => r.kod !== 'admin' && (r.astRoller || []).includes(kod));
+  const tepe = [];
+  ustler.forEach((u) => {
+    const ust = enUstRoller(u.kod, ayar, gorulen);
+    (ust.length ? ust : [u.kod]).forEach((k) => { if (!tepe.includes(k)) tepe.push(k); });
+  });
+  return tepe;
 }
 
 function adimNormal(a, ayar) {

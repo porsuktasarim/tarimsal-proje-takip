@@ -52,6 +52,26 @@
         </div>
       <% }) %>
     </div>
+    <%
+      var astlar = r.astRoller || [];
+      var adayRoller = (typeof roller !== 'undefined' ? roller : []).filter(function (x) { return x.kod && x.kod !== 'admin' && x.kod !== r.kod; });
+      var ustRoller = (typeof roller !== 'undefined' ? roller : []).filter(function (x) { return r.kod && (x.astRoller || []).indexOf(r.kod) >= 0; });
+    %>
+    <div class="mt-3">
+      <div class="subheader mb-1">Ast roller <span class="text-secondary text-lowercase fw-normal">(bu rol, seçilen rollerin üstüdür; süreç adımlarında onları onaylar)</span></div>
+      <div class="form-selectgroup form-selectgroup-pills">
+        <% adayRoller.forEach(function (x) { %>
+          <label class="form-selectgroup-item">
+            <input type="checkbox" name="<%= on %>[astRoller][]" value="<%= x.kod %>" class="form-selectgroup-input" <%= astlar.indexOf(x.kod) >= 0 ? 'checked' : '' %>>
+            <span class="form-selectgroup-label py-1 px-2 small"><span class="badge bg-<%= x.renk || 'secondary' %> p-1 me-1"></span><%= x.ad %></span>
+          </label>
+        <% }) %>
+        <% if (!adayRoller.length) { %><span class="small text-secondary">Kaydedilmiş başka rol yok.</span><% } %>
+      </div>
+      <div class="small text-secondary mt-1">
+        <% if (ustRoller.length) { %>Üst rolü: <%= ustRoller.map(function (x) { return x.ad; }).join(', ') %>.<% } else if (r.kod) { %>Üst rolü yok.<% } else { %>Yeni rol kaydedildikten sonra başka rollerin astı olarak seçilebilir.<% } %>
+      </div>
+    </div>
     <label class="form-check form-switch mt-2 mb-0">
       <input type="checkbox" class="form-check-input" name="<%= on %>[ilceKisitli]" <%= r.ilceKisitli ? 'checked' : '' %>>
       <span class="form-check-label">İlçe kısıtlı <span class="text-secondary small">(kişi yalnızca sorumlu olduğu ilçelerin çiftçisini ve talebini girer)</span></span>

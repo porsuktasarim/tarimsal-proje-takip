@@ -22,6 +22,7 @@ function duzenle(belge) {
     renk: r.renk || varsayilanRol(r.kod).renk || 'secondary',
     ilceKisitli: r.ilceKisitli !== undefined ? !!r.ilceKisitli : !!varsayilanRol(r.kod).ilceKisitli,
     projeKisitli: !!r.projeKisitli,
+    astRoller: Array.isArray(r.astRoller) ? r.astRoller : (varsayilanRol(r.kod).astRoller || []),
     yetkiler: Array.isArray(r.yetkiler) ? r.yetkiler : (varsayilanRol(r.kod).yetkiler || [])
   }));
   const admin = roller.find((r) => r.kod === 'admin') || kopya(varsayilanRol('admin'));

@@ -6,7 +6,7 @@
     var rolSec = function (secili) {
       return '<select name="adimlar[' + i + '][sorumlu]" class="form-select form-select-sm sorumlu-sec"><option value="">–</option>' +
         roller.filter(function (r) { return r.kod !== 'admin'; }).map(function (r) { return '<option value="' + r.kod + '"' + (secili === r.kod ? ' selected' : '') + '>' + r.ad + '</option>'; }).join('') +
-        '</select><div class="small text-secondary mt-1 onay-ipucu">' + (secili && onayHaritasi[secili] ? 'Onay: ' + onayHaritasi[secili] : (secili ? 'Onay yok (en üst rol)' : '')) + '</div>';
+        '</select><div class="small text-secondary mt-1 onay-ipucu">' + (secili && onayHaritasi[secili] ? 'Onay: ' + onayHaritasi[secili] : (secili ? 'Onay yok (üst rolü yok)' : '')) + '</div>';
     };
     return '<tr' + (a.alt ? ' class="surec-alt"' : '') + '>' +
       '<td class="text-secondary text-nowrap"><span class="satir-no"></span>' +
@@ -25,7 +25,7 @@
   <div class="card-header">
     <div>
       <h3 class="card-title">Proje süreci</h3>
-      <p class="card-subtitle">Tüm projelerin sayfasındaki süreç listesi. Her adıma bir <strong>sorumlu rol</strong> seçilir (Ayarlar › Roller). Roller yetkileriyle sıralanır: bir rolün yetkilerinin tamamı başka bir rolde de varsa o rol üsttedir. Sorumlunun üstünde rol varsa adımı <strong>en üstteki rol onaylar</strong> (ör. Proje Yürütücüsü yapar, Proje Koordinatörü onaylar); onay, sorumlu kısmı bitmeden verilemez. Kişinin projenin ekibinde olması gerekir. "Alt" işaretli adım bir önceki ana adımın alt adımıdır; ana adım, alt adımları bitince tamamlanır.</p>
+      <p class="card-subtitle">Tüm projelerin sayfasındaki süreç listesi. Her adıma bir <strong>sorumlu rol</strong> seçilir (Ayarlar › Roller). Rollerin ast-üst ilişkisi Ayarlar › Roller'de belirlenir. Sorumlunun üstünde rol varsa adımı <strong>en üstteki rol onaylar</strong> (ör. Proje Yürütücüsü yapar, Proje Koordinatörü onaylar); onay, sorumlu kısmı bitmeden verilemez. Kişinin projenin ekibinde olması gerekir. "Alt" işaretli adım bir önceki ana adımın alt adımıdır; ana adım, alt adımları bitince tamamlanır.</p>
     </div>
     <div class="card-actions">
       <button type="button" class="btn btn-sm" data-satir-ekle="adimlar"><i class="ti ti-plus me-1"></i> Adım ekle</button>
@@ -53,7 +53,7 @@
   document.addEventListener('change', function (e) {
     if (!e.target.classList.contains('sorumlu-sec')) return;
     var v = e.target.value;
-    e.target.parentElement.querySelector('.onay-ipucu').textContent = v ? (ONAY[v] ? 'Onay: ' + ONAY[v] : 'Onay yok (en üst rol)') : '';
+    e.target.parentElement.querySelector('.onay-ipucu').textContent = v ? (ONAY[v] ? 'Onay: ' + ONAY[v] : 'Onay yok (üst rolü yok)') : '';
   });
 </script>
 <%- include('_son') %>

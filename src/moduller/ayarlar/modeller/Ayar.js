@@ -22,6 +22,7 @@ const rolSema = new mongoose.Schema({
   renk: { type: String, trim: true },
   ilceKisitli: { type: Boolean, default: false },   // yalnızca kişinin sorumlu ilçelerinde çalışır
   projeKisitli: { type: Boolean, default: false },  // yalnızca koordinatörü/yürütücüsü olduğu projeleri görür
+  astRoller: { type: [String], default: undefined }, // bu rolün altındaki roller (süreçte onları onaylar)
   yetkiler: { type: [String], default: [] }
 }, { _id: false });
 

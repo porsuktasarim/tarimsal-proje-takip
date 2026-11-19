@@ -561,7 +561,8 @@ router.post('/roller', sar(async (req, res) => {
     renk: rolRenkSecenekleri.includes(r.renk) ? r.renk : 'secondary',
     ilceKisitli: r.ilceKisitli === 'on',
     projeKisitli: r.projeKisitli === 'on',
-    yetkiler: diziyeCevir(r.yetkiler).filter((y) => tumYetkiler.includes(y))
+    yetkiler: diziyeCevir(r.yetkiler).filter((y) => tumYetkiler.includes(y)),
+    astRoller: diziyeCevir(r.astRoller).map(String)
   })).filter((r) => r.ad || r.kod);
 
   // Sistem Yöneticisi her zaman vardır ve tüm yetkilere sahiptir (yalnız adı/açıklaması/rengi değişir).
@@ -589,7 +590,24 @@ router.post('/roller', sar(async (req, res) => {
     if (k.gorev) hatalar.push(`"${r.ad}" rolüne verilmiş ${k.gorev} görev olduğu için silinemez.`);
   }
 
-  const roller = [{ ...adminSatiri, kod: 'admin', ilceKisitli: false, projeKisitli: false, yetkiler: [] }, ...digerleri];
+  // Ast roller: var olan, kendisi ve Sistem Yöneticisi olmayan roller; döngü olamaz (A, B'nin üstüyse B, A'nın üstü olamaz)
+  const gecerli = new Set(digerleri.map((r) => r.kod));
+  digerleri.forEach((r) => { r.astRoller = [...new Set(r.astRoller)].filter((k) => k !== r.kod && gecerli.has(k)); });
+  const harita = Object.fromEntries(digerleri.map((r) => [r.kod, r]));
+  const dongu = (bas) => {
+    const yigin = [...(harita[bas].astRoller || [])];
+    const gorulen = new Set();
+    while (yigin.length) {
+      const k = yigin.pop();
+      if (k === bas) return true;
+      if (gorulen.has(k)) continue;
+      gorulen.add(k);
+      yigin.push(...((harita[k] && harita[k].astRoller) || []));
+    }
+    return false;
+  };
+  digerleri.filter((r) => dongu(r.kod)).forEach((r) => hatalar.push(`"${r.ad}" rolü dolaylı olarak kendi astı oluyor; ast-üst ilişkisinde döngü olamaz.`));
+  const roller = [{ ...adminSatiri, kod: 'admin', ilceKisitli: false, projeKisitli: false, yetkiler: [], astRoller: [] }, ...digerleri];
   if (hatalar.length) return rollerSayfasi(res, 422, roller, hatalar);
   await ayarlar.guncelle({ roller });
   return res.redirect('/ayarlar/roller?bildirim=kaydedildi');
