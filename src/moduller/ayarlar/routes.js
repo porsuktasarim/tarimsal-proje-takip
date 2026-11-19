@@ -59,7 +59,7 @@ router.get('/genel', (req, res) => {
 // ---------------------------------------------------------------------------
 router.get('/surec', (req, res) => {
   const surec = require('../projeler/surec');
-  res.render(V + 'surec', { baslik: 'Süreç', adimlar: res.locals.ayar.surecAdimlari, SORUMLULAR: surec.SORUMLULAR, VERILER: surec.VERILER, hatalar: [] });
+  res.render(V + 'surec', { baslik: 'Süreç', adimlar: res.locals.ayar.surecAdimlari.map(surec.adimNormal), roller: res.locals.ayar.roller, VERILER: surec.VERILER, hatalar: [] });
 });
 
 router.post('/surec', sar(async (req, res) => {
@@ -73,7 +73,8 @@ router.post('/surec', sar(async (req, res) => {
     kod: String(r.kod || '').trim(),
     ad: String(r.ad || '').trim(),
     aciklama: String(r.aciklama || '').trim() || undefined,
-    sorumlu: surec.SORUMLULAR[r.sorumlu] ? r.sorumlu : 'il',
+    yapan: [].concat(r.yapan || []).filter((k) => res.locals.ayar.rolHaritasi[k]),
+    onaylayan: [].concat(r.onaylayan || []).filter((k) => res.locals.ayar.rolHaritasi[k]),
     alt: r.alt === 'on',
     veri: surec.VERILER[r.veri] ? r.veri : undefined
   })).filter((a) => a.ad).map((a, i) => {
@@ -84,8 +85,15 @@ router.post('/surec', sar(async (req, res) => {
     return { ...a, kod };
   });
   if (adimlar.length && adimlar[0].alt) adimlar[0].alt = false;
-  if (!adimlar.length) {
-    return res.status(422).render(V + 'surec', { baslik: 'Süreç', adimlar: res.locals.ayar.surecAdimlari, SORUMLULAR: surec.SORUMLULAR, VERILER: surec.VERILER, hatalar: ['En az bir adım olmalıdır.'] });
+  const hatalar = [];
+  if (!adimlar.length) hatalar.push('En az bir adım olmalıdır.');
+  // Alt adımı olan ana adımın sorumlusu yoktur; diğer adımlarda en az bir yapan rol seçilmelidir
+  adimlar.forEach((a, i) => {
+    const anaMi = !a.alt && adimlar[i + 1] && adimlar[i + 1].alt;
+    if (!anaMi && !a.yapan.length) hatalar.push(`"${a.ad}" adımında yapan rol seçilmelidir.`);
+  });
+  if (hatalar.length) {
+    return res.status(422).render(V + 'surec', { baslik: 'Süreç', adimlar, roller: res.locals.ayar.roller, VERILER: surec.VERILER, hatalar });
   }
   await ayarlar.guncelle({ surecAdimlari: adimlar });
   return res.redirect('/ayarlar/surec?bildirim=kaydedildi');

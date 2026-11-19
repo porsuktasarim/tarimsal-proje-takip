@@ -6,32 +6,32 @@
 const varsayilanlar = {
   kurum: 'İstanbul İl Tarım ve Orman Müdürlüğü',
   il: 'İstanbul',
-  // Proje süreci (Ayarlar › Süreç'ten düzenlenir). sorumlu: il (koordinatör), ilce (yürütücü yapar,
-  // koordinatör onaylar), il-ilce (ikisinin de işi: önce yürütücü, sonra koordinatör). alt: bir önceki
-  // ana adımın alt adımı. veri: proje sayfasında gösterilecek durum bilgisi ve form bağlantısı.
+  // Proje süreci (Ayarlar › Süreç'ten düzenlenir). yapan: adımı yapan roller; onaylayan: (isteğe bağlı)
+  // yapan işaretledikten sonra onaylayan roller. alt: bir önceki ana adımın alt adımı.
+  // veri: proje sayfasında gösterilecek durum bilgisi ve form bağlantısı.
   surecAdimlari: [
-    { kod: 'metin', ad: 'Proje metni yüklendi', sorumlu: 'il', veri: 'metin', aciklama: 'Değerlendirme için zorunludur.' },
-    { kod: 'yazismalar', ad: 'İlçe müdürlükleriyle yazışmalar', sorumlu: 'il' },
-    { kod: 'fikir-yazisi', ad: 'İlçe müdürlüklerine fikir yazısı yazıldı', sorumlu: 'il', alt: true },
-    { kod: 'on-talep-yazisi', ad: 'Ön talep yazısı yazıldı', sorumlu: 'il', alt: true },
-    { kod: 'talep-yazisi', ad: 'Talep yazısı yazıldı', sorumlu: 'il', alt: true },
-    { kod: 'komisyon', ad: 'İl proje uygulama komisyonu oluşturuldu', sorumlu: 'il', veri: 'komisyon', aciklama: 'İl müdürünün onayıyla; üyeler proje formunun Formlar bölümüne yazılır.' },
-    { kod: 'duyuru', ad: 'Proje duyurusu yapıldı, üreticiler bilgilendirildi', sorumlu: 'il-ilce', aciklama: 'Talimat md. 8/6.' },
-    { kod: 'basvuru', ad: 'Üretici başvuruları alındı (EK-1)', sorumlu: 'ilce', veri: 'basvuru' },
+    { kod: 'metin', ad: 'Proje metni yüklendi', yapan: ['koordinator'], veri: 'metin', aciklama: 'Değerlendirme için zorunludur.' },
+    { kod: 'yazismalar', ad: 'İlçe müdürlükleriyle yazışmalar' },
+    { kod: 'fikir-yazisi', ad: 'İlçe müdürlüklerine fikir yazısı yazıldı', yapan: ['koordinator'], alt: true },
+    { kod: 'on-talep-yazisi', ad: 'Ön talep yazısı yazıldı', yapan: ['koordinator'], alt: true },
+    { kod: 'talep-yazisi', ad: 'Talep yazısı yazıldı', yapan: ['koordinator'], alt: true },
+    { kod: 'komisyon', ad: 'İl proje uygulama komisyonu oluşturuldu', yapan: ['koordinator'], veri: 'komisyon', aciklama: 'İl müdürünün onayıyla; üyeler proje formunun Formlar bölümüne yazılır.' },
+    { kod: 'duyuru', ad: 'Proje duyurusu yapıldı, üreticiler bilgilendirildi', yapan: ['yurutucu'], onaylayan: ['koordinator'], aciklama: 'Talimat md. 8/6.' },
+    { kod: 'basvuru', ad: 'Üretici başvuruları alındı (EK-1)', yapan: ['yurutucu'], onaylayan: ['koordinator'], veri: 'basvuru' },
     { kod: 'degerlendirme', ad: 'Başvurular değerlendirildi' },
-    { kod: 'on-degerlendirme', ad: 'Ön başvurular değerlendirildi', sorumlu: 'ilce', alt: true },
-    { kod: 'ara-degerlendirme', ad: 'İlçe müdürlüğü ara değerlendirmeyi yaptı; asıl ve yedek listeler gönderildi', sorumlu: 'ilce', alt: true },
-    { kod: 'karar', ad: 'Başvurular onaylandı (il komisyonu, asıl/yedek liste)', sorumlu: 'il', alt: true, veri: 'karar' },
-    { kod: 'odeme-yazisi', ad: 'Çiftçi talepleri ve katkı payı ödemesi yazısı ilçelere gönderildi', sorumlu: 'il', veri: 'odeme-yazisi' },
-    { kod: 'dekont', ad: 'Katkı payı dekontları ve icmal listeleri toplandı', sorumlu: 'ilce', veri: 'dekont', aciklama: 'Alfabetik icmal (Excel ve imzalı PDF) ve aynı sırada taranmış dekontlar.' },
-    { kod: 'sozlesme', ad: 'Hibe desteği sözleşmeleri imzalandı (EK-2)', sorumlu: 'ilce', veri: 'sozlesme' },
-    { kod: 'ilce-teslim', ad: 'Girdi yükleniciden ilçelere teslim edildi', sorumlu: 'il-ilce', veri: 'ilce-teslim' },
-    { kod: 'teslim', ad: 'Girdi üreticilere teslim edildi (EK-4)', sorumlu: 'ilce', veri: 'teslim' },
-    { kod: 'kesin-icmal', ad: 'Kesin icmal (EK-3) düzenlendi', sorumlu: 'il-ilce', veri: 'kesin-icmal', aciklama: 'Sözleşme imzalayıp girdisini teslim alan üreticiler; ödemeye esas, komisyon imzalı (talimat md. 10).' },
-    { kod: 'kontrol', ad: 'Arazi kontrolleri yapıldı (EK-5, kontrol raporu)', sorumlu: 'il-ilce', veri: 'kontrol', aciklama: 'Üreticilerin en az %50\'si kontrol edilir.' },
-    { kod: 'izleme', ad: 'Proje izleme formları düzenlendi', sorumlu: 'il-ilce', veri: 'izleme', aciklama: 'En az ayda bir; imzalı taramalar yüklenir.' },
-    { kod: 'yil-sonu', ad: 'Yıl sonu izleme değerlendirme raporu Bakanlığa gönderildi', sorumlu: 'il', aciklama: 'Talimat md. 10/2.' },
-    { kod: 'kapanis', ad: 'Proje tamamlandı; sonuç raporu hazırlandı', sorumlu: 'il-ilce', veri: 'kapanis' }
+    { kod: 'on-degerlendirme', ad: 'Ön başvurular değerlendirildi', yapan: ['yurutucu'], onaylayan: ['koordinator'], alt: true },
+    { kod: 'ara-degerlendirme', ad: 'İlçe müdürlüğü ara değerlendirmeyi yaptı; asıl ve yedek listeler gönderildi', yapan: ['yurutucu'], onaylayan: ['koordinator'], alt: true },
+    { kod: 'karar', ad: 'Başvurular onaylandı (il komisyonu, asıl/yedek liste)', yapan: ['koordinator'], alt: true, veri: 'karar' },
+    { kod: 'odeme-yazisi', ad: 'Çiftçi talepleri ve katkı payı ödemesi yazısı ilçelere gönderildi', yapan: ['koordinator'], veri: 'odeme-yazisi' },
+    { kod: 'dekont', ad: 'Katkı payı dekontları ve icmal listeleri toplandı', yapan: ['yurutucu'], onaylayan: ['koordinator'], veri: 'dekont', aciklama: 'Alfabetik icmal (Excel ve imzalı PDF) ve aynı sırada taranmış dekontlar.' },
+    { kod: 'sozlesme', ad: 'Hibe desteği sözleşmeleri imzalandı (EK-2)', yapan: ['yurutucu'], onaylayan: ['koordinator'], veri: 'sozlesme' },
+    { kod: 'ilce-teslim', ad: 'Girdi yükleniciden ilçelere teslim edildi', yapan: ['yurutucu'], onaylayan: ['koordinator'], veri: 'ilce-teslim' },
+    { kod: 'teslim', ad: 'Girdi üreticilere teslim edildi (EK-4)', yapan: ['yurutucu'], onaylayan: ['koordinator'], veri: 'teslim' },
+    { kod: 'kesin-icmal', ad: 'Kesin icmal (EK-3) düzenlendi', yapan: ['yurutucu'], onaylayan: ['koordinator'], veri: 'kesin-icmal', aciklama: 'Sözleşme imzalayıp girdisini teslim alan üreticiler; ödemeye esas, komisyon imzalı (talimat md. 10).' },
+    { kod: 'kontrol', ad: 'Arazi kontrolleri yapıldı (EK-5, kontrol raporu)', yapan: ['yurutucu'], onaylayan: ['koordinator'], veri: 'kontrol', aciklama: 'Üreticilerin en az %50\'si kontrol edilir.' },
+    { kod: 'izleme', ad: 'Proje izleme formları düzenlendi', yapan: ['yurutucu'], onaylayan: ['koordinator'], veri: 'izleme', aciklama: 'En az ayda bir; imzalı taramalar yüklenir.' },
+    { kod: 'yil-sonu', ad: 'Yıl sonu izleme değerlendirme raporu Bakanlığa gönderildi', yapan: ['koordinator'], aciklama: 'Talimat md. 10/2.' },
+    { kod: 'kapanis', ad: 'Proje tamamlandı; sonuç raporu hazırlandı', yapan: ['yurutucu'], onaylayan: ['koordinator'], veri: 'kapanis' }
   ],
   // Üretici katkı paylarının yatırıldığı hesap (il müdürlüğü yazısındaki); projede ayrıca değiştirilebilir
   katkiHesabi: {

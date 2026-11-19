@@ -31,7 +31,12 @@ const ayarSema = new mongoose.Schema({
   il: { type: String, trim: true },
   logoDosyaId: { type: String, trim: true },
   surecAdimlari: {                                   // proje süreci şablonu (Ayarlar › Süreç)
-    type: [new mongoose.Schema({ kod: String, ad: String, aciklama: String, sorumlu: String, alt: Boolean, veri: String }, { _id: false })],
+    type: [new mongoose.Schema({
+      kod: String, ad: String, aciklama: String, alt: Boolean, veri: String,
+      yapan: { type: [String], default: undefined },       // adımı yapan roller
+      onaylayan: { type: [String], default: undefined },   // onaylayan roller (boşsa tek aşamalı)
+      sorumlu: String                                      // eski sürüm (il / ilce / il-ilce); okunurken rollere çevrilir
+    }, { _id: false })],
     default: undefined
   },         // kurum logosu (GridFS); izleme formu ve yazılarda kullanılır
   logoUstMetin: { type: String, trim: true },        // logonun yanındaki satırlar (ör. T.C. Tarım ve Orman Bakanlığı / Bitkisel Üretim Genel Müdürlüğü)

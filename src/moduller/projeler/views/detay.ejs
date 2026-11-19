@@ -170,7 +170,7 @@
       <div class="col-lg-8">
         <!-- Süreç: Ayarlar › Süreç'te tanımlı adımlar; yürütücü (ilçe) ve koordinatör (il) kısımları -->
         <%
-          var sg = surecGorunum, rol = surecRol;
+          var sg = surecGorunum;
           var kisiYazisi = function (x) { return x && x.tamam ? y.tarih(x.tarih) + (x.kisiAd ? ' · ' + x.kisiAd : '') : ''; };
           var dugme = function (a, taraf, ad, yapildi, izinli, kapali, ipucu, bekleyenAd) {
             if (!izinli) {
@@ -186,31 +186,31 @@
           <div class="card-header">
             <div>
               <h3 class="card-title">Süreç</h3>
-              <p class="card-subtitle">İlçe adımlarını yürütücü yapar, koordinatör onaylar; yürütücü kısmı bitmeden onaylanamaz. Adımlar Ayarlar › Süreç'te düzenlenir.
-                Rolünüz: <strong><%= rol.ikisi ? 'koordinatör ve yürütücü' : (rol.koordinator ? 'koordinatör' : (rol.yurutucu ? 'yürütücü' : 'izleyici')) %></strong>.</p>
+              <p class="card-subtitle">Her adımı sorumlu rol işaretler; onaylı adımlarda onay, yapan kısmı bitmeden verilemez. Adımlar ve sorumlu roller Ayarlar › Süreç'te düzenlenir.
+                Rolünüz: <strong><%= (ayar.rolHaritasi[ben && ben.rol] || {}).ad || '–' %></strong><%= surecBaglam.ekipte ? ' (projenin ekibinde)' : (surecBaglam.ekipVar && !surecBaglam.admin ? ' (projenin ekibinde değil)' : '') %>.</p>
             </div>
             <div class="card-actions"><span class="badge bg-<%= sg.biten === sg.toplam ? 'green' : 'blue' %>-lt"><%= sg.biten %>/<%= sg.toplam %></span></div>
           </div>
           <div class="progress progress-sm rounded-0"><div class="progress-bar bg-green" style="width: <%= sg.toplam ? Math.round(100 * sg.biten / sg.toplam) : 0 %>%"></div></div>
           <div class="list-group list-group-flush surec-liste">
-            <% var yaz = function (a, no, alt) { var k = a.kayit, d = a.durum, ip = (a.veri && surecIpuclari[a.veri]) || {}, so = SORUMLULAR[d.sorumlu] || {}; %>
+            <% var yaz = function (a, no, alt) { var k = a.kayit, d = a.durum, ip = (a.veri && surecIpuclari[a.veri]) || {}, yt = a.yetki || {}; %>
               <div class="list-group-item py-2<%= alt ? ' ps-5' : '' %>">
                 <div class="d-flex align-items-start gap-2 flex-wrap flex-md-nowrap">
                   <span class="pt-1"><i class="ti <%= d.tamam ? 'ti-circle-check text-success' : (d.ust && d.biten ? 'ti-progress text-blue' : 'ti-circle text-secondary') %> fs-2"></i></span>
                   <div class="flex-fill">
                     <div class="<%= d.tamam ? 'text-secondary' : '' %>">
                       <span class="text-secondary small me-1"><%= no %></span><%= a.ad %>
-                      <% if (!d.ust) { %><span class="badge bg-<%= so.renk %>-lt ms-1" title="<%= so.uzun %>"><%= so.ad %></span><% } else { %><span class="small text-secondary ms-1"><%= d.biten %>/<%= a.altlar.length %></span><% } %>
+                      <% if (!d.ust) { %><span class="badge bg-<%= a.renk %>-lt ms-1" title="Yapan: <%= a.yapanAd %><%= a.onaylayanAd ? ' · Onaylayan: ' + a.onaylayanAd : '' %>"><%= a.yapanAd %><%= a.onaylayanAd ? ' → ' + a.onaylayanAd : '' %></span><% } else { %><span class="small text-secondary ms-1"><%= d.biten %>/<%= a.altlar.length %></span><% } %>
                     </div>
                     <% if (a.aciklama) { %><div class="small text-secondary"><%= a.aciklama %></div><% } %>
                     <% if (!d.ust) { %>
                       <div class="d-flex flex-wrap gap-1 mt-1 align-items-center">
                         <% if (d.ilceGerekli) { %>
-                          <%- dugme(a, 'ilce', 'İlçe: yapıldı', !!k.ilce.tamam, rol.yurutucu, !!k.il.tamam && !rol.ikisi, k.il.tamam && !rol.ikisi ? 'Koordinatör onayladı; önce onay kaldırılmalı' : '', 'İlçe: bekleniyor') %>
+                          <%- dugme(a, 'ilce', 'Yapıldı', !!k.ilce.tamam, yt.yapar, !!k.il.tamam && !yt.ikisi, k.il.tamam && !yt.ikisi ? 'Onaylandı; önce onay kaldırılmalı' : '', a.yapanAd + ' bekleniyor') %>
                           <% if (k.ilce.tamam) { %><span class="small text-secondary me-2"><%= kisiYazisi(k.ilce) %></span><% } %>
-                          <%- dugme(a, 'il', 'İl: onaylandı', !!k.il.tamam, rol.koordinator, !k.ilce.tamam && !rol.ikisi, !k.ilce.tamam && !rol.ikisi ? 'Yürütücü kendi kısmını tamamlamadan onaylanamaz' : '', 'İl: onay bekliyor') %>
+                          <%- dugme(a, 'il', 'Onaylandı', !!k.il.tamam, yt.onaylar, !k.ilce.tamam && !yt.ikisi, !k.ilce.tamam && !yt.ikisi ? a.yapanAd + ' kendi kısmını tamamlamadan onaylanamaz' : '', a.onaylayanAd + ' onayı bekleniyor') %>
                         <% } else { %>
-                          <%- dugme(a, 'il', 'Yapıldı', !!k.il.tamam, rol.koordinator, false, '', 'Koordinatör bekleniyor') %>
+                          <%- dugme(a, 'il', 'Yapıldı', !!k.il.tamam, yt.yapar, false, '', a.yapanAd + ' bekleniyor') %>
                         <% } %>
                         <% if (k.il.tamam) { %><span class="small text-secondary"><%= kisiYazisi(k.il) %></span><% } %>
                       </div>
@@ -218,7 +218,7 @@
                     <% (k.notlar || []).forEach(function (n) { %>
                       <div class="small gecmis-not mt-1"><i class="ti ti-note me-1"></i><%= n.metin %> <span class="text-secondary">— <%= n.kisiAd || '' %>, <%= y.tarih(n.tarih) %></span></div>
                     <% }) %>
-                    <% if (rol.koordinator || rol.yurutucu) { %>
+                    <% if (surecBaglam.admin || surecBaglam.ekipte || yt.yapar || yt.onaylar) { %>
                       <details class="mt-1">
                         <summary class="small text-secondary">Not ekle</summary>
                         <form method="post" action="/projeler/<%= proje._id %>/surec/<%= a.kod %>" class="d-flex flex-wrap gap-2 mt-1">

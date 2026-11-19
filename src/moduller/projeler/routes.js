@@ -287,6 +287,7 @@ router.get('/:id', sar(projeBul), sar(async (req, res) => {
       .sort({ sonTarih: 1, olusturulma: -1 })
   ]);
   const kisiBul = (id) => ekip.find((k) => String(k._id) === String(id));
+  const surecBaglami = surec.baglam(req, req.proje, ekip.map((k) => k.rol));
   const tumTalepler = await mongoose.model('Talep').find({ projeId: req.proje._id }).select('-gecmis').lean();
   const talepler = tumTalepler.filter((t) => t.durum !== 'desteklenmedi');
   const talepOzeti = taleplerOzeti(talepler, req.proje, res.locals.ayar);
@@ -305,10 +306,9 @@ router.get('/:id', sar(projeBul), sar(async (req, res) => {
     katalogEklenen: parseInt(req.query.katalog, 10) || 0,
     metinYukleyebilir: projeMetni.yukleyebilirMi(req.ben, req.proje, res.locals.adminVar),
     metinGerekli: req.query.metin === 'gerekli',
-    surecGorunum: surec.gorunum(req.proje, res.locals.ayar),
+    surecGorunum: surec.gorunum(req.proje, res.locals.ayar, surecBaglami),
     surecIpuclari: surec.ipuclari(req.proje, tumTalepler),
-    surecRol: surec.projeRolu(req, req.proje),
-    SORUMLULAR: surec.SORUMLULAR
+    surecBaglam: surecBaglami
   });
 }));
 
@@ -391,15 +391,16 @@ router.get('/:id/belge/:dosyaId', sar(projeBul), sar(async (req, res, next) => {
 // Süreç adımı: yürütücü kendi kısmını, koordinatör kendi kısmını (onayı) işaretler; not düşülür
 router.post('/:id/surec/:kod', sar(projeBul), sar(async (req, res) => {
   const ayar = res.locals.ayar;
-  const rol = surec.projeRolu(req, req.proje);
+  const ekipRolleri = (await Kisi.find({ _id: { $in: [...req.proje.koordinatorler, ...req.proje.yurutuculer] } }).select('rol').lean()).map((k) => k.rol);
+  const b = surec.baglam(req, req.proje, ekipRolleri);
   const donus = `/projeler/${req.proje._id}`;
   const not = metin(req.body.not);
   const kisiAd = req.ben ? req.ben.adSoyad : undefined;
   let hata = null;
   if (req.body.taraf === 'il' || req.body.taraf === 'ilce') {
-    hata = surec.isaretle(req.proje, ayar, rol, req.params.kod, req.body.taraf, req.body.deger === '1', { not, kisiAd, tarih: tarihOku(req.body.tarih) });
+    hata = surec.isaretle(req.proje, ayar, b, req.params.kod, req.body.taraf, req.body.deger === '1', { not, kisiAd, tarih: tarihOku(req.body.tarih) });
   } else if (not) {
-    if (!rol.koordinator && !rol.yurutucu) hata = 'Not yalnızca projenin koordinatörü ya da yürütücüsü tarafından düşülür.';
+    if (!surec.notYazabilirMi(ayar, b, req.params.kod)) hata = 'Not, adımın sorumlu rolleri ya da projenin ekibi tarafından düşülür.';
     else surec.notEkle(req.proje, req.params.kod, not, kisiAd);
   }
   if (hata) return res.redirect(`${donus}?bildirim=islem-yapilamadi&hata=${encodeURIComponent(hata)}#surec`);

@@ -1,20 +1,33 @@
 // Proje süreci: adımlar Ayarlar › Süreç'te tanımlanır (ayar.surecAdimlari).
 //
-// Sorumluluk:
-//   il       koordinatörün işi; koordinatör işaretler
-//   ilce     yürütücünün (ilçe) işi; yürütücü "yapıldı" der, koordinatör onaylar
-//   il-ilce  ikisinin de işi; önce yürütücü kendi kısmını, sonra koordinatör kendi kısmını işaretler
-// Koordinatör, yürütücü kısmı tamamlanmadan onaylayamaz. Kişi hem koordinatör hem yürütücüyse
-// (ya da projeye yürütücü atanmamışsa) iki kısmı birlikte işaretleyebilir.
+// Her adımda sorumlu roller seçilir (Ayarlar › Roller'deki roller):
+//   yapan      adımı "yapıldı" olarak işaretleyen roller
+//   onaylayan  (isteğe bağlı) yapan işaretledikten sonra onaylayan roller
+// Onaylayan seçilmişse onay, yapan kısmı tamamlanmadan verilemez; onaylanmış adımı yapan geri alamaz.
+// Kişi hem yapan hem onaylayan rollerden birine uyuyorsa iki kısmı birlikte işaretler. Projede yapan
+// rollerden kimse yoksa (ör. yürütücü atanmamış) onaylayan iki kısmı da işaretler.
+// Kişinin rolü uysa da projenin ekibinde (koordinatör/yürütücü) olması gerekir; ekip atanmamışsa
+// rolü uyan herkes işaretler. Projede koordinatör olarak atanan kişi bu projede "Proje Koordinatörü",
+// yürütücü olarak atanan "Proje Yürütücüsü" rolünü de taşır (ikisine de atanan iki kısmı birlikte işaretler).
+// Sistem Yöneticisi her adımı işaretler.
 // Alt adımları olan ana adım, tüm alt adımlar tamamlanınca tamamlanmış sayılır.
 //
-// Proje kaydı: proje.surec[kod] = { ilce: { tamam, tarih, kisiAd }, il: { ... }, notlar: [{ metin, kisiAd, tarih }] }
+// Proje kaydı: proje.surec[kod] = { ilce: { tamam, tarih, kisiAd } (yapan kısmı, onaylı adımlarda),
+//   il: { ... } (tek aşamalı adımda yapan, iki aşamalıda onay), notlar: [{ metin, kisiAd, tarih }] }
 
-const SORUMLULAR = {
-  il: { ad: 'İl', uzun: 'Koordinatör (il)', renk: 'blue' },
-  ilce: { ad: 'İlçe', uzun: 'Yürütücü (ilçe); koordinatör onaylar', renk: 'green' },
-  'il-ilce': { ad: 'İl-İlçe', uzun: 'Yürütücü ve koordinatör (önce ilçe, sonra il)', renk: 'purple' }
+// Eski "sorumlu" alanından (il / ilce / il-ilce) rol seçimine geçiş
+const ESKI_SORUMLU = {
+  il: { yapan: ['koordinator'], onaylayan: [] },
+  ilce: { yapan: ['yurutucu'], onaylayan: ['koordinator'] },
+  'il-ilce': { yapan: ['yurutucu'], onaylayan: ['koordinator'] }
 };
+function adimNormal(a) {
+  const yeni = Array.isArray(a.yapan) && a.yapan.length;
+  const eski = ESKI_SORUMLU[a.sorumlu] || ESKI_SORUMLU.il;
+  return { ...a, yapan: yeni ? a.yapan : eski.yapan, onaylayan: yeni ? (a.onaylayan || []) : eski.onaylayan };
+}
+const rolAdlari = (kodlar, ayar) => (kodlar || []).map((k) => (ayar.rolHaritasi[k] || {}).ad || k);
+const rolRengi = (kodlar, ayar) => ((ayar.rolHaritasi[(kodlar || [])[0]] || {}).renk || 'secondary');
 
 // Proje sayfasında gösterilebilecek durum bilgileri (Ayarlar › Süreç'te adımlara bağlanır)
 const VERILER = {
@@ -34,6 +47,32 @@ const VERILER = {
 };
 
 const eslesir = (liste, id) => (liste || []).some((x) => String((x && x._id) || x) === String(id));
+
+// Süreç bağlamı: kişinin rolü, projenin ekibinde olup olmadığı, ekipteki kişilerin rolleri
+// ekipRolleri: projenin koordinatör ve yürütücülerinin sistem rolleri (dizi)
+function baglam(req, proje, ekipRolleri) {
+  const ben = req.ben;
+  const koor = (proje.koordinatorler || []).length;
+  const yur = (proje.yurutuculer || []).length;
+  const koordinatorde = !!ben && eslesir(proje.koordinatorler, ben._id);
+  const yurutucude = !!ben && eslesir(proje.yurutuculer, ben._id);
+  // Kişinin bu projedeki rolleri: sistem rolü + ekip görevinden gelen rol
+  const roller = [ben && ben.rol, koordinatorde && 'koordinator', yurutucude && 'yurutucu'].filter(Boolean);
+  const ekip = [...(ekipRolleri || []), ...(koor ? ['koordinator'] : []), ...(yur ? ['yurutucu'] : [])];
+  return { admin: !!req.silebilir, rol: ben && ben.rol, roller, ekipte: koordinatorde || yurutucude, ekipVar: koor + yur > 0, ekipRolleri: ekip };
+}
+// Kişi verilen rollerden birine uyuyor mu (ve projede çalışıyor mu)
+const uyar = (b, roller) => b.admin || (b.roller.some((r) => roller.includes(r)) && (b.ekipte || !b.ekipVar));
+// Bir adımda kişinin yapabilecekleri
+function adimYetkisi(a, b) {
+  const n = adimNormal(a);
+  const onayli = n.onaylayan.length > 0;
+  const onaylar = onayli && uyar(b, n.onaylayan);
+  // Projede yapan rollerden kimse yoksa onaylayan iki kısmı da işaretler
+  const yapanYok = b.ekipVar && !n.yapan.some((r) => b.ekipRolleri.includes(r));
+  const yapar = uyar(b, n.yapan) || (onaylar && yapanYok);
+  return { yapar, onaylar, ikisi: yapar && onaylar, onayli };
+}
 
 // Kişinin bu projedeki rolü
 function projeRolu(req, proje) {
@@ -65,8 +104,8 @@ function agac(adimlar) {
 
 // Bir yaprak adımın durumu
 function adimDurumu(a, k) {
-  const sorumlu = SORUMLULAR[a.sorumlu] ? a.sorumlu : 'il';
-  const ilceGerekli = sorumlu !== 'il';
+  const ilceGerekli = adimNormal(a).onaylayan.length > 0;   // iki aşamalı: yapan (ilce kısmı) + onay (il kısmı)
+  const sorumlu = ilceGerekli ? 'onayli' : 'tek';
   const tamam = !!k.il.tamam && (!ilceGerekli || !!k.ilce.tamam);
   let bekleyen = '';
   if (!tamam) bekleyen = ilceGerekli && !k.ilce.tamam ? 'ilce' : 'il';
@@ -74,15 +113,18 @@ function adimDurumu(a, k) {
 }
 
 // Proje sayfası için tam görünüm: ağaç, her adımın kaydı ve durumu, sayaçlar
-function gorunum(proje, ayar) {
-  const ana = agac(ayar.surecAdimlari);
+function gorunum(proje, ayar, b) {
+  const ana = agac(ayar.surecAdimlari.map(adimNormal));
   let toplam = 0;
   let biten = 0;
   const isle = (a) => {
     const k = kayitOku(proje.surec, a.kod);
     const d = adimDurumu(a, k);
     toplam += 1; if (d.tamam) biten += 1;
-    return { ...a, kayit: k, durum: d };
+    return {
+      ...a, kayit: k, durum: d, yetki: b ? adimYetkisi(a, b) : {},
+      yapanAd: rolAdlari(a.yapan, ayar).join(', '), onaylayanAd: rolAdlari(a.onaylayan, ayar).join(', '), renk: rolRengi(a.yapan, ayar)
+    };
   };
   const adimlar = ana.map((a) => {
     if (!a.altlar.length) return isle(a);
@@ -126,27 +168,34 @@ function ipuclari(proje, talepler) {
   };
 }
 
-// İşaretleme / işaret kaldırma. taraf: 'il' | 'ilce'. Hata metni ya da null döner.
-function isaretle(proje, ayar, rol, kod, taraf, deger, ek) {
-  const a = (ayar.surecAdimlari || []).find((x) => x.kod === kod);
-  if (!a) return 'Adım bulunamadı.';
+// İşaretleme / işaret kaldırma. taraf: 'ilce' (yapan kısmı, iki aşamalı adımda) | 'il' (tek aşamalıda
+// yapan, iki aşamalıda onay). Hata metni ya da null döner.
+function isaretle(proje, ayar, b, kod, taraf, deger, ek) {
+  const ham = (ayar.surecAdimlari || []).find((x) => x.kod === kod);
+  if (!ham) return 'Adım bulunamadı.';
   const ana = agac(ayar.surecAdimlari).find((x) => x.kod === kod);
   if (ana && ana.altlar.length) return 'Bu adım alt adımları tamamlanınca kendiliğinden tamamlanır.';
+  const a = adimNormal(ham);
+  const y = adimYetkisi(a, b);
   const k = kayitOku(proje.surec, kod);
   const d = adimDurumu(a, k);
   const zaman = ek.tarih || new Date();
   const kim = ek.kisiAd;
+  const adlar = (l) => rolAdlari(l, ayar).join(', ');
   if (taraf === 'ilce') {
-    if (!d.ilceGerekli) return 'Bu adım koordinatörün işidir.';
-    if (!rol.yurutucu) return 'Bu kısmı projenin yürütücüsü işaretler.';
-    if (!deger && k.il.tamam && !rol.ikisi) return 'Koordinatör onayladığı için önce onayın kaldırılması gerekir.';
+    if (!d.ilceGerekli) return 'Bu adım tek aşamalıdır.';
+    if (!y.yapar) return `Bu kısmı ${adlar(a.yapan)} işaretler.`;
+    if (!deger && k.il.tamam && !y.ikisi) return 'Adım onaylandığı için önce onayın kaldırılması gerekir.';
     k.ilce = deger ? { tamam: true, tarih: zaman, kisiAd: kim } : {};
-    if (!deger && rol.ikisi) k.il = {};
+    if (!deger && y.ikisi) k.il = {};
+  } else if (!d.ilceGerekli) {
+    if (!y.yapar) return `Bu adımı ${adlar(a.yapan)} işaretler.`;
+    k.il = deger ? { tamam: true, tarih: zaman, kisiAd: kim } : {};
   } else {
-    if (!rol.koordinator) return 'Bu kısmı projenin koordinatörü işaretler.';
-    if (deger && d.ilceGerekli && !k.ilce.tamam) {
-      if (!rol.ikisi) return 'Yürütücü kendi kısmını tamamlamadan bu adım onaylanamaz.';
-      k.ilce = { tamam: true, tarih: zaman, kisiAd: kim };   // hem yürütücü hem koordinatör: iki kısım birlikte
+    if (!y.onaylar) return `Bu adımı ${adlar(a.onaylayan)} onaylar.`;
+    if (deger && !k.ilce.tamam) {
+      if (!y.ikisi) return `${adlar(a.yapan)} kendi kısmını tamamlamadan bu adım onaylanamaz.`;
+      k.ilce = { tamam: true, tarih: zaman, kisiAd: kim };   // hem yapan hem onaylayan: iki kısım birlikte
     }
     k.il = deger ? { tamam: true, tarih: zaman, kisiAd: kim } : {};
   }
@@ -155,10 +204,19 @@ function isaretle(proje, ayar, rol, kod, taraf, deger, ek) {
   return null;
 }
 
+// Not: adımda yapan ya da onaylayan olan, ya da projenin ekibindeki herkes
+function notYazabilirMi(ayar, b, kod) {
+  if (b.admin || b.ekipte) return true;
+  const a = (ayar.surecAdimlari || []).find((x) => x.kod === kod);
+  if (!a) return false;
+  const y = adimYetkisi(a, b);
+  return y.yapar || y.onaylar;
+}
+
 function notEkle(proje, kod, metin, kisiAd) {
   const k = kayitOku(proje.surec, kod);
   k.notlar = [...k.notlar, { metin, kisiAd, tarih: new Date() }];
   proje.surec = { ...(proje.surec || {}), [kod]: k };
 }
 
-module.exports = { SORUMLULAR, VERILER, projeRolu, gorunum, ipuclari, isaretle, notEkle, agac, eslesir };
+module.exports = { VERILER, projeRolu, baglam, adimNormal, adimYetkisi, gorunum, ipuclari, isaretle, notEkle, notYazabilirMi, agac, eslesir, rolAdlari };
