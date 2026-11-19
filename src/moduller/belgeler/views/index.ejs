@@ -76,7 +76,7 @@
                       <td><span class="badge bg-<%= d.renk %>-lt"><%= d.ad %></span></td>
                       <% tekilFormlar.forEach(function (k) { var f = FORMLAR[k]; var uygun = KAPSAM[f.kapsam].indexOf(t.durum) >= 0; %>
                         <td class="text-center text-nowrap">
-                          <% if (!uygun) { %><span class="text-secondary">–</span>
+                          <% if (!uygun) { %><span class="small text-secondary" title="Başvuru desteklendi ya da teslim aşamasına geçince açılır">karardan sonra</span>
                           <% } else if (k === 'ek5') { %>
                             <% (t.kontroller || []).forEach(function (kn) { %>
                               <div class="d-flex align-items-center justify-content-center"><span class="small me-1"><%= y.tarih(kn.tarih) %></span><%- bicimDugmeleri('/belgeler/ek5?talep=' + t._id + '&kontrol=' + kn._id) %></div>

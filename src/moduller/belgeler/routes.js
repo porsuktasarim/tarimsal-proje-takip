@@ -137,6 +137,8 @@ router.get('/:form', sar(async (req, res, next) => {
       if (!v.kontrol) return res.status(404).send('Kontrol kaydı bulunamadı.');
     }
     const model = tanim.tekil(v);
+    // Alt bilgi: proje kısa adı | başvuranın T.C.'si - adı soyadı (sağda sayfa numarası)
+    model.altBilgi = `${proje.kisaAd || proje.ad} | ${ciftci.tcKimlikNo} - ${ciftci.adSoyad}`;
     return gonder(res, model, bicim, `${tanim.kod} ${tanim.ad} - ${ciftci.adSoyad}`);
   }
 
@@ -163,6 +165,7 @@ router.get('/:form', sar(async (req, res, next) => {
   const puanVar = satirlar.some((s) => s.deg && s.deg.puan != null);
   const ilceYetkilileri = await IlceYetkilisi.find({}).lean();
   const model = tanim.liste({ satirlar, proje, ayar, ilce, puanVar, ilceYetkilileri });
+  model.altBilgi = `${proje.kisaAd || proje.ad} | ${tanim.kod} ${tanim.ad}${ilce ? ' - ' + ilce : ''}`;
   return gonder(res, model, bicim, `${tanim.kod} ${tanim.ad} - ${proje.kisaAd || proje.ad}${ilce ? ' - ' + ilce : ''}`);
 }));
 

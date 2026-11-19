@@ -150,14 +150,24 @@ function ek1(v) {
       { t: 'baslik', metin: `${buyuk(ilceMudurlugu(talep.ilce))}NE`, boyut: 3 },
       { t: 'p', metin: 'Aşağıda bilgilerini vermiş olduğum kullanım hakkı tarafıma ait arazi için başvurumun kabulünü arz eder, proje kapsamında tarafıma sağlanacak olan hibe desteği karşılığında ekim/dikim ve her türlü teknik bakım işlemlerini zamanında yapacağımı, aksi takdirde aldığım desteği bila kaydı şart geri ödeyeceğimi taahhüt ederim.' },
       {
-        t: 'tablo', genislik: [3, 2],
-        basliklar: [{ metin: 'Üreticinin', birlesik: 2 }],
-        satirlar: [
-          [`Adı Soyadı: ${ciftci.adSoyad}`, `Cinsiyeti: ${kad} Kadın   ${erk} Erkek`],
-          [`TC Kimlik Numarası: ${ciftci.tcKimlikNo}`, `İstihdam Ettiği Kişi Sayısı: ${n(ciftci.istihdam, '……')}`],
-          [`Adresi: ${n([ciftci.adres, ciftci.mahalle, talep.ilce].filter(Boolean).join(', '))}`, `Tarih: ${kisaTarih((talep.basvuru && talep.basvuru.tarih) || talep.olusturulma)}`],
-          [`Cep Telefonu: ${n(ciftci.telefon)}`, 'İmza: ……………………………']
-        ]
+        // Yalnızca dış çerçeve; eşit iki yarı, her yarıda etiket ve ":" ile hizalı değer.
+        // Sol: ad soyad (2 satır), T.C. (1), adres (6), telefon (1); sağ: cinsiyet, istihdam,
+        // tarih ve kalan 7 satırlık imza alanı.
+        t: 'tablo', cerceve: 'dis', dikeyHiza: 'ust', satirYuksekligi: 14, genislik: [1.3, 1.7, 1.4, 1.6],
+        basliklar: [{ metin: 'Üreticinin', birlesik: 4 }],
+        satirlar: (() => {
+          const K = { kapali: true };
+          const d = (metin, rs) => ({ metin: `: ${metin}`, satirBirlesik: rs });
+          const e = (metin, rs) => ({ metin, satirBirlesik: rs });
+          return [
+            [e('Adı Soyadı', 2), d(ciftci.adSoyad, 2), 'Cinsiyeti', d(`${kad} Kadın   ${erk} Erkek`)],
+            [K, K, 'İstihdam Ettiği Kişi Sayısı', d(n(ciftci.istihdam, '……'))],
+            ['TC Kimlik Numarası', d(ciftci.tcKimlikNo), 'Tarih', d(kisaTarih((talep.basvuru && talep.basvuru.tarih) || talep.olusturulma))],
+            [e('Adresi', 6), d(n([ciftci.adres, ciftci.mahalle, talep.ilce].filter(Boolean).join(', ')), 6), e('İmza', 7), d('', 7)],
+            [K, K, K, K], [K, K, K, K], [K, K, K, K], [K, K, K, K], [K, K, K, K],
+            ['Cep Telefonu', d(n(ciftci.telefon)), K, K]
+          ];
+        })()
       },
       { t: 'baslik', metin: 'Üretici Arazi Bilgileri Tablosu', boyut: 3 },
       {

@@ -7,8 +7,12 @@
 // Öğeler:
 //   { t: 'baslik', metin, boyut: 1|2|3, hiza? }                  ortalı kalın başlık
 //   { t: 'p', metin | parcalar: [{ metin, kalin }], hiza?, kucuk? } paragraf ('iki' = iki yana yaslı)
-//   { t: 'tablo', basliklar?, satirlar, genislik?, hizalar?, kenarsiz?, kucuk?, toplam? }
-//       hücre: metin ya da { metin, kalin, hiza, birlesik (sütun sayısı) }
+//   { t: 'tablo', basliklar?, satirlar, genislik?, hizalar?, kenarsiz?, kucuk?, toplam?,
+//     cerceve?: 'dis' (yalnızca dış çerçeve ve başlık altı çizgisi), dikeyHiza?: 'ust',
+//     satirYuksekligi? (her satırın en az yüksekliği, punto) }
+//       hücre: metin ya da { metin, kalin, hiza, birlesik (sütun sayısı), satirBirlesik (satır sayısı) }
+//       satirBirlesik ile kaplanan alt satırlardaki konumlara { kapali: true } yazılır.
+// Belge düzeyinde: altBilgi (sol alt bilgi metni); sağda her zaman "Sayfa #/#" yazılır.
 //   { t: 'bosluk', yukseklik? }
 //   { t: 'liste', maddeler: [metin] }
 
@@ -21,7 +25,33 @@ const hucreMetni = (h) => (h && typeof h === 'object' ? String(h.metin == null ?
 const hucreKalin = (h) => !!(h && typeof h === 'object' && h.kalin);
 const hucreHiza = (h, varsayilan) => (h && typeof h === 'object' && h.hiza) || varsayilan || 'sol';
 const hucreBirlesik = (h) => (h && typeof h === 'object' && h.birlesik) || 1;
+const hucreSatirBirlesik = (h) => (h && typeof h === 'object' && h.satirBirlesik) || 1;
+const kapaliMi = (h) => !!(h && typeof h === 'object' && h.kapali);
 const parcalar = (o) => (o.parcalar || [{ metin: o.metin || '' }]);
+const kalinYap = (h) => (h && typeof h === 'object' ? { ...h, kalin: !h.kapali } : { metin: h, kalin: true });
+
+// Tablonun satırlarını üç biçim için ortak düzene çevirir: her hücrenin mantıksal sütunu (li),
+// kapladığı sütun (b) ve satır (rs) sayısı. Satırın son hücresi kalan sütunları kaplar.
+function tabloDuzeni(o) {
+  const ham = [];
+  if (o.basliklar) ham.push({ tur: 'baslik', hucreler: o.basliklar });
+  (o.satirlar || []).forEach((x) => ham.push({ tur: 'govde', hucreler: x }));
+  if (o.toplam) ham.push({ tur: 'toplam', hucreler: o.toplam.map(kalinYap) });
+  const n = Math.max(1, ...ham.map((x) => x.hucreler.reduce((t, h) => t + hucreBirlesik(h), 0)));
+  const satirlar = ham.map((x) => {
+    let li = 0;
+    const hucreler = x.hucreler.map((h, i) => {
+      let b = hucreBirlesik(h);
+      if (i === x.hucreler.length - 1 && li + b < n) b = n - li;
+      b = Math.max(1, Math.min(b, n - li));
+      const z = { h, li, b, rs: hucreSatirBirlesik(h), kapali: kapaliMi(h) };
+      li += b;
+      return z;
+    });
+    return { tur: x.tur, hucreler, eksik: n - li };
+  });
+  return { n, satirlar };
+}
 
 // ---------------------------------------------------------------------------
 // PDF
@@ -48,34 +78,42 @@ function pdfOge(o) {
     case 'bosluk':
       return { text: ' ', margin: [0, 0, 0, o.yukseklik || 8] };
     case 'tablo': {
-      const sutun = Math.max(...[o.basliklar || [], ...(o.satirlar || [])].map((s) => s.reduce((t, h) => t + hucreBirlesik(h), 0)), 1);
-      const hucre = (h, baslik, i) => {
-        const b = hucreBirlesik(h);
-        const c = {
-          text: hucreMetni(h), bold: baslik || hucreKalin(h), colSpan: b > 1 ? b : undefined,
-          alignment: PDF_HIZA[baslik ? 'orta' : hucreHiza(h, o.hizalar && o.hizalar[i])],
-          fontSize: o.kucuk ? 7 : 9, fillColor: baslik ? '#eeeeee' : undefined
-        };
-        return c;
-      };
-      const satir = (s, baslik) => {
+      const { n: sutun, satirlar } = tabloDuzeni(o);
+      const govde = satirlar.map((x) => {
+        const baslik = x.tur === 'baslik';
         const r = [];
-        s.forEach((h, i) => { r.push(hucre(h, baslik, i)); for (let k = 1; k < hucreBirlesik(h); k += 1) r.push({}); });
-        while (r.length < sutun) r.push({ text: '' });
+        x.hucreler.forEach((z) => {
+          if (z.kapali) { for (let k = 0; k < z.b; k += 1) r.push({}); return; }
+          r.push({
+            text: hucreMetni(z.h), bold: baslik || hucreKalin(z.h),
+            colSpan: z.b > 1 ? z.b : undefined, rowSpan: z.rs > 1 ? z.rs : undefined,
+            alignment: PDF_HIZA[baslik ? 'orta' : hucreHiza(z.h, o.hizalar && o.hizalar[z.li])],
+            fontSize: o.kucuk ? 7 : 9, fillColor: baslik ? '#eeeeee' : undefined
+          });
+          for (let k = 1; k < z.b; k += 1) r.push({});
+        });
+        for (let k = 0; k < x.eksik; k += 1) r.push({ text: '' });
         return r;
-      };
-      const govde = [];
-      if (o.basliklar) govde.push(satir(o.basliklar, true));
-      (o.satirlar || []).forEach((s) => govde.push(satir(s, false)));
-      if (o.toplam) govde.push(satir(o.toplam.map((h) => (typeof h === 'object' ? { ...h, kalin: true } : { metin: h, kalin: true })), false));
+      });
       const toplamOran = (o.genislik || []).reduce((a, b) => a + b, 0);
+      const baslikSatiri = o.basliklar ? 1 : 0;
+      let layout = { hLineWidth: () => 0.5, vLineWidth: () => 0.5, paddingTop: () => 2, paddingBottom: () => 2 };
+      if (o.kenarsiz) layout = 'noBorders';
+      else if (o.cerceve === 'dis') {
+        layout = {
+          hLineWidth: (i, node) => (i === 0 || i === node.table.body.length || (baslikSatiri && i === baslikSatiri) ? 0.5 : 0),
+          vLineWidth: (i, node) => (i === 0 || i === node.table.widths.length ? 0.5 : 0),
+          paddingTop: () => 2, paddingBottom: () => 2
+        };
+      }
       return {
         table: {
-          headerRows: o.basliklar ? 1 : 0,
+          headerRows: baslikSatiri,
           widths: o.genislik && o.genislik.length === sutun ? o.genislik.map((g) => `${(100 * g) / toplamOran}%`) : Array(sutun).fill('*'),
+          heights: o.satirYuksekligi ? (i) => (i < baslikSatiri ? undefined : o.satirYuksekligi) : undefined,
           body: govde.length ? govde : [[{ text: '' }]]
         },
-        layout: o.kenarsiz ? 'noBorders' : { hLineWidth: () => 0.5, vLineWidth: () => 0.5, paddingTop: () => 2, paddingBottom: () => 2 },
+        layout,
         margin: [0, 4, 0, 6]
       };
     }
@@ -96,7 +134,15 @@ function pdfOlustur(belge) {
   const tanim = {
     pageSize: 'A4',
     pageOrientation: belge.yon === 'yatay' ? 'landscape' : 'portrait',
-    pageMargins: belge.yon === 'yatay' ? [28, 28, 28, 28] : [48, 40, 48, 40],
+    pageMargins: belge.yon === 'yatay' ? [28, 28, 28, 40] : [48, 40, 48, 48],
+    footer: (sayfa, toplam) => ({
+      columns: [
+        { text: belge.altBilgi || '', alignment: 'left' },
+        { text: `Sayfa ${sayfa}/${toplam}`, alignment: 'right', width: 70 }
+      ],
+      fontSize: 7.5, color: '#444444',
+      margin: belge.yon === 'yatay' ? [28, 14, 28, 0] : [48, 18, 48, 0]
+    }),
     defaultStyle: { font: 'Roboto', fontSize: 10 },
     info: { title: belge.ad, creator: 'Tarımsal Proje Takip Sistemi' },
     content: icerik
@@ -137,36 +183,40 @@ function docxOge(o, sayfaGenisligi) {
     case 'bosluk':
       return [docxParagraf([{ metin: '' }], { sonra: (o.yukseklik || 8) * 15 })];
     case 'tablo': {
-      const sutun = Math.max(...[o.basliklar || [], ...(o.satirlar || [])].map((s) => s.reduce((t, h) => t + hucreBirlesik(h), 0)), 1);
+      const { n: sutun, satirlar: duzen } = tabloDuzeni(o);
       const oranlar = o.genislik && o.genislik.length === sutun ? o.genislik : Array(sutun).fill(1);
       const top = oranlar.reduce((a, b) => a + b, 0);
       const genislikler = oranlar.map((g) => Math.round((sayfaGenisligi * g) / top));
-      const kenar = o.kenarsiz
-        ? { top: { style: docx.BorderStyle.NONE }, bottom: { style: docx.BorderStyle.NONE }, left: { style: docx.BorderStyle.NONE }, right: { style: docx.BorderStyle.NONE }, insideHorizontal: { style: docx.BorderStyle.NONE }, insideVertical: { style: docx.BorderStyle.NONE } }
-        : undefined;
+      const YOK = { style: docx.BorderStyle.NONE, size: 0, color: 'FFFFFF' };
+      const CIZGI = { style: docx.BorderStyle.SINGLE, size: 4, color: '000000' };
+      let kenar;
+      if (o.kenarsiz) kenar = { top: YOK, bottom: YOK, left: YOK, right: YOK, insideHorizontal: YOK, insideVertical: YOK };
+      else if (o.cerceve === 'dis') kenar = { top: CIZGI, bottom: CIZGI, left: CIZGI, right: CIZGI, insideHorizontal: YOK, insideVertical: YOK };
       const boyut = o.kucuk ? 15 : 18;
-      const satir = (s, baslik) => {
-        let i = 0;
-        const hucreler = s.map((h) => {
-          const b = hucreBirlesik(h);
-          const w = genislikler.slice(i, i + b).reduce((a, x) => a + x, 0);
-          const hiza = baslik ? 'orta' : hucreHiza(h, o.hizalar && o.hizalar[i]);
-          i += b;
-          return new docx.TableCell({
-            columnSpan: b > 1 ? b : undefined,
+      const satirlar = duzen.map((x) => {
+        const baslik = x.tur === 'baslik';
+        const hucreler = [];
+        x.hucreler.forEach((z) => {
+          if (z.kapali) return;                       // satır birleştirmesinin devamını docx kendisi ekler
+          const w = genislikler.slice(z.li, z.li + z.b).reduce((a, v) => a + v, 0);
+          const hiza = baslik ? 'orta' : hucreHiza(z.h, o.hizalar && o.hizalar[z.li]);
+          hucreler.push(new docx.TableCell({
+            columnSpan: z.b > 1 ? z.b : undefined,
+            rowSpan: z.rs > 1 ? z.rs : undefined,
             width: { size: w, type: docx.WidthType.DXA },
             shading: baslik ? { fill: 'EEEEEE' } : undefined,
-            verticalAlign: docx.VerticalAlign.CENTER,
-            children: hucreMetni(h).split('\n').map((satirMetni) => docxParagraf([{ metin: satirMetni }], { hiza, kalin: baslik || hucreKalin(h), boyut, once: 20, sonra: 20 }))
-          });
+            borders: baslik && o.cerceve === 'dis' ? { bottom: CIZGI } : undefined,
+            verticalAlign: o.dikeyHiza === 'ust' && !baslik ? docx.VerticalAlign.TOP : docx.VerticalAlign.CENTER,
+            children: hucreMetni(z.h).split('\n').map((satirMetni) => docxParagraf([{ metin: satirMetni }], { hiza, kalin: baslik || hucreKalin(z.h), boyut, once: 20, sonra: 20 }))
+          }));
         });
+        let i = sutun - x.eksik;
         while (i < sutun) { hucreler.push(new docx.TableCell({ width: { size: genislikler[i], type: docx.WidthType.DXA }, children: [docxParagraf([{ metin: '' }])] })); i += 1; }
-        return new docx.TableRow({ tableHeader: baslik, children: hucreler });
-      };
-      const satirlar = [];
-      if (o.basliklar) satirlar.push(satir(o.basliklar, true));
-      (o.satirlar || []).forEach((s) => satirlar.push(satir(s, false)));
-      if (o.toplam) satirlar.push(satir(o.toplam.map((h) => (typeof h === 'object' ? { ...h, kalin: true } : { metin: h, kalin: true })), false));
+        return new docx.TableRow({
+          tableHeader: baslik, children: hucreler,
+          height: o.satirYuksekligi && !baslik ? { value: Math.round(o.satirYuksekligi * 20), rule: docx.HeightRule.ATLEAST } : undefined
+        });
+      });
       if (!satirlar.length) return [];
       return [new docx.Table({ rows: satirlar, width: { size: sayfaGenisligi, type: docx.WidthType.DXA }, columnWidths: genislikler, borders: kenar }), docxParagraf([{ metin: '' }])];
     }
@@ -190,6 +240,17 @@ async function docxOlustur(belge) {
           size: { orientation: yatay ? docx.PageOrientation.LANDSCAPE : docx.PageOrientation.PORTRAIT, width: 11906, height: 16838 },
           margin: { top: kenar, bottom: kenar, left: kenar, right: kenar }
         }
+      },
+      footers: {
+        default: new docx.Footer({
+          children: [new docx.Paragraph({
+            tabStops: [{ type: docx.TabStopType.RIGHT, position: genislik }],
+            children: [
+              new docx.TextRun({ text: belge.altBilgi || '', font: YAZI, size: 16, color: '444444' }),
+              new docx.TextRun({ children: [new docx.Tab(), 'Sayfa ', docx.PageNumber.CURRENT, '/', docx.PageNumber.TOTAL_PAGES], font: YAZI, size: 16, color: '444444' })
+            ]
+          })]
+        })
       },
       children: s.ogeler.flatMap((o) => docxOge(o, genislik))
     }))
@@ -248,6 +309,9 @@ async function xlsxOlustur(belge) {
     const izgaraGenisligi = toplamGenislik / sutun;
     for (let i = 1; i <= sutun; i += 1) ws.getColumn(i).width = izgaraGenisligi;
     const ortalamaGenislik = toplamGenislik;
+    // Alt bilgi: solda belge bilgisi, sağda "Sayfa #/#"
+    const kacis = (m) => String(m || '').replace(/&/g, '&&');
+    ws.headerFooter.oddFooter = `&L&"Times New Roman,Regular"&8${kacis(belge.altBilgi)}&R&"Times New Roman,Regular"&8Sayfa &P/&N`;
 
     let r = 1;
     const birlesikSatir = (metin, stil) => {
@@ -266,40 +330,60 @@ async function xlsxOlustur(belge) {
       else if (o.t === 'liste') o.maddeler.forEach((m) => birlesikSatir(`• ${m}`, { boyut: 10 }));
       else if (o.t === 'bosluk') { r += 1; }
       else if (o.t === 'tablo') {
-        const n = Math.max(...[o.basliklar || [], ...(o.satirlar || []), o.toplam || []].map((satir) => satir.reduce((t, h) => t + hucreBirlesik(h), 0)), 1);
+        const { n, satirlar: duzen } = tabloDuzeni(o);
         const oranlar = o.genislik && o.genislik.length === n ? o.genislik : Array(n).fill(1);
         const bas = [0];
         izgaraPaylari(oranlar, sutun).forEach((x) => bas.push(bas[bas.length - 1] + x));
-        const yaz = (satir, baslik, toplamSatiri) => {
-          let li = 0;
+        const ilkSatir = r;
+        const baslikSatiri = o.basliklar ? 1 : 0;
+        duzen.forEach((x) => {
+          const baslik = x.tur === 'baslik';
+          const toplamSatiri = x.tur === 'toplam';
           let enCokSatir = 1;
-          satir.forEach((h, i) => {
-            let b = hucreBirlesik(h);
-            if (i === satir.length - 1 && li + b < n) b = n - li;          // kalan sütunları son hücre kaplar
-            b = Math.min(b, n - li);
-            const c = bas[li] + 1;
-            const son = bas[li + b];
-            if (son > c) ws.mergeCells(r, c, r, son);
+          x.hucreler.forEach((z) => {
+            if (z.kapali) return;
+            const c = bas[z.li] + 1;
+            const son = bas[z.li + z.b];
+            const alt = r + z.rs - 1;
+            if (son > c || alt > r) ws.mergeCells(r, c, alt, son);
             const hc = ws.getCell(r, c);
-            const m = hucreMetni(h);
+            const m = hucreMetni(z.h);
             const sayi = !baslik ? sayiyaCevir(m) : null;
             hc.value = sayi != null && Number.isFinite(sayi) ? sayi : m;
             if (sayi != null) hc.numFmt = m.includes(',') ? '#,##0.00' : '#,##0';
-            hc.font = { name: 'Times New Roman', size: o.kucuk ? 8 : 10, bold: baslik || toplamSatiri || hucreKalin(h) };
-            hc.alignment = { horizontal: XLSX_HIZA[baslik ? 'orta' : hucreHiza(h, o.hizalar && o.hizalar[li])], vertical: 'middle', wrapText: true };
+            hc.font = { name: 'Times New Roman', size: o.kucuk ? 8 : 10, bold: baslik || toplamSatiri || hucreKalin(z.h) };
+            hc.alignment = {
+              horizontal: XLSX_HIZA[baslik ? 'orta' : hucreHiza(z.h, o.hizalar && o.hizalar[z.li])],
+              vertical: o.dikeyHiza === 'ust' && !baslik ? 'top' : 'middle', wrapText: true
+            };
             if (baslik) hc.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEEEEEE' } };
-            if (!o.kenarsiz) for (let k = c; k <= son; k += 1) ws.getCell(r, k).border = { top: ince, left: ince, bottom: ince, right: ince };
-            const w = (son - c + 1) * izgaraGenisligi * (o.kucuk ? 1.25 : 1);
-            const satirlar = m.split('\n').reduce((t, parca) => t + Math.max(1, Math.ceil(parca.length / Math.max(3, w * 1.05))), 0);
-            enCokSatir = Math.max(enCokSatir, satirlar);
-            li += b;
+            if (!o.kenarsiz && !o.cerceve) {
+              for (let rr = r; rr <= alt; rr += 1) for (let k = c; k <= son; k += 1) ws.getCell(rr, k).border = { top: ince, left: ince, bottom: ince, right: ince };
+            }
+            if (z.rs === 1) {
+              const w = (son - c + 1) * izgaraGenisligi * (o.kucuk ? 1.25 : 1);
+              const satirlar = m.split('\n').reduce((t, parca) => t + Math.max(1, Math.ceil(parca.length / Math.max(3, w * 1.05))), 0);
+              enCokSatir = Math.max(enCokSatir, satirlar);
+            }
           });
-          ws.getRow(r).height = Math.max(15, enCokSatir * (o.kucuk ? 11 : 13));
+          const enAz = o.satirYuksekligi && !baslik ? o.satirYuksekligi + 2 : 15;
+          ws.getRow(r).height = Math.max(enAz, enCokSatir * (o.kucuk ? 11 : 13));
           r += 1;
-        };
-        if (o.basliklar) yaz(o.basliklar, true);
-        (o.satirlar || []).forEach((satir) => yaz(satir, false));
-        if (o.toplam) yaz(o.toplam, false, true);
+        });
+        // Yalnızca dış çerçeve (ve başlık altı)
+        if (o.cerceve === 'dis' && !o.kenarsiz && r > ilkSatir) {
+          const son = r - 1;
+          for (let rr = ilkSatir; rr <= son; rr += 1) {
+            for (let k = 1; k <= sutun; k += 1) {
+              const kenar = {};
+              if (rr === ilkSatir) kenar.top = ince;
+              if (rr === son || (baslikSatiri && rr === ilkSatir)) kenar.bottom = ince;
+              if (k === 1) kenar.left = ince;
+              if (k === sutun) kenar.right = ince;
+              if (Object.keys(kenar).length) ws.getCell(rr, k).border = kenar;
+            }
+          }
+        }
         r += 1;
       }
     });
