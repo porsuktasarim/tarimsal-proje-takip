@@ -1,0 +1,44 @@
+<%- include('_bas') %>
+<%
+  var satir = function (a, i) {
+    var sec = function (d, liste) { return Object.keys(liste).map(function (k) { return '<option value="' + k + '"' + (d === k ? ' selected' : '') + '>' + (liste[k].ad || liste[k]) + '</option>'; }).join(''); };
+    return '<tr' + (a.alt ? ' class="surec-alt"' : '') + '>' +
+      '<td class="text-secondary text-nowrap"><span class="satir-no"></span>' +
+        '<div class="btn-group-vertical ms-1"><button type="button" class="btn btn-ghost-secondary btn-icon btn-sm p-0" data-satir-yukari title="Yukarı"><i class="ti ti-chevron-up"></i></button>' +
+        '<button type="button" class="btn btn-ghost-secondary btn-icon btn-sm p-0" data-satir-asagi title="Aşağı"><i class="ti ti-chevron-down"></i></button></div></td>' +
+      '<td class="text-center"><input type="checkbox" class="form-check-input" name="adimlar[' + i + '][alt]"' + (a.alt ? ' checked' : '') + ' title="Bir önceki ana adımın alt adımı"></td>' +
+      '<td><input type="hidden" name="adimlar[' + i + '][kod]" value="' + (a.kod || '') + '">' +
+        '<input type="text" name="adimlar[' + i + '][ad]" value="' + String(a.ad || '').replace(/"/g, '&quot;') + '" class="form-control form-control-sm mb-1" placeholder="Adım adı">' +
+        '<input type="text" name="adimlar[' + i + '][aciklama]" value="' + String(a.aciklama || '').replace(/"/g, '&quot;') + '" class="form-control form-control-sm" placeholder="Açıklama (isteğe bağlı)"></td>' +
+      '<td><select name="adimlar[' + i + '][sorumlu]" class="form-select form-select-sm">' + sec(a.sorumlu || 'il', SORUMLULAR) + '</select></td>' +
+      '<td><select name="adimlar[' + i + '][veri]" class="form-select form-select-sm"><option value="">–</option>' + sec(a.veri || '', VERILER) + '</select></td>' +
+      '<td class="sil-sutunu"><button type="button" class="btn btn-ghost-danger btn-icon" data-satir-sil title="Kaldır"><i class="ti ti-trash"></i></button></td></tr>';
+  };
+%>
+<form method="post" action="/ayarlar/surec" class="card" autocomplete="off">
+  <div class="card-header">
+    <div>
+      <h3 class="card-title">Proje süreci</h3>
+      <p class="card-subtitle">Tüm projelerin sayfasındaki süreç listesi. Sorumlu: <strong>İl</strong> koordinatörün işi; <strong>İlçe</strong> yürütücü yapar, koordinatör onaylar; <strong>İl-İlçe</strong> ikisinin de işi (önce ilçe, sonra il). Koordinatör, yürütücü kısmı bitmeden onaylayamaz; kişi hem koordinatör hem yürütücüyse ikisini birlikte işaretler. "Alt" işaretli adım bir önceki ana adımın alt adımıdır; ana adım, alt adımları bitince tamamlanır.</p>
+    </div>
+    <div class="card-actions">
+      <button type="button" class="btn btn-sm" data-satir-ekle="adimlar"><i class="ti ti-plus me-1"></i> Adım ekle</button>
+    </div>
+  </div>
+  <%- include('../../../views/partials/hatalar', { hatalar: hatalar }) %>
+  <div class="table-responsive">
+    <table class="table table-vcenter card-table satir-tablosu">
+      <thead><tr><th class="w-1">#</th><th class="w-1">Alt</th><th style="min-width: 20rem">Adım</th><th style="width: 8.5rem">Sorumlu</th><th style="width: 12rem">Durum bilgisi ve bağlantı</th><th class="w-1"></th></tr></thead>
+      <tbody data-satirlar="adimlar">
+        <% adimlar.forEach(function (a, i) { %><%- satir(a, i) %><% }) %>
+      </tbody>
+    </table>
+  </div>
+  <template id="adimlar-sablon"><%- satir({ sorumlu: 'il' }, '__i__') %></template>
+  <div class="card-footer d-flex justify-content-between">
+    <button type="submit" name="varsayilan" value="1" class="btn btn-ghost-secondary" onclick="return confirm('Süreç varsayılan adımlara döndürülsün mü? Projelerdeki işaretler adım koduna bağlı olduğundan aynı kodlu adımlarda korunur.')">Varsayılana dön</button>
+    <button type="submit" class="btn btn-primary"><i class="ti ti-device-floppy me-1"></i> Kaydet</button>
+  </div>
+</form>
+<div class="small text-secondary mt-2">Adım silinirse projelerdeki işareti görünmez olur; aynı adım yeniden eklenmez, yeni kodla eklenir. Adın değiştirilmesi işaretleri etkilemez.</div>
+<%- include('_son') %>

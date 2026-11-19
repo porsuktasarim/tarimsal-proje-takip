@@ -168,44 +168,61 @@
       </div>
 
       <div class="col-lg-8">
-        <!-- Süreç: koordinatörün adım adım listesi -->
-        <% var tamamSayisi = surecAdimlari.filter(function (a) { return (surecKayit[a.kod] || {}).tamam; }).length; var surecYonet = izin('proje.yonet'); %>
+        <!-- Süreç: Ayarlar › Süreç'te tanımlı adımlar; yürütücü (ilçe) ve koordinatör (il) kısımları -->
+        <%
+          var sg = surecGorunum, rol = surecRol;
+          var kisiYazisi = function (x) { return x && x.tamam ? y.tarih(x.tarih) + (x.kisiAd ? ' · ' + x.kisiAd : '') : ''; };
+          var dugme = function (a, taraf, ad, yapildi, izinli, kapali, ipucu, bekleyenAd) {
+            if (!izinli) {
+              return '<span class="badge ' + (yapildi ? 'bg-green-lt' : 'bg-secondary-lt') + '" title="' + (ipucu || '') + '"><i class="ti ' + (yapildi ? 'ti-check' : 'ti-clock') + ' me-1"></i>' + (yapildi ? ad : (bekleyenAd || ad)) + '</span>';
+            }
+            return '<form method="post" action="/projeler/' + proje._id + '/surec/' + a.kod + '" class="d-inline">' +
+              '<input type="hidden" name="taraf" value="' + taraf + '"><input type="hidden" name="deger" value="' + (yapildi ? '0' : '1') + '">' +
+              '<button class="btn btn-sm ' + (yapildi ? 'btn-success' : 'btn-outline-secondary') + '"' + (kapali ? ' disabled' : '') + ' title="' + (ipucu || (yapildi ? 'İşareti kaldır' : 'İşaretle')) + '">' +
+              '<i class="ti ' + (yapildi ? 'ti-check' : 'ti-square') + ' me-1"></i>' + ad + '</button></form>';
+          };
+        %>
         <div class="card mb-3" id="surec">
           <div class="card-header">
             <div>
               <h3 class="card-title">Süreç</h3>
-              <p class="card-subtitle">Her adım tamamlandığında işaretlenir ve gerekirse not düşülür. Sağdaki bilgi sistemdeki kayıtlardan hesaplanır.</p>
+              <p class="card-subtitle">İlçe adımlarını yürütücü yapar, koordinatör onaylar; yürütücü kısmı bitmeden onaylanamaz. Adımlar Ayarlar › Süreç'te düzenlenir.
+                Rolünüz: <strong><%= rol.ikisi ? 'koordinatör ve yürütücü' : (rol.koordinator ? 'koordinatör' : (rol.yurutucu ? 'yürütücü' : 'izleyici')) %></strong>.</p>
             </div>
-            <div class="card-actions"><span class="badge bg-<%= tamamSayisi === surecAdimlari.length ? 'green' : 'blue' %>-lt"><%= tamamSayisi %>/<%= surecAdimlari.length %></span></div>
+            <div class="card-actions"><span class="badge bg-<%= sg.biten === sg.toplam ? 'green' : 'blue' %>-lt"><%= sg.biten %>/<%= sg.toplam %></span></div>
           </div>
-          <div class="progress progress-sm rounded-0"><div class="progress-bar bg-green" style="width: <%= Math.round(100 * tamamSayisi / surecAdimlari.length) %>%"></div></div>
+          <div class="progress progress-sm rounded-0"><div class="progress-bar bg-green" style="width: <%= sg.toplam ? Math.round(100 * sg.biten / sg.toplam) : 0 %>%"></div></div>
           <div class="list-group list-group-flush surec-liste">
-            <% surecAdimlari.forEach(function (a, i) { var k = surecKayit[a.kod] || {}; var ip = surecIpuclari[a.kod] || {}; %>
-              <div class="list-group-item py-2">
-                <div class="d-flex align-items-start gap-2">
-                  <% if (surecYonet) { %>
-                    <form method="post" action="/projeler/<%= proje._id %>/surec/<%= a.kod %>" class="pt-1">
-                      <input type="hidden" name="tamam" value="<%= k.tamam ? '' : 'on' %>">
-                      <button class="btn btn-icon btn-sm <%= k.tamam ? 'btn-success' : 'btn-outline-secondary' %>" title="<%= k.tamam ? 'İşareti kaldır' : 'Tamamlandı olarak işaretle' %>" style="width:26px;height:26px"><i class="ti <%= k.tamam ? 'ti-check' : 'ti-square' %>"></i></button>
-                    </form>
-                  <% } else { %>
-                    <span class="pt-1"><i class="ti <%= k.tamam ? 'ti-circle-check text-success' : 'ti-circle text-secondary' %> fs-2"></i></span>
-                  <% } %>
+            <% var yaz = function (a, no, alt) { var k = a.kayit, d = a.durum, ip = (a.veri && surecIpuclari[a.veri]) || {}, so = SORUMLULAR[d.sorumlu] || {}; %>
+              <div class="list-group-item py-2<%= alt ? ' ps-5' : '' %>">
+                <div class="d-flex align-items-start gap-2 flex-wrap flex-md-nowrap">
+                  <span class="pt-1"><i class="ti <%= d.tamam ? 'ti-circle-check text-success' : (d.ust && d.biten ? 'ti-progress text-blue' : 'ti-circle text-secondary') %> fs-2"></i></span>
                   <div class="flex-fill">
-                    <div class="<%= k.tamam ? 'text-secondary' : '' %>"><span class="text-secondary small me-1"><%= i + 1 %>.</span><%= a.ad %>
-                      <% if (k.tamam) { %><span class="small text-success ms-1"><%= y.tarih(k.tarih) %><%= k.kisiAd ? ' · ' + k.kisiAd : '' %></span><% } %>
+                    <div class="<%= d.tamam ? 'text-secondary' : '' %>">
+                      <span class="text-secondary small me-1"><%= no %></span><%= a.ad %>
+                      <% if (!d.ust) { %><span class="badge bg-<%= so.renk %>-lt ms-1" title="<%= so.uzun %>"><%= so.ad %></span><% } else { %><span class="small text-secondary ms-1"><%= d.biten %>/<%= a.altlar.length %></span><% } %>
                     </div>
                     <% if (a.aciklama) { %><div class="small text-secondary"><%= a.aciklama %></div><% } %>
+                    <% if (!d.ust) { %>
+                      <div class="d-flex flex-wrap gap-1 mt-1 align-items-center">
+                        <% if (d.ilceGerekli) { %>
+                          <%- dugme(a, 'ilce', 'İlçe: yapıldı', !!k.ilce.tamam, rol.yurutucu, !!k.il.tamam && !rol.ikisi, k.il.tamam && !rol.ikisi ? 'Koordinatör onayladı; önce onay kaldırılmalı' : '', 'İlçe: bekleniyor') %>
+                          <% if (k.ilce.tamam) { %><span class="small text-secondary me-2"><%= kisiYazisi(k.ilce) %></span><% } %>
+                          <%- dugme(a, 'il', 'İl: onaylandı', !!k.il.tamam, rol.koordinator, !k.ilce.tamam && !rol.ikisi, !k.ilce.tamam && !rol.ikisi ? 'Yürütücü kendi kısmını tamamlamadan onaylanamaz' : '', 'İl: onay bekliyor') %>
+                        <% } else { %>
+                          <%- dugme(a, 'il', 'Yapıldı', !!k.il.tamam, rol.koordinator, false, '', 'Koordinatör bekleniyor') %>
+                        <% } %>
+                        <% if (k.il.tamam) { %><span class="small text-secondary"><%= kisiYazisi(k.il) %></span><% } %>
+                      </div>
+                    <% } %>
                     <% (k.notlar || []).forEach(function (n) { %>
                       <div class="small gecmis-not mt-1"><i class="ti ti-note me-1"></i><%= n.metin %> <span class="text-secondary">— <%= n.kisiAd || '' %>, <%= y.tarih(n.tarih) %></span></div>
                     <% }) %>
-                    <% if (surecYonet) { %>
+                    <% if (rol.koordinator || rol.yurutucu) { %>
                       <details class="mt-1">
-                        <summary class="small text-secondary">Not ekle<%= k.tamam ? ' / tarihi değiştir' : '' %></summary>
+                        <summary class="small text-secondary">Not ekle</summary>
                         <form method="post" action="/projeler/<%= proje._id %>/surec/<%= a.kod %>" class="d-flex flex-wrap gap-2 mt-1">
-                          <input type="hidden" name="tamam" value="<%= k.tamam ? 'on' : '' %>">
-                          <input type="text" name="not" class="form-control form-control-sm flex-fill" placeholder="Not (ör. yazı sayısı, gönderim tarihi, eksik ilçeler)" style="min-width: 14rem">
-                          <% if (k.tamam) { %><input type="date" name="tarih" class="form-control form-control-sm" style="max-width: 10rem"><% } %>
+                          <input type="text" name="not" class="form-control form-control-sm flex-fill" required placeholder="Not (ör. yazı sayısı, gönderim tarihi, eksik ilçeler)" style="min-width: 14rem">
                           <button class="btn btn-sm"><i class="ti ti-device-floppy me-1"></i>Kaydet</button>
                         </form>
                       </details>
@@ -217,7 +234,8 @@
                   </div>
                 </div>
               </div>
-            <% }) %>
+            <% }; %>
+            <% sg.adimlar.forEach(function (a, i) { yaz(a, (i + 1) + '.', false); (a.altlar || []).forEach(function (x, j) { yaz(x, (i + 1) + '.' + (j + 1), true); }); }); %>
           </div>
         </div>
 

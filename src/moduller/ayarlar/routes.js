@@ -4,7 +4,7 @@ const ayarlar = require('../../core/ayarlar');
 const Urun = require('./modeller/Urun');
 const Kisi = require('./modeller/Kisi');
 const {
-  normTipleri, normBirimOnerileri, ambalajBirimleri, yetkiGruplari, tumYetkiler, rolRenkSecenekleri
+  normTipleri, normBirimOnerileri, ambalajBirimleri, yetkiGruplari, tumYetkiler, rolRenkSecenekleri, varsayilanlar
 } = require('../../config/sabitler');
 const katalog = require('./katalog');
 const multer = require('multer');
@@ -24,6 +24,7 @@ const sekmeler = [
   { yol: '/ayarlar/roller', ad: 'Roller ve yetkiler', ikon: 'ti-shield-lock', yetki: 'ayar.kisi' },
   { yol: '/ayarlar/birimler', ad: 'Yürütücü birimler', ikon: 'ti-sitemap', yetki: 'ayar.genel' },
   { yol: '/ayarlar/donemler', ad: 'Dönemler', ikon: 'ti-calendar', yetki: 'ayar.genel' },
+  { yol: '/ayarlar/surec', ad: 'Süreç', ikon: 'ti-list-check', yetki: 'ayar.genel' },
   { yol: '/ayarlar/urunler', ad: 'Ürün kataloğu', ikon: 'ti-seeding', yetki: 'ayar.katalog' },
   { yol: '/ayarlar/normlar', ad: 'Hesaplama normları', ikon: 'ti-calculator', yetki: 'ayar.katalog' },
   { yol: '/ayarlar/hayvan-turleri', ad: 'Hayvan türleri', ikon: 'ti-paw', yetki: 'ayar.katalog' },
@@ -52,6 +53,43 @@ router.use((req, res, next) => {
 router.get('/genel', (req, res) => {
   res.render(V + 'genel', { baslik: 'Genel', deger: res.locals.ayar, hatalar: [] });
 });
+
+// ---------------------------------------------------------------------------
+// Süreç: projelerin adım listesi (sorumlu, alt adım, durum bilgisi)
+// ---------------------------------------------------------------------------
+router.get('/surec', (req, res) => {
+  const surec = require('../projeler/surec');
+  res.render(V + 'surec', { baslik: 'Süreç', adimlar: res.locals.ayar.surecAdimlari, SORUMLULAR: surec.SORUMLULAR, VERILER: surec.VERILER, hatalar: [] });
+});
+
+router.post('/surec', sar(async (req, res) => {
+  const surec = require('../projeler/surec');
+  if (req.body.varsayilan === '1') {
+    await ayarlar.guncelle({ surecAdimlari: JSON.parse(JSON.stringify(varsayilanlar.surecAdimlari)) });
+    return res.redirect('/ayarlar/surec?bildirim=kaydedildi');
+  }
+  const kodlar = new Set();
+  const adimlar = diziyeCevir(req.body.adimlar).map((r) => ({
+    kod: String(r.kod || '').trim(),
+    ad: String(r.ad || '').trim(),
+    aciklama: String(r.aciklama || '').trim() || undefined,
+    sorumlu: surec.SORUMLULAR[r.sorumlu] ? r.sorumlu : 'il',
+    alt: r.alt === 'on',
+    veri: surec.VERILER[r.veri] ? r.veri : undefined
+  })).filter((a) => a.ad).map((a, i) => {
+    // Kod kalıcıdır (projelerdeki işaretler buna bağlı); yeni adıma addan üretilir
+    let kod = a.kod || kodUret(a.ad) || `adim-${i + 1}`;
+    while (kodlar.has(kod)) kod = `${kod}-${i + 1}`;
+    kodlar.add(kod);
+    return { ...a, kod };
+  });
+  if (adimlar.length && adimlar[0].alt) adimlar[0].alt = false;
+  if (!adimlar.length) {
+    return res.status(422).render(V + 'surec', { baslik: 'Süreç', adimlar: res.locals.ayar.surecAdimlari, SORUMLULAR: surec.SORUMLULAR, VERILER: surec.VERILER, hatalar: ['En az bir adım olmalıdır.'] });
+  }
+  await ayarlar.guncelle({ surecAdimlari: adimlar });
+  return res.redirect('/ayarlar/surec?bildirim=kaydedildi');
+}));
 
 // Kurum logosu (herkese açık; formlarda ve önizlemede kullanılır)
 router.get('/logo', sar(async (req, res, next) => {

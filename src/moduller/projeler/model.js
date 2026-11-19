@@ -117,7 +117,13 @@ const projeSema = new mongoose.Schema({
       fotoSayisi: Number,
       ilce: String,
       kaydedenAd: String,
-      imzali: { dosyaId: String, ad: String, yukleyenAd: String, tarih: Date }
+      imzali: { dosyaId: String, ad: String, yukleyenAd: String, tarih: Date },
+      // Silinmez; yürütücü pasife alınmasını önerir, koordinatör not yazarak onaylar
+      pasif: {
+        durum: { type: String, enum: ['oneri', 'pasif'] },
+        oneren: String, oneriNotu: String, oneriTarihi: Date,
+        onaylayan: String, onayNotu: String, onayTarihi: Date
+      }
     }, { timestamps: { createdAt: 'olusturulma', updatedAt: 'guncellenme' } })],
     default: []
   },

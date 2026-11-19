@@ -14,7 +14,7 @@
   var cev = (kayit && kayit.cevaplar) || {};
   var c = function (k) { return cev[k] || {}; };
   // Yürütenler: kayıtta seçilenler; yeni raporda projenin yürütücüleri seçili gelir
-  var seciliKisiler = kayit ? (kayit.yurutenler || []).map(String) : yurutuculer.slice();
+  var seciliKisiler = kayit ? (kayit.yurutenler || []).map(String) : varsayilanYurutenler.slice();
   var kisiAdi = function (id) { var k = kisiler.find(function (x) { return String(x._id) === String(id); }); return k ? k.adSoyad : '–'; };
   var ekipte = yurutuculer.concat(koordinatorler);
   var digerleri = kisiler.filter(function (k) { return ekipte.indexOf(String(k._id)) < 0; });
@@ -41,9 +41,34 @@
             <thead><tr><th>İzleme dönemi</th><th>Yürütenler</th><th>Fotoğraf</th><th>Kaydeden</th><th>İmzalı tarama</th><th class="text-end">Çıktı</th></tr></thead>
             <tbody>
               <% if (!izlemeler.length) { %><tr><td colspan="6" class="text-secondary">Henüz kaydedilmiş izleme raporu yok. Aşağıdaki formu doldurup "Raporu kaydet" ile kaydedin.</td></tr><% } %>
-              <% izlemeler.forEach(function (x) { var aktif = kayit && String(kayit._id) === String(x._id); var adr = '/belgeler/izleme?proje=' + proje._id + '&izleme=' + x._id + (x.ilce ? '&ilce=' + encodeURIComponent(x.ilce) : ''); %>
-                <tr class="<%= aktif ? 'table-active' : '' %>">
-                  <td><a href="/belgeler/hazirla/izleme?proje=<%= proje._id %>&izleme=<%= x._id %>"><%= y.tarih(x.tarih) %></a><%= x.ilce ? ' · ' + x.ilce : '' %><% if (aktif) { %> <span class="badge bg-blue-lt">açık</span><% } %></td>
+              <% izlemeler.forEach(function (x) { var aktif = kayit && String(kayit._id) === String(x._id); var adr = '/belgeler/izleme?proje=' + proje._id + '&izleme=' + x._id + (x.ilce ? '&ilce=' + encodeURIComponent(x.ilce) : ''); var ps = x.pasif || {}; %>
+                <tr class="<%= aktif ? 'table-active' : '' %><%= ps.durum === 'pasif' ? ' izleme-pasif' : '' %>">
+                  <td><a href="/belgeler/hazirla/izleme?proje=<%= proje._id %>&izleme=<%= x._id %>"><%= y.tarih(x.tarih) %></a><%= x.ilce ? ' · ' + x.ilce : '' %><% if (aktif) { %> <span class="badge bg-blue-lt">açık</span><% } %>
+                    <% if (ps.durum === 'pasif') { %><div><span class="badge bg-secondary-lt">Pasif</span></div><% } else if (ps.durum === 'oneri') { %><div><span class="badge bg-yellow-lt">Pasife alma önerildi</span></div><% } %>
+                    <% if (ps.durum) { %>
+                      <div class="small mt-1"><i class="ti ti-note me-1"></i><%= ps.oneriNotu %> <span class="text-secondary">— <%= ps.oneren %>, <%= y.tarih(ps.oneriTarihi) %></span></div>
+                      <% if (ps.onayNotu) { %><div class="small"><i class="ti ti-check me-1"></i><%= ps.onayNotu %> <span class="text-secondary">— <%= ps.onaylayan %>, <%= y.tarih(ps.onayTarihi) %></span></div><% } %>
+                    <% } %>
+                    <% if (izlemeYetkisi || rol.koordinator) { %>
+                      <% if (!ps.durum && (rol.yurutucu || rol.koordinator)) { %>
+                        <details class="mt-1"><summary class="small text-secondary"><%= rol.koordinator ? 'Pasife al' : 'Pasife alınmasını öner' %></summary>
+                          <form method="post" action="/belgeler/izleme/<%= x._id %>/pasif" class="d-flex gap-1 mt-1">
+                            <input type="hidden" name="islem" value="<%= rol.koordinator ? 'onayla' : 'oner' %>">
+                            <input type="text" name="not" class="form-control form-control-sm" required placeholder="Gerekçe (zorunlu)">
+                            <button class="btn btn-sm">Gönder</button>
+                          </form>
+                        </details>
+                      <% } else if (ps.durum === 'oneri' && rol.koordinator) { %>
+                        <form method="post" action="/belgeler/izleme/<%= x._id %>/pasif" class="d-flex gap-1 mt-1">
+                          <input type="text" name="not" class="form-control form-control-sm" placeholder="Onay notu (zorunlu)">
+                          <button class="btn btn-sm btn-warning" name="islem" value="onayla" title="Not yazılmalıdır">Onayla</button>
+                          <button class="btn btn-sm" name="islem" value="reddet" formnovalidate>Reddet</button>
+                        </form>
+                      <% } else if (ps.durum === 'pasif' && rol.koordinator) { %>
+                        <form method="post" action="/belgeler/izleme/<%= x._id %>/pasif" class="mt-1"><button class="btn btn-sm btn-ghost-secondary" name="islem" value="etkinlestir">Yeniden etkinleştir</button></form>
+                      <% } %>
+                    <% } %>
+                  </td>
                   <td class="small"><%= (x.yurutenler || []).map(kisiAdi).join(', ') || '–' %></td>
                   <td><%= x.fotoSayisi != null ? x.fotoSayisi : '–' %></td>
                   <td class="small"><%= x.kaydedenAd || '–' %><div class="text-secondary"><%= y.tarih(x.guncellenme || x.olusturulma) %></div></td>
@@ -108,13 +133,14 @@
               <label class="form-label">İzleme faaliyetini yürütenler</label>
               <div class="row">
                 <div class="col-md-4">
-                  <div class="small text-secondary mb-1">Proje yürütücüleri</div>
-                  <% if (!yurutuculer.length) { %><div class="small text-secondary">Projede yürütücü yok (proje formu › ekip).</div><% } %>
-                  <% kisiler.filter(function (k) { return yurutuculer.indexOf(String(k._id)) >= 0; }).forEach(function (k) { %><%- kisiSatiri(k) %><% }) %>
+                  <div class="small text-secondary mb-1">Koordinatörler</div>
+                  <% if (!koordinatorler.length) { %><div class="small text-secondary">Projede koordinatör yok.</div><% } %>
+                  <% kisiler.filter(function (k) { return koordinatorler.indexOf(String(k._id)) >= 0; }).forEach(function (k) { %><%- kisiSatiri(k) %><% }) %>
                 </div>
                 <div class="col-md-4">
-                  <div class="small text-secondary mb-1">Koordinatörler</div>
-                  <% kisiler.filter(function (k) { return koordinatorler.indexOf(String(k._id)) >= 0 && yurutuculer.indexOf(String(k._id)) < 0; }).forEach(function (k) { %><%- kisiSatiri(k) %><% }) %>
+                  <div class="small text-secondary mb-1">Proje yürütücüleri</div>
+                  <% if (!yurutuculer.length) { %><div class="small text-secondary">Projede (koordinatör olmayan) yürütücü yok; proje formu › ekip.</div><% } %>
+                  <% kisiler.filter(function (k) { return yurutuculer.indexOf(String(k._id)) >= 0; }).forEach(function (k) { %><%- kisiSatiri(k) %><% }) %>
                 </div>
                 <div class="col-md-4">
                   <div class="small text-secondary mb-1">Diğer personel</div>

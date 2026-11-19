@@ -13,6 +13,7 @@ function duzenle(belge) {
   a.ekimNormu = (a.normlar || []).find((n) => n.tip === 'ekim') || null;
   a.ciktiNormlari = (a.normlar || []).filter((n) => n.tip === 'cikti');
   a.normsuzTurler = a.normsuzTurler || [];
+  if (!Array.isArray(a.surecAdimlari) || !a.surecAdimlari.length) a.surecAdimlari = kopya(varsayilanlar.surecAdimlari);
   // Roller: kayıttakiler; Sistem Yöneticisi her zaman ilk sıradadır.
   // Yetkileri tanımlanmamış eski rollere varsayılan yetkileri verilir.
   const varsayilanRol = (kod) => varsayilanlar.roller.find((r) => r.kod === kod) || {};

@@ -19,7 +19,8 @@ const V = 'projeler/views/';
 // Görüntüleme proje.gor, başlatma/düzenleme/durum/silme proje.yonet ister.
 // Proje metni yükleme ayrıca koordinatör/yönetici denetiminden geçer (proje-metni.js).
 router.use((req, res, next) => {
-  const goruntuleme = (req.method === 'GET' && !/\/(yeni|duzenle)$/.test(req.path)) || /\/metin$/.test(req.path);
+  // Süreç adımlarını yürütücü de işaretler; yetkiyi projedeki rolü belirler (surec.js)
+  const goruntuleme = (req.method === 'GET' && !/\/(yeni|duzenle)$/.test(req.path)) || /\/metin$/.test(req.path) || /\/surec\//.test(req.path);
   return yetkiGerekli(goruntuleme ? 'proje.gor' : 'proje.yonet')(req, res, next);
 });
 const sar = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
@@ -296,16 +297,18 @@ router.get('/:id', sar(projeBul), sar(async (req, res) => {
     proje: req.proje,
     hesap,
     koordinatorler: req.proje.koordinatorler.map(kisiBul).filter(Boolean),
-    yurutuculer: req.proje.yurutuculer.map(kisiBul).filter(Boolean),
+    // Hem koordinatör hem yürütücü olan kişi koordinatörlerde gösterilir
+    yurutuculer: req.proje.yurutuculer.filter((id) => !req.proje.koordinatorler.some((k) => String(k) === String(id))).map(kisiBul).filter(Boolean),
     gorevler,
     talepOzeti,
     asamaSayilari,
     katalogEklenen: parseInt(req.query.katalog, 10) || 0,
     metinYukleyebilir: projeMetni.yukleyebilirMi(req.ben, req.proje, res.locals.adminVar),
     metinGerekli: req.query.metin === 'gerekli',
-    surecAdimlari: surec.ADIMLAR,
+    surecGorunum: surec.gorunum(req.proje, res.locals.ayar),
     surecIpuclari: surec.ipuclari(req.proje, tumTalepler),
-    surecKayit: req.proje.surec || {}
+    surecRol: surec.projeRolu(req, req.proje),
+    SORUMLULAR: surec.SORUMLULAR
   });
 }));
 
@@ -385,27 +388,24 @@ router.get('/:id/belge/:dosyaId', sar(projeBul), sar(async (req, res, next) => {
   dosyalar.okumaAkisi(belge.dosyaId).on('error', next).pipe(res);
 }));
 
-// Süreç adımı: işaretle / işareti kaldır, tarih ve not (koordinatör)
+// Süreç adımı: yürütücü kendi kısmını, koordinatör kendi kısmını (onayı) işaretler; not düşülür
 router.post('/:id/surec/:kod', sar(projeBul), sar(async (req, res) => {
-  const adim = surec.ADIMLAR.find((a) => a.kod === req.params.kod);
-  if (!adim) return res.redirect(`/projeler/${req.proje._id}#surec`);
-  const s = { ...(req.proje.surec || {}) };
-  const k = { notlar: [], ...(s[adim.kod] || {}) };
-  const tamam = req.body.tamam === 'on' || req.body.tamam === '1';
-  if (tamam !== !!k.tamam) {
-    k.tamam = tamam;
-    k.tarih = tamam ? (tarihOku(req.body.tarih) || new Date()) : null;
-    k.kisiAd = req.ben ? req.ben.adSoyad : undefined;
-  } else if (tamam && tarihOku(req.body.tarih)) {
-    k.tarih = tarihOku(req.body.tarih);
-  }
+  const ayar = res.locals.ayar;
+  const rol = surec.projeRolu(req, req.proje);
+  const donus = `/projeler/${req.proje._id}`;
   const not = metin(req.body.not);
-  if (not) k.notlar = [...(k.notlar || []), { metin: not, kisiAd: req.ben ? req.ben.adSoyad : undefined, tarih: new Date() }];
-  s[adim.kod] = k;
-  req.proje.surec = s;
+  const kisiAd = req.ben ? req.ben.adSoyad : undefined;
+  let hata = null;
+  if (req.body.taraf === 'il' || req.body.taraf === 'ilce') {
+    hata = surec.isaretle(req.proje, ayar, rol, req.params.kod, req.body.taraf, req.body.deger === '1', { not, kisiAd, tarih: tarihOku(req.body.tarih) });
+  } else if (not) {
+    if (!rol.koordinator && !rol.yurutucu) hata = 'Not yalnızca projenin koordinatörü ya da yürütücüsü tarafından düşülür.';
+    else surec.notEkle(req.proje, req.params.kod, not, kisiAd);
+  }
+  if (hata) return res.redirect(`${donus}?bildirim=islem-yapilamadi&hata=${encodeURIComponent(hata)}#surec`);
   req.proje.markModified('surec');
   await req.proje.save();
-  return res.redirect(`/projeler/${req.proje._id}?bildirim=surec-kaydedildi#surec`);
+  return res.redirect(`${donus}?bildirim=surec-kaydedildi#surec`);
 }));
 
 router.post('/:id/durum', sar(projeBul), sar(async (req, res) => {

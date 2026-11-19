@@ -28,6 +28,7 @@ const multer = require('multer');
 const dosyalar = require('../../core/dosyalar');
 const taramaYukle = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024, files: 1 } });
 const SORULAR = ['s1', 's2', 's3', 's4', 's5', 's6'];
+const surec = require('../projeler/surec');
 // İzleme raporunu kaydeden: proje yöneten, değerlendiren ya da talep giren (yürütücü)
 const izlemeYetkisi = (req) => req.izin(['proje.yonet', 'talep.degerlendir', 'talep.gir']);
 
@@ -131,8 +132,11 @@ router.get('/hazirla/:form', sar(async (req, res, next) => {
       .then((l) => l.reduce((t, x) => t + (x.kontroller || []).reduce((a, k) => a + (k.fotograflar || []).length, 0), 0)).catch(() => 0);
     return res.render(V + 'hazirla-liste', {
       baslik: tanim.ad, tanim, form: req.params.form, proje, kisiler, izlemeler, secili, kontrolFoto,
-      koordinatorler: (proje.koordinatorler || []).map(String), yurutuculer: (proje.yurutuculer || []).map(String),
-      izlemeYetkisi: izlemeYetkisi(req),
+      // Hem koordinatör hem yürütücü olan kişi koordinatörlerde gösterilir
+      koordinatorler: (proje.koordinatorler || []).map(String),
+      yurutuculer: (proje.yurutuculer || []).map(String).filter((id) => !(proje.koordinatorler || []).map(String).includes(id)),
+      varsayilanYurutenler: (proje.yurutuculer || []).map(String),
+      izlemeYetkisi: izlemeYetkisi(req), rol: surec.projeRolu(req, proje),
       ilce: typeof req.query.ilce === 'string' ? req.query.ilce : '', ilceler: calisilanIlceler(req.ben, res.locals.ayar)
     });
   }
@@ -198,6 +202,37 @@ router.get('/izleme/:id/imzali', sar(async (req, res, next) => {
   res.set('Content-Disposition', `inline; filename*=UTF-8''${encodeURIComponent(kayit.imzali.ad || 'izleme')}`);
   return dosyalar.okumaAkisi(kayit.imzali.dosyaId).pipe(res);
 }));
+// Pasife alma: yürütücü önerir (not zorunlu), koordinatör not yazarak onaylar ya da reddeder;
+// koordinatör doğrudan pasife alabilir ve yeniden etkinleştirebilir. Rapor silinmez.
+router.post('/izleme/:id/pasif', sar(async (req, res, next) => {
+  const proje = mongoose.isValidObjectId(req.params.id) ? await Proje().findOne({ 'izlemeler._id': req.params.id }) : null;
+  if (!proje) return next();
+  if (!projeErisebilirMi(req, proje._id)) return projeErisimYok(res);
+  const rol = surec.projeRolu(req, proje);
+  const kayit = proje.izlemeler.id(req.params.id);
+  const donus = `/belgeler/hazirla/izleme?proje=${proje._id}`;
+  const hata = (m) => res.redirect(`${donus}&bildirim=islem-yapilamadi&hata=${encodeURIComponent(m)}`);
+  const not = metin(req.body.not);
+  const kim = req.ben ? req.ben.adSoyad : undefined;
+  const p = kayit.toObject().pasif || {};
+  const islem = req.body.islem;
+  if (islem === 'oner') {
+    if (!rol.yurutucu && !rol.koordinator) return hata('Pasife alma önerisini projenin yürütücüsü yapar.');
+    if (!not) return hata('Pasife alma önerisi için not yazılmalıdır.');
+    kayit.pasif = { durum: 'oneri', oneren: kim, oneriNotu: not, oneriTarihi: new Date() };
+  } else if (islem === 'onayla') {
+    if (!rol.koordinator) return hata('Pasife almayı projenin koordinatörü onaylar.');
+    if (!not) return hata('Onay için not yazılmalıdır.');
+    kayit.pasif = { ...p, durum: 'pasif', onaylayan: kim, onayNotu: not, onayTarihi: new Date() };
+  } else if (islem === 'reddet' || islem === 'etkinlestir') {
+    if (!rol.koordinator && !(islem === 'reddet' && p.oneren === kim)) return hata('Bu işlemi projenin koordinatörü yapar.');
+    kayit.pasif = undefined;
+  } else return hata('Geçersiz işlem.');
+  proje.markModified('izlemeler');
+  await proje.save();
+  return res.redirect(`${donus}&izleme=${kayit._id}&bildirim=kaydedildi`);
+}));
+
 router.post('/izleme/:id/sil', sar(async (req, res, next) => {
   const proje = mongoose.isValidObjectId(req.params.id) ? await Proje().findOne({ 'izlemeler._id': req.params.id }) : null;
   if (!proje) return next();

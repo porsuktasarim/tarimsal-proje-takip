@@ -1,24 +1,99 @@
-// Koordinatörün süreç listesi: TAKE uygulama talimatı ve il müdürlüğü yazışmalarına göre
-// bir projenin başından sonuna adımları. Her adım elle işaretlenir (tarih, not, kim);
-// yanında sistemdeki verilerden çıkan durum ipucu ve ilgili form bağlantısı gösterilir.
+// Proje süreci: adımlar Ayarlar › Süreç'te tanımlanır (ayar.surecAdimlari).
+//
+// Sorumluluk:
+//   il       koordinatörün işi; koordinatör işaretler
+//   ilce     yürütücünün (ilçe) işi; yürütücü "yapıldı" der, koordinatör onaylar
+//   il-ilce  ikisinin de işi; önce yürütücü kendi kısmını, sonra koordinatör kendi kısmını işaretler
+// Koordinatör, yürütücü kısmı tamamlanmadan onaylayamaz. Kişi hem koordinatör hem yürütücüyse
+// (ya da projeye yürütücü atanmamışsa) iki kısmı birlikte işaretleyebilir.
+// Alt adımları olan ana adım, tüm alt adımlar tamamlanınca tamamlanmış sayılır.
+//
+// Proje kaydı: proje.surec[kod] = { ilce: { tamam, tarih, kisiAd }, il: { ... }, notlar: [{ metin, kisiAd, tarih }] }
 
-const ADIMLAR = [
-  { kod: 'metin', ad: 'Proje metni yüklendi', aciklama: 'Değerlendirme için zorunludur.' },
-  { kod: 'komisyon', ad: 'İl proje uygulama komisyonu oluşturuldu', aciklama: 'İl müdürünün onayıyla (talimat md. 4/e); üyeler proje formunun Formlar bölümüne yazılır.' },
-  { kod: 'basvuru', ad: 'Üretici başvuruları alındı (EK-1)', aciklama: 'İlçe müdürlüklerince başvuru formları toplanır.' },
-  { kod: 'karar', ad: 'Başvurular değerlendirildi; asıl ve yedek listeler onaylandı', aciklama: 'İlçe proje uygulama birimi listeleri hazırlar, il komisyonu onaylar.' },
-  { kod: 'odeme-yazisi', ad: 'Çiftçi talepleri ve katkı payı ödemesi yazısı ilçelere gönderildi', aciklama: 'Torba fiyatı, katkı payı, hesap, dekont kuralı ve son tarih.' },
-  { kod: 'dekont', ad: 'Katkı payı dekontları ve icmal listeleri ilçelerden alındı', aciklama: 'Alfabetik icmal (Excel ve imzalı PDF) ve aynı sırada taranmış dekontlar.' },
-  { kod: 'sozlesme', ad: 'Hibe desteği sözleşmeleri imzalandı (EK-2)' },
-  { kod: 'ilce-teslim', ad: 'Girdi yükleniciden ilçelere teslim edildi', aciklama: 'İlçe teslim tutanakları.' },
-  { kod: 'teslim', ad: 'Girdi üreticilere teslim edildi (EK-4)' },
-  { kod: 'kontrol', ad: 'Arazi kontrolleri yapıldı (EK-5, kontrol raporu)', aciklama: 'Üreticilerin en az %50\'si kontrol edilir.' },
-  { kod: 'izleme', ad: 'Proje izleme formları düzenlendi', aciklama: 'En az ayda bir; imzalı taramalar yüklenir.' },
-  { kod: 'kesin-icmal', ad: 'Kesin icmal (EK-3) düzenlendi ve gönderildi', aciklama: 'Ödemeye esas icmal; komisyon imzalı.' },
-  { kod: 'kapanis', ad: 'Proje tamamlandı; sonuç raporu hazırlandı' }
-];
+const SORUMLULAR = {
+  il: { ad: 'İl', uzun: 'Koordinatör (il)', renk: 'blue' },
+  ilce: { ad: 'İlçe', uzun: 'Yürütücü (ilçe); koordinatör onaylar', renk: 'green' },
+  'il-ilce': { ad: 'İl-İlçe', uzun: 'Yürütücü ve koordinatör (önce ilçe, sonra il)', renk: 'purple' }
+};
 
-// Sistemdeki verilerden durum ipuçları: { kod: { metin, tamamGibi, bag } }
+// Proje sayfasında gösterilebilecek durum bilgileri (Ayarlar › Süreç'te adımlara bağlanır)
+const VERILER = {
+  metin: 'Proje metni',
+  komisyon: 'Komisyon üyeleri',
+  basvuru: 'Gönderilen başvurular',
+  karar: 'Karar verilen başvurular (asıl/yedek liste)',
+  'odeme-yazisi': 'Ödeme yazısı',
+  dekont: 'Katkı payı işlenen üreticiler (icmal)',
+  sozlesme: 'Sözleşme tarihi girilenler',
+  'ilce-teslim': 'İlçe teslim tutanağı',
+  teslim: 'Teslim edilenler (EK-4)',
+  'kesin-icmal': 'Kesin icmal (EK-3)',
+  kontrol: 'Arazi kontrolleri (%50)',
+  izleme: 'İzleme raporları',
+  kapanis: 'Proje durumu'
+};
+
+const eslesir = (liste, id) => (liste || []).some((x) => String((x && x._id) || x) === String(id));
+
+// Kişinin bu projedeki rolü
+function projeRolu(req, proje) {
+  const ben = req.ben;
+  const admin = !!req.silebilir;
+  const koordinatorAtali = (proje.koordinatorler || []).length > 0;
+  const yurutucuAtali = (proje.yurutuculer || []).length > 0;
+  const koordinator = admin || (ben && eslesir(proje.koordinatorler, ben._id)) || (!koordinatorAtali && req.izin('proje.yonet'));
+  const yurutucu = admin || (ben && eslesir(proje.yurutuculer, ben._id)) || (!!koordinator && !yurutucuAtali);
+  return { koordinator: !!koordinator, yurutucu: !!yurutucu, ikisi: !!koordinator && !!yurutucu };
+}
+
+// Eski kayıt biçimi ({ tamam, tarih, kisiAd }) il kısmı sayılır
+function kayitOku(surec, kod) {
+  const k = (surec && surec[kod]) || {};
+  if (k.tamam !== undefined && !k.il) return { il: { tamam: k.tamam, tarih: k.tarih, kisiAd: k.kisiAd }, ilce: {}, notlar: k.notlar || [] };
+  return { il: k.il || {}, ilce: k.ilce || {}, notlar: k.notlar || [] };
+}
+
+// Şablonu ağaca çevirir: ana adımlar ve alt adımları
+function agac(adimlar) {
+  const ana = [];
+  (adimlar || []).forEach((a) => {
+    if (a.alt && ana.length) ana[ana.length - 1].altlar.push({ ...a, altlar: [] });
+    else ana.push({ ...a, alt: false, altlar: [] });
+  });
+  return ana;
+}
+
+// Bir yaprak adımın durumu
+function adimDurumu(a, k) {
+  const sorumlu = SORUMLULAR[a.sorumlu] ? a.sorumlu : 'il';
+  const ilceGerekli = sorumlu !== 'il';
+  const tamam = !!k.il.tamam && (!ilceGerekli || !!k.ilce.tamam);
+  let bekleyen = '';
+  if (!tamam) bekleyen = ilceGerekli && !k.ilce.tamam ? 'ilce' : 'il';
+  return { sorumlu, ilceGerekli, tamam, bekleyen };
+}
+
+// Proje sayfası için tam görünüm: ağaç, her adımın kaydı ve durumu, sayaçlar
+function gorunum(proje, ayar) {
+  const ana = agac(ayar.surecAdimlari);
+  let toplam = 0;
+  let biten = 0;
+  const isle = (a) => {
+    const k = kayitOku(proje.surec, a.kod);
+    const d = adimDurumu(a, k);
+    toplam += 1; if (d.tamam) biten += 1;
+    return { ...a, kayit: k, durum: d };
+  };
+  const adimlar = ana.map((a) => {
+    if (!a.altlar.length) return isle(a);
+    const altlar = a.altlar.map(isle);
+    const k = kayitOku(proje.surec, a.kod);
+    return { ...a, altlar, kayit: k, durum: { tamam: altlar.every((x) => x.durum.tamam), ust: true, biten: altlar.filter((x) => x.durum.tamam).length } };
+  });
+  return { adimlar, toplam, biten };
+}
+
+// Sistemdeki verilerden durum bilgisi: { veri: { metin, tamamGibi, bag } }
 function ipuclari(proje, talepler) {
   const p = String(proje._id);
   const say = (f) => talepler.filter(f).length;
@@ -30,7 +105,7 @@ function ipuclari(proje, talepler) {
   const katki = destek.filter((t) => t.uygulama && t.uygulama.katkiPayiTarihi).length;
   const kontrollu = destek.filter((t) => (t.kontroller || []).length).length;
   const oran = (a, b) => (b ? Math.round((100 * a) / b) : 0);
-  const izlemeler = proje.izlemeler || [];
+  const izlemeler = (proje.izlemeler || []).filter((x) => !(x.pasif && x.pasif.durum === 'pasif'));
   const sonIzleme = izlemeler.map((x) => x.tarih).filter(Boolean).sort().pop();
   const ba = proje.belgeAyarlari || {};
   const metinVar = (proje.belgeler || []).length > 0;
@@ -44,11 +119,46 @@ function ipuclari(proje, talepler) {
     sozlesme: { metin: `${sozlesme}/${destek.length} sözleşme tarihi girildi`, tamamGibi: destek.length > 0 && sozlesme === destek.length, bag: `/belgeler?proje=${p}` },
     'ilce-teslim': { metin: 'İlçe başına tutanak', bag: `/belgeler/ilce-teslim?proje=${p}&bicim=pdf` },
     teslim: { metin: `${teslim}/${destek.length} üreticiye teslim edildi`, tamamGibi: destek.length > 0 && teslim === destek.length, bag: `/belgeler?proje=${p}` },
+    'kesin-icmal': { metin: `${teslim} üretici`, bag: `/belgeler/ek3?proje=${p}&bicim=pdf` },
     kontrol: { metin: `${kontrollu}/${destek.length} üretici kontrol edildi (%${oran(kontrollu, destek.length)})`, tamamGibi: destek.length > 0 && oran(kontrollu, destek.length) >= 50, bag: `/belgeler/kontrol-raporu?proje=${p}&bicim=pdf` },
     izleme: { metin: izlemeler.length ? `${izlemeler.length} rapor, son: ${new Date(sonIzleme).toLocaleDateString('tr-TR')}` : 'Rapor yok', bag: `/belgeler/hazirla/izleme?proje=${p}` },
-    'kesin-icmal': { metin: `${destek.length} üretici`, bag: `/belgeler/ek3?proje=${p}&bicim=pdf` },
     kapanis: { metin: proje.durum === 'tamamlandi' ? 'Proje durumu: tamamlandı' : '', tamamGibi: proje.durum === 'tamamlandi' }
   };
 }
 
-module.exports = { ADIMLAR, ipuclari };
+// İşaretleme / işaret kaldırma. taraf: 'il' | 'ilce'. Hata metni ya da null döner.
+function isaretle(proje, ayar, rol, kod, taraf, deger, ek) {
+  const a = (ayar.surecAdimlari || []).find((x) => x.kod === kod);
+  if (!a) return 'Adım bulunamadı.';
+  const ana = agac(ayar.surecAdimlari).find((x) => x.kod === kod);
+  if (ana && ana.altlar.length) return 'Bu adım alt adımları tamamlanınca kendiliğinden tamamlanır.';
+  const k = kayitOku(proje.surec, kod);
+  const d = adimDurumu(a, k);
+  const zaman = ek.tarih || new Date();
+  const kim = ek.kisiAd;
+  if (taraf === 'ilce') {
+    if (!d.ilceGerekli) return 'Bu adım koordinatörün işidir.';
+    if (!rol.yurutucu) return 'Bu kısmı projenin yürütücüsü işaretler.';
+    if (!deger && k.il.tamam && !rol.ikisi) return 'Koordinatör onayladığı için önce onayın kaldırılması gerekir.';
+    k.ilce = deger ? { tamam: true, tarih: zaman, kisiAd: kim } : {};
+    if (!deger && rol.ikisi) k.il = {};
+  } else {
+    if (!rol.koordinator) return 'Bu kısmı projenin koordinatörü işaretler.';
+    if (deger && d.ilceGerekli && !k.ilce.tamam) {
+      if (!rol.ikisi) return 'Yürütücü kendi kısmını tamamlamadan bu adım onaylanamaz.';
+      k.ilce = { tamam: true, tarih: zaman, kisiAd: kim };   // hem yürütücü hem koordinatör: iki kısım birlikte
+    }
+    k.il = deger ? { tamam: true, tarih: zaman, kisiAd: kim } : {};
+  }
+  if (ek.not) k.notlar = [...k.notlar, { metin: ek.not, kisiAd: kim, tarih: new Date() }];
+  proje.surec = { ...(proje.surec || {}), [kod]: k };
+  return null;
+}
+
+function notEkle(proje, kod, metin, kisiAd) {
+  const k = kayitOku(proje.surec, kod);
+  k.notlar = [...k.notlar, { metin, kisiAd, tarih: new Date() }];
+  proje.surec = { ...(proje.surec || {}), [kod]: k };
+}
+
+module.exports = { SORUMLULAR, VERILER, projeRolu, gorunum, ipuclari, isaretle, notEkle, agac, eslesir };

@@ -88,6 +88,18 @@
     });
 
     kap.addEventListener('click', function (e) {
+      // Satırı yukarı / aşağı taşı (sıra kaydedilir)
+      var tasi = e.target.closest('[data-satir-yukari], [data-satir-asagi]');
+      if (tasi) {
+        e.preventDefault();
+        var tr = tasi;
+        while (tr && tr.parentElement !== kap) tr = tr.parentElement;
+        if (!tr) return;
+        if (tasi.hasAttribute('data-satir-yukari') && tr.previousElementSibling) kap.insertBefore(tr, tr.previousElementSibling);
+        else if (tasi.hasAttribute('data-satir-asagi') && tr.nextElementSibling) kap.insertBefore(tr.nextElementSibling, tr);
+        yenile(kap);
+        return;
+      }
       var sil = e.target.closest('[data-satir-sil]');
       if (!sil || sil.disabled) return;
       e.preventDefault();

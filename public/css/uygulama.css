@@ -188,3 +188,9 @@ th.siralanabilir[data-yon="azalan"]::after { content: '↓'; opacity: .8; }
 .degisim-deger { font-weight: 600; }
 .izgara td.izgara-cok-satir { white-space: pre-line; line-height: 1.25; }
 .kontrol-foto { width: 6rem; height: 6rem; object-fit: cover; border-radius: 6px; border: 1px solid var(--tblr-border-color); }
+
+/* Ayarlar › Süreç: alt adımlar girintili */
+tr:has(input[name$="[alt]"]:checked) td:nth-child(3) { padding-left: 2.25rem; position: relative; }
+tr:has(input[name$="[alt]"]:checked) td:nth-child(3)::before { content: "↳"; position: absolute; left: .9rem; top: .9rem; color: var(--tblr-secondary); }
+/* İzleme raporları: pasif kayıtlar */
+tr.izleme-pasif td { opacity: .55; }
