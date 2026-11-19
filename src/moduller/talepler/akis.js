@@ -153,4 +153,32 @@ function degistir(talep, proje, { talepKalemleri, hayvanlar, not }, { ben, ayar,
   return { tamam: true, farklar: d };
 }
 
-module.exports = { ISLEMLER, TUR_ADLARI, KARARLAR, engel, kullanilabilirIslemler, uygula, degistir, farklar, anlik, kisiBilgisi };
+// Değer değişiklik zincirleri: her alan (kalem talebi, hayvan sayısı) için başvurudaki
+// değerden başlayarak sırayla yapılan değişiklikler, yapan kişi ve gerekçesiyle.
+// Yalnızca en az bir kez değişmiş alanlar döner.
+function degisimZincirleri(talep, proje, ayar) {
+  const gecmis = (talep.gecmis || []).filter((g) => (g.degisiklikler || []).length);
+  if (!gecmis.length) return [];
+  const basvuru = talep.basvuru || {};
+  const ilkMiktar = new Map(((basvuru.talepKalemleri) || []).map((x) => [String(x.kalemId), x.miktar]));
+  const ilkHayvan = basvuru.hayvanlar || {};
+  const olusturma = (talep.gecmis || []).find((g) => g.tur === 'olusturma');
+  const alanlar = [];
+  proje.kalemler.forEach((k) => alanlar.push({ alan: `talep:${k._id}`, ad: `${k.urun}${k.cesit ? ' · ' + k.cesit : ''} talebi`, birim: k.talepBirimi || 'da', ilk: ilkMiktar.has(String(k._id)) ? ilkMiktar.get(String(k._id)) : undefined }));
+  (ayar.hayvanTurleri || []).forEach((h) => alanlar.push({ alan: `hayvan:${h.kod}`, ad: h.ad, birim: h.birim || '', ilk: ilkHayvan[h.kod] }));
+  return alanlar.map((a) => {
+    const adimlar = [];
+    gecmis.forEach((g) => (g.degisiklikler || []).filter((d) => d.alan === a.alan).forEach((d) => {
+      adimlar.push({ eski: d.eski, yeni: d.yeni, tarih: g.tarih, kisiAd: g.kisiAd, rolAd: g.rolAd, not: g.not, tur: g.tur });
+    }));
+    if (!adimlar.length) return null;
+    const baslangic = a.ilk !== undefined ? a.ilk : adimlar[0].eski;
+    return {
+      ad: a.ad, birim: a.birim,
+      baslangic: { deger: baslangic, tarih: basvuru.tarih || (olusturma && olusturma.tarih) || talep.olusturulma, kisiAd: talep.kaydedenAd || (olusturma && olusturma.kisiAd) },
+      adimlar, gecerli: adimlar[adimlar.length - 1].yeni
+    };
+  }).filter(Boolean);
+}
+
+module.exports = { degisimZincirleri, ISLEMLER, TUR_ADLARI, KARARLAR, engel, kullanilabilirIslemler, uygula, degistir, farklar, anlik, kisiBilgisi };

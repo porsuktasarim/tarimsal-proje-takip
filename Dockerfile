@@ -2,6 +2,8 @@ FROM node:22-alpine
 
 WORKDIR /app
 ENV NODE_ENV=production
+# Saatler Türkiye saatiyle gösterilir (Node kendi saat dilimi verisini kullanır)
+ENV TZ=Europe/Istanbul
 
 COPY package*.json ./
 RUN npm ci --omit=dev && npm cache clean --force

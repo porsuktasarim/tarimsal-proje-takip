@@ -1,5 +1,6 @@
 const express = require('express');
 const bbhbIsletmeler = require('../bbhb/isletmeler');
+const akis = require('../talepler/akis');
 const mongoose = require('mongoose');
 const Ciftci = require('./model');
 const Talep = require('../talepler/model');
@@ -119,7 +120,8 @@ async function ciftciBul(req, res, next) {
 router.get('/:id', sar(ciftciBul), sar(async (req, res) => {
   const talepler = await Talep.find({ ciftciId: req.ciftci._id }).populate('projeId').sort({ olusturulma: -1 });
   const satirlar = talepler.filter((t) => t.projeId).map((t) => ({
-    talep: t, proje: t.projeId, hesap: talepHesabi(t, t.projeId, res.locals.ayar)
+    talep: t, proje: t.projeId, hesap: talepHesabi(t, t.projeId, res.locals.ayar),
+    zincirler: akis.degisimZincirleri(t, t.projeId, res.locals.ayar)
   }));
   const sayilanlar = satirlar.filter((s) => s.talep.durum !== 'desteklenmedi');
   const toplam = {

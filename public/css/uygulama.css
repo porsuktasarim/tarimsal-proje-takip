@@ -179,3 +179,10 @@ th.siralanabilir[data-yon="azalan"]::after { content: '↓'; opacity: .8; }
 .izgara-kaydet { padding: .5rem .75rem; background: color-mix(in srgb, var(--tblr-yellow) 18%, var(--tblr-bg-surface)); border-top: 1px solid var(--tblr-border-color); }
 /* Izgara kendi içinde kaydırılır; toplu işlem çubuğu altında sabit durmaz (tablonun toplam satırını örtmesin) */
 .izgara-cerceve ~ .toplu-islem { position: static; }
+
+/* Çiftçi sayfası: değer değişiklik zinciri */
+.degisim-adimlari { list-style: none; padding-left: 0; border-left: 2px solid var(--tblr-border-color); margin-left: .35rem; }
+.degisim-adimlari li { position: relative; padding: 0 0 .5rem .9rem; }
+.degisim-adimlari li::before { content: ''; position: absolute; left: -.38rem; top: .35rem; width: .6rem; height: .6rem; border-radius: 50%; background: var(--tblr-primary); }
+.degisim-adimlari li:first-child::before { background: var(--tblr-secondary); }
+.degisim-deger { font-weight: 600; }
