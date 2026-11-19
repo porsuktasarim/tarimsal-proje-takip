@@ -96,7 +96,8 @@
             <% var fin = proje.finansman || {}; var bas = proje.basvuru || {}; %>
             <div class="col-md-4">
               <label class="form-label">Destek kaynağı</label>
-              <input type="text" name="finansman[destekKaynagi]" value="<%= fin.destekKaynagi || '' %>" class="form-control" placeholder="ör. İstanbul Valiliği">
+              <input type="text" name="finansman[destekKaynagi]" value="<%= fin.destekKaynagi || '' %>" class="form-control" placeholder="ör. Tarım Arazilerinin Kullanımının Etkinleştirilmesi Projesi">
+              <small class="form-hint">Formlarda program/kaynak adı olarak geçer.</small>
             </div>
             <div class="col-md-2">
               <label class="form-label">Çiftçi katkısı</label>
@@ -244,9 +245,8 @@
         <div class="card-body">
           <div class="row g-3">
             <div class="col-md-8">
-              <label class="form-label">Program / üst proje adı</label>
-              <input type="text" name="belgeAyarlari[programAdi]" value="<%= ba.programAdi || '' %>" class="form-control" placeholder="TARIM ARAZİLERİNİN KULLANIMININ ETKİNLEŞTİRİLMESİ PROJESİ">
-              <small class="form-hint">Formların üst başlığı. Boş bırakılırsa TAKE başlığı kullanılır.</small>
+              <label class="form-label">Program / kaynak adı</label>
+              <div class="form-control-plaintext small text-secondary py-1">Formlarda (başlık ve EK-2 sözleşme metni) 1. bölümdeki <strong>Destek kaynağı</strong> kullanılır.</div>
             </div>
             <div class="col-md-4">
               <label class="form-label">Destek türü</label>

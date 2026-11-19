@@ -91,7 +91,7 @@ TAKE 2026 Uygulama Talimatı ekleri sisteme uyarlanmıştır. Her form tek bir b
   - **EK-5 Arazi kontrol tutanağı:** her saha kontrolü için doldurulmuş hâli ya da sahada elle doldurulacak boş hâli.
   - **Arazi kontrol raporu:** kontrol listesi (ziyaret tarihi, fotoğraf eklendi mi, görüşler) ve kontrol edilen üretici oranı (talimat gereği asgari %50).
   - **Asıl ve yedek liste:** ilçe bazında; yedekler puana göre sıralı, komisyon imzalı.
-- **Form başlıkları:** proje formunun "Formlar" bölümünde program adı, destek türü, müdürlük, imza yetkilisi, yetkili mahkeme, dönem (Güz/Bahar), komisyon başkanı ve üyeleri girilir; boş bırakılanlar formda doldurulacak nokta olarak çıkar.
+- **Form başlıkları:** program/kaynak adı (formların üst başlığı ve EK-2'deki "… kapsamında kaynak gönderilen" ifadesi) proje formundaki **Destek kaynağı** alanından gelir. Proje formunun "Formlar" bölümünde destek türü, müdürlük, imza yetkilisi, yetkili mahkeme, dönem (Güz/Bahar), komisyon başkanı ve üyeleri girilir; boş bırakılanlar formda doldurulacak nokta olarak çıkar.
 - **Başvuruya eklenen bilgiler:** çiftçide cinsiyet, doğum tarihi, istihdam edilen kişi sayısı; parselde sulama (kuru/sulu) ve arazi durumu (işlenen, işlenmeyen, nadas, işlemeli tarıma uygun olmayan); başvuruda bu yıl ekim yapılmayan toplam alan.
 - **Uygulama kartı** (desteklenen başvuruda): katkı payı yatırma tarihi ve makbuz no, sözleşme tarihi; "Teslim edildi" işleminde teslim tarihi ve teslim eden kendiliğinden yazılır. Değişiklikler geçmişe işlenir.
 - **Saha kontrolleri:** kontrol tarihi, kontrol edenler, parsel bazında ekim tarihi ve uygunluk, ekim normuna uygunluk, çıkış/tutma oranı, kültürel işlemler, görüş ve fotoğraflar. Her kayıt EK-5'e ve kontrol raporuna aktarılır.

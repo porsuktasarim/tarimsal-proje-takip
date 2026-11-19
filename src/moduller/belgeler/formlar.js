@@ -15,17 +15,25 @@ const NOKTA = '……………………';
 const n = (v, bos = NOKTA) => (v === undefined || v === null || v === '' ? bos : String(v));
 const buyuk = (s) => String(s || '').toLocaleUpperCase('tr');
 const kisaTarih = (t) => (t ? tarih(t) : '…../…../…...');
-const VARSAYILAN_PROGRAM = 'TARIM ARAZİLERİNİN KULLANIMININ ETKİNLEŞTİRİLMESİ PROJESİ';
+// Tamamı büyük harfle yazılmış adı metin içinde kullanmak için baş harfleri büyük yazar
+const basHarfli = (s) => {
+  const t = String(s || '').trim();
+  if (!t || t !== buyuk(t)) return t;
+  return t.toLocaleLowerCase('tr').replace(/(^|[\s(/-])(\S)/g, (_, a, b) => a + b.toLocaleUpperCase('tr'));
+};
 
 function ortak(proje, ayar) {
   const ba = proje.belgeAyarlari || {};
   const turler = [...new Set((proje.kalemler || []).map((k) => k.tur).filter((t) => /tohum|fide|fidan|aşı/i.test(t)))];
   const projeBasligi = /PROJES[İI]$/i.test(buyuk(proje.ad)) ? buyuk(proje.ad) : `${buyuk(proje.ad)} PROJESİ`;
   const yil = (String(proje.donem || '').match(/\d{4}/) || [String(new Date().getFullYear())])[0];
+  // Formlardaki program/kaynak adı: proje formundaki "Destek kaynağı" (eski kayıtlarda Formlar › program adı)
+  const kaynak = String((proje.finansman && proje.finansman.destekKaynagi) || ba.programAdi || '').trim();
   const katki = proje.finansman && proje.finansman.ciftciKatkiOrani != null ? proje.finansman.ciftciKatkiOrani : null;
   return {
     ba,
-    program: buyuk(ba.programAdi || VARSAYILAN_PROGRAM),
+    kaynak: basHarfli(kaynak),
+    program: buyuk(kaynak),
     projeBasligi,
     destekTuru: ba.destekTuru || turler.join('/') || 'Tohum/Fide/Fidan',
     mudurluk: ba.mudurluk || ayar.kurum || 'İl Tarım ve Orman Müdürlüğü',
@@ -70,10 +78,13 @@ function teslimMetni(hesap) {
 }
 const teslimKisa = (hesap) => hesap.kalemler.filter((hk) => hk.teslim != null).map((hk) => `${sayi(hk.teslim)} ${hk.teslimBirimi || ''}`.trim()).join('; ');
 
+// Kaynak girilmemişse üst başlık satırı çıkmaz
+const programBasligi = (o) => (o.program ? [{ t: 'baslik', metin: o.program, boyut: 2 }] : []);
+
 function ustBaslik(o, ek, satirlar) {
   return [
     { t: 'p', metin: ek, hiza: 'sag', kucuk: true },
-    { t: 'baslik', metin: o.program, boyut: 2 },
+    ...programBasligi(o),
     { t: 'baslik', metin: `${o.projeBasligi} KAPSAMINDA`, boyut: 3 },
     ...satirlar.map((m) => ({ t: 'baslik', metin: m, boyut: 2 }))
   ];
@@ -138,7 +149,7 @@ function ek2(v) {
       { t: 'baslik', metin: 'HİBE DESTEĞİ SÖZLEŞMESİ', boyut: 1 },
       p(`T.C. ${mud} ile ${n(adres)} adresinde mukim, ${ciftci.tcKimlikNo} T.C. No.lu ${ciftci.adSoyad} isimli üretici aşağıdaki hususlarda anlaşmışlardır:`),
       b('MADDE 1 – AMAÇ'),
-      p(`1.1 Bu Sözleşmenin amacı; ${mud} tarafından yürütülen ve ${o.program.replace(/PROJESİ$/, 'Projesi').toLocaleLowerCase('tr').replace(/(^|\s)\S/g, (x) => x.toLocaleUpperCase('tr'))} kapsamında kaynak gönderilen ${proje.ad} ile ayni olarak ${o.destekTuru.toLocaleLowerCase('tr')} teminine esas hibe yapılmasıdır.`),
+      p(`1.1 Bu Sözleşmenin amacı; ${mud} tarafından yürütülen ve ${o.kaynak || NOKTA} kapsamında kaynak gönderilen ${proje.ad} ile ayni olarak ${o.destekTuru.toLocaleLowerCase('tr')} teminine esas hibe yapılmasıdır.`),
       p(`1.2 Üretici, Madde 3'de belirtilen arazilerde, belirtilen bitki tür ve çeşitlerinde, kendilerine teslim edilen ${o.destekTuru.toLocaleLowerCase('tr')} kullanmak suretiyle ${o.yil} Yılı ${n(o.ba.donemTuru, 'Güz/Bahar')} döneminde tarımsal faaliyette bulunmayı kabul ve taahhüt eder.`),
       b('MADDE 2 – SÖZLEŞMENİN YÜRÜRLÜK TARİHİ VE SÜRESİ'),
       p('2.1 Bu Sözleşme her iki tarafça imzalandığı tarihte yürürlüğe girer ve ilgili ürünün ekiliş/dikilişine ait hasat bitiminde sona erer. Üretici, projenin uygulamasını zorlaştıracak veya geciktirecek her durum hakkında İl/İlçe Tarım ve Orman Müdürlüğünü derhal bilgilendirmekle mükelleftir.'),
@@ -212,12 +223,12 @@ function ek3(v) {
     yon: 'yatay',
     ogeler: [
       { t: 'p', metin: 'EK-3', hiza: 'sag', kucuk: true },
-      { t: 'baslik', metin: o.program, boyut: 2 },
+      ...programBasligi(o),
       { t: 'baslik', metin: `${o.projeBasligi} KAPSAMINDA`, boyut: 3 },
       { t: 'baslik', metin: `HİBE İLE AYNİ OLARAK ${buyuk(o.destekTuru)} TEMİN EDİLEN ÜRETİCİLERE İLİŞKİN KESİN İCMAL${ilce ? ' — ' + buyuk(ilce) : ''}`, boyut: 2 },
       {
         t: 'tablo', kucuk: true,
-        genislik: [0.45, 1.2, 1.45, 1.1, 1.05, 1.25, 1.45, 0.8, 0.95, 0.8, 1.15, 1, 1.2, 0.95, 1.3, 1.2, 1.2],
+        genislik: [0.6, 1.2, 1.45, 1.1, 1.05, 1.25, 1.45, 0.8, 0.95, 0.8, 1.15, 1, 1.2, 0.95, 1.3, 1.2, 1.2],
         hizalar: ['orta', 'sol', 'orta', 'sol', 'sol', 'orta', 'orta', 'orta', 'sag', 'orta', 'sag', 'sag', 'sag', 'orta', 'sag', 'sag', 'sag'],
         basliklar: ['Sıra No', 'İli/İlçesi', 'Üretici TC Kimlik No', 'Üretici Adı', 'Üretici Soyadı', 'Doğum Tarihi', 'Cep Telefonu', 'Cinsiyet Kadın:1 Erkek:0', 'Proje Uygulama Alanı (da)', 'Sulama Durumu Sulu:1 Kuru:0', 'İşlenmeyen Arazilerde Ekiliş/Dikiliş Yapılan Alan (da)', 'Nadasta Ekiliş/Dikiliş Yapılan Alan (da)', 'İşlemeli Tarıma Uygun Olmayan Arazilerde Ekiliş/Dikiliş Yapılan Alan (da)', 'İstihdam Var:1 Yok:0', 'Teslim Edilen Girdi Miktarı/ Aşılanan Ağaç Sayısı (Kg, Adet)', 'Toplam Proje Tutarı (TL)', `%${n(o.hibeOrani, '....')} Hibe Desteği Tutarı (TL)`],
         satirlar: govde.length ? govde : [['1', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '']],
@@ -241,7 +252,7 @@ function ek4(v) {
     ad: `EK-4 Teslim tutanağı — ${ciftci.adSoyad}`,
     ogeler: [
       { t: 'p', metin: 'EK-4', hiza: 'sag', kucuk: true },
-      { t: 'baslik', metin: o.program.replace(/PROJESİ$/, 'DESTEKLENMESİNE İLİŞKİN'), boyut: 2 },
+      ...programBasligi(o),
       { t: 'baslik', metin: o.projeBasligi, boyut: 3 },
       { t: 'baslik', metin: 'TESLİM TUTANAĞI', boyut: 1 },
       { t: 'bosluk', yukseklik: 6 },
@@ -346,7 +357,7 @@ function asilYedek(v) {
   const o = ortak(proje, ayar);
   const ilceler = [...new Set(satirlar.map((s) => s.talep.ilce))].sort((a, b) => a.localeCompare(b, 'tr'));
   const ogeler = [
-    { t: 'baslik', metin: o.program, boyut: 2 },
+    ...programBasligi(o),
     { t: 'baslik', metin: `${o.projeBasligi} ASIL VE YEDEK LİSTE${ilce ? ' — ' + buyuk(ilce) : ''}`, boyut: 2 }
   ];
   const basliklar = ['Sıra', 'Adı Soyadı', 'T.C. Kimlik No', 'Köy/Mahalle', 'Talep', 'Girdi Miktarı', 'Proje Tutarı (TL)', ...(puanVar ? ['Puan'] : [])];
