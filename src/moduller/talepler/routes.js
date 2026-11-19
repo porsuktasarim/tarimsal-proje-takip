@@ -6,9 +6,12 @@ const { ciftciFormuOku, ciftciDenetle } = require('../ciftciler/routes');
 const { talepHesabi, fiyatBirimi, normsuzMu } = require('../projeler/hesap');
 const { normOku } = require('../ayarlar/katalog');
 const { talepDurumlari } = require('../../config/sabitler');
-const { sayiOku, diziyeCevir, anahtar, sonucBirimi, hayvanlariOku } = require('../../core/yardimcilar');
+const { sayiOku, diziyeCevir, anahtar, sonucBirimi, hayvanlariOku, tarihOku } = require('../../core/yardimcilar');
 const { calisilanIlceler, ilceKisitliMi, yetkiGerekli } = require('../../core/yetki');
 const akis = require('./akis');
+const multer = require('multer');
+const dosyalar = require('../../core/dosyalar');
+const Kisi = () => mongoose.model('Kisi');
 const { degerlendirmeHesabi } = require('../projeler/degerlendirme-hesabi');
 const bbhbIsletmeler = require('../bbhb/isletmeler');
 const { metinVarMi } = require('../projeler/proje-metni');
@@ -23,7 +26,8 @@ const V = 'talepler/views/';
 // (akis.js); silme yalnızca Sistem Yöneticisi (core/yetki.js).
 router.use((req, res, next) => {
   let gerek = 'talep.gor';
-  if (/\/(islem|degistir)$/.test(req.path)) gerek = ['talep.gir', 'talep.degerlendir'];
+  if (/\/(islem|degistir|uygulama|kontrol)$/.test(req.path)) gerek = ['talep.gir', 'talep.degerlendir'];
+  else if (/\/kontrol\/[^/]+\/foto\//.test(req.path)) gerek = 'talep.gor';
   else if (/\/sil$/.test(req.path)) gerek = 'talep.gor';
   else if (req.method !== 'GET' || /\/(yeni|duzenle)$/.test(req.path)) gerek = 'talep.gir';
   return yetkiGerekli(gerek)(req, res, next);
@@ -85,7 +89,9 @@ function satirlariOku(govde, proje) {
       parsel: metin(s.parsel) || undefined,
       en: sayiOku(s.en),
       boy: sayiOku(s.boy),
-      miktar: sayiOku(s.miktar)
+      miktar: sayiOku(s.miktar),
+      sulama: ['kuru', 'sulu'].includes(s.sulama) ? s.sulama : null,
+      araziDurumu: ['islenen', 'islenmeyen', 'nadas', 'uygunOlmayan'].includes(s.araziDurumu) ? s.araziDurumu : null
     }))
     // En ve boy girilip miktar boş bırakılmışsa alan hesaplanır (sera: 8 m × 50 m = 400 m²)
     .map((s) => (s.miktar === undefined && s.en > 0 && s.boy > 0 ? { ...s, miktar: Math.round(s.en * s.boy * 100) / 100 } : s))
@@ -241,7 +247,7 @@ async function kaydet(req, res, mevcutTalep) {
     return formGoster(res, 422, {
       baslik: mevcutTalep ? 'Talebi düzenle' : 'Talep gir',
       proje,
-      talep: { _id: mevcutTalep ? mevcutTalep._id : undefined, durum: mevcutTalep ? mevcutTalep.durum : undefined, talepKalemleri, satirlar, aciklama, hayvanlar },
+      talep: { _id: mevcutTalep ? mevcutTalep._id : undefined, durum: mevcutTalep ? mevcutTalep.durum : undefined, ekilmeyenAlan: sayiOku(req.body.ekilmeyenAlan), talepKalemleri, satirlar, aciklama, hayvanlar },
       ciftci: ciftciVeri,
       ilceler: izinliIlceler,
       hatalar,
@@ -267,7 +273,8 @@ async function kaydet(req, res, mevcutTalep) {
   await bbhbIsletmeler.ciftciyiEslestir(ciftci);
 
   const veri = {
-    projeId: proje._id, ciftciId: ciftci._id, ilce: ciftci.ilce, talepKalemleri: talepKalemleri.filter((t) => t.miktar > 0), satirlar: satirlar.map(temizSatir), hayvanlar, aciklama
+    projeId: proje._id, ciftciId: ciftci._id, ilce: ciftci.ilce, talepKalemleri: talepKalemleri.filter((t) => t.miktar > 0), satirlar: satirlar.map(temizSatir), hayvanlar, aciklama,
+    ekilmeyenAlan: sayiOku(req.body.ekilmeyenAlan) !== undefined ? Math.max(0, sayiOku(req.body.ekilmeyenAlan)) : undefined
   };
   let talep = mevcutTalep;
   if (talep) {
@@ -319,7 +326,10 @@ router.get('/:id', sar(talepBul), sar(async (req, res) => {
   const metinVar = metinVarMi(proje);
   const islemler = akis.kullanilabilirIslemler(req.talep, baglam(req, res)).filter((i) => metinVar || !degerlendirmeIslemiMi(i.kod));
   const duzenlenebilir = req.izin('talep.gir') && (req.talep.durum === 'taslak' || req.silebilir);
+  const kisiler = await Kisi().find({ aktif: { $ne: false } }).sort({ adSoyad: 1 }).select('adSoyad unvan rol ilceler').lean();
+  const uygulamaYetkisi = req.izin('talep.gir') || req.izin('talep.degerlendir');
   res.render(V + 'detay', {
+    kisiler, uygulamaYetkisi,
     baslik: ciftci.adSoyad, talep: req.talep, proje, ciftci, hesap, kalemAdi, kalemBirimi, deg, islemler, duzenlenebilir,
     degistirilebilir: metinVar && req.izin('talep.degerlendir') && req.talep.durum === 'incelemede', donus: req.originalUrl.split('?')[0],
     metinEksik: !metinVar && req.izin('talep.degerlendir')
@@ -338,6 +348,85 @@ router.get('/:id/duzenle', sar(talepBul), sar(async (req, res) => {
 }));
 
 router.post('/:id', sar(talepBul), sar(async (req, res) => kaydet(req, res, req.talep)));
+
+// Uygulama bilgileri: çiftçi katkı payı ve sözleşme (desteklenen başvurularda)
+router.post('/:id/uygulama', sar(talepBul), sar(async (req, res) => {
+  const t = req.talep;
+  const donus = `/talepler/${t._id}#uygulama`;
+  if (!['desteklendi', 'teslim'].includes(t.durum)) return res.redirect(`/talepler/${t._id}?bildirim=islem-yapilamadi&hata=` + encodeURIComponent('Uygulama bilgileri desteklenen başvuruda girilir.'));
+  const once = { ...((t.uygulama && t.uygulama.toObject) ? t.uygulama.toObject() : (t.uygulama || {})) };
+  const yeni = {
+    ...once,
+    katkiPayiTarihi: tarihOku(req.body.katkiPayiTarihi),
+    katkiPayiBelgeNo: metin(req.body.katkiPayiBelgeNo) || undefined,
+    sozlesmeTarihi: tarihOku(req.body.sozlesmeTarihi)
+  };
+  const ad = { katkiPayiTarihi: 'Katkı payı yatırma tarihi', katkiPayiBelgeNo: 'Katkı payı belge no', sozlesmeTarihi: 'Sözleşme tarihi' };
+  const gs = (v) => (v instanceof Date ? v.toLocaleDateString('tr-TR') : (v || null));
+  const degisiklikler = Object.keys(ad)
+    .filter((k) => String(gs(once[k]) || '') !== String(gs(yeni[k]) || ''))
+    .map((k) => ({ alan: `uygulama:${k}`, ad: ad[k], eski: gs(once[k]), yeni: gs(yeni[k]) }));
+  if (degisiklikler.length) {
+    t.uygulama = yeni;
+    t.gecmis.push({ ...akis.kisiBilgisi(req.ben, res.locals.ayar), tur: 'duzenleme', durum: t.durum, not: 'Uygulama bilgileri güncellendi', degisiklikler });
+    await t.save();
+  }
+  return res.redirect(`/talepler/${t._id}?bildirim=islem-yapildi${donus.slice(donus.indexOf('#'))}`);
+}));
+
+// Saha kontrolü (EK-5): tarih, kontrol edenler, parsellerde ekim tarihi ve uygunluk, oranlar, görüş, fotoğraflar
+const fotoYukle = multer({ storage: multer.memoryStorage(), limits: { fileSize: 12 * 1024 * 1024, files: 12 } });
+router.post('/:id/kontrol', fotoYukle.array('fotograflar'), sar(talepBul), sar(async (req, res) => {
+  const t = req.talep;
+  const geri = (h) => res.redirect(`/talepler/${t._id}?bildirim=islem-yapilamadi&hata=${encodeURIComponent(h)}#kontroller`);
+  if (!['desteklendi', 'teslim'].includes(t.durum)) return geri('Saha kontrolü desteklenen başvuruda girilir.');
+  const b = req.body;
+  const tarih = tarihOku(b.tarih);
+  if (!tarih) return geri('Kontrol tarihi girilmelidir.');
+  const kisiler = await Kisi().find({ _id: { $in: diziyeCevir(b.kontrolEdenler).filter((x) => mongoose.isValidObjectId(x)) } }).lean();
+  if (!kisiler.length) return geri('Kontrolü yapan en az bir kişi seçilmelidir.');
+  const evetHayir = (v) => (v === 'evet' ? true : (v === 'hayir' ? false : null));
+  const oran = (v) => { const n = sayiOku(v); return n === undefined ? undefined : Math.max(0, Math.min(100, n)); };
+  const parseller = (t.satirlar || []).map((sat) => {
+    const g = (b.parsel && b.parsel[String(sat._id)]) || {};
+    return { satirId: sat._id, ekimTarihi: tarihOku(g.ekimTarihi), uygun: evetHayir(g.uygun) };
+  });
+  const fotograflar = [];
+  for (const f of req.files || []) {
+    if (!/^image\/(jpeg|png|webp|heic|heif)$/.test(f.mimetype)) continue;
+    const ad = Buffer.from(f.originalname || 'foto', 'latin1').toString('utf8');
+    const dosyaId = await dosyalar.kaydet(f.buffer, ad, f.mimetype, { tur: 'kontrol-foto', talepId: String(t._id) });
+    fotograflar.push({ dosyaId, ad });
+  }
+  t.kontroller.push({
+    tarih,
+    kontrolEdenler: kisiler.map((k) => ({ kisi: k._id, ad: k.adSoyad, gorev: k.unvan || (res.locals.ayar.rolAdlari || {})[k.rol] || '' })),
+    parseller,
+    normunaUygun: evetHayir(b.normunaUygun),
+    cikisOrani: oran(b.cikisOrani),
+    tutmaOrani: oran(b.tutmaOrani),
+    kulturelIslemler: evetHayir(b.kulturelIslemler),
+    ekTespit: metin(b.ekTespit) || undefined,
+    gorus: metin(b.gorus) || undefined,
+    fotograflar,
+    kaydedenAd: req.ben ? req.ben.adSoyad : undefined
+  });
+  t.gecmis.push({ ...akis.kisiBilgisi(req.ben, res.locals.ayar), tur: 'not', durum: t.durum, not: `Saha kontrolü kaydedildi (${tarih.toLocaleDateString('tr-TR')}): ${metin(b.gorus) || 'görüş yazılmadı'}` });
+  await t.save();
+  return res.redirect(`/talepler/${t._id}?bildirim=islem-yapildi#kontroller`);
+}));
+
+// Kontrol fotoğrafı
+router.get('/:id/kontrol/:kid/foto/:dosyaId', sar(talepBul), sar(async (req, res, next) => {
+  const k = (req.talep.kontroller || []).find((x) => String(x._id) === req.params.kid);
+  const f = k && (k.fotograflar || []).find((x) => String(x.dosyaId) === req.params.dosyaId);
+  if (!f) return next();
+  const bilgi = await dosyalar.bilgi(f.dosyaId);
+  if (!bilgi) return next();
+  res.set('Content-Type', (bilgi.metadata && bilgi.metadata.icerikTuru) || 'image/jpeg');
+  res.set('Cache-Control', 'private, max-age=86400');
+  dosyalar.okumaAkisi(f.dosyaId).on('error', next).pipe(res);
+}));
 
 // Toplu gönderme: seçilen taslak / geri gönderilmiş başvurular koordinatöre
 router.post('/toplu-gonder', sar(async (req, res) => {

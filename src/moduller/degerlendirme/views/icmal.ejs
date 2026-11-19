@@ -1,7 +1,7 @@
 <%- include('../../../views/partials/ust') %>
 <%- include('../../../views/partials/sayfa-basligi', {
       ustBaslik: proje ? (proje.kisaAd || proje.ad) : 'Projeler',
-      eylemler: proje ? '<button type="button" class="btn d-print-none" onclick="window.print()"><i class="ti ti-printer me-1"></i> Yazdır</button>' : ''
+      eylemler: proje ? '<a class="btn d-print-none" href="/belgeler/ek3?proje=' + proje._id + (filtre.ilce ? '&ilce=' + encodeURIComponent(filtre.ilce) : '') + '&bicim=xlsx"><i class="ti ti-file-spreadsheet me-1"></i> EK-3 Excel</a> <a class="btn d-print-none" target="_blank" href="/belgeler/ek3?proje=' + proje._id + (filtre.ilce ? '&ilce=' + encodeURIComponent(filtre.ilce) : '') + '&bicim=pdf"><i class="ti ti-file-type-pdf me-1"></i> EK-3 PDF</a> <a class="btn d-print-none" href="/belgeler?proje=' + proje._id + '">Tüm formlar</a> <button type="button" class="btn d-print-none" onclick="window.print()"><i class="ti ti-printer me-1"></i> Yazdır</button>' : ''
     }) %>
 <%
   var td = sabitler.talepDurumlari;

@@ -71,6 +71,17 @@ function formuOku(govde, ayar, mevcut) {
       oncelikliAlan: sayiOku(govde.basvuru && govde.basvuru.oncelikliAlan),
       azamiAlan: sayiOku(govde.basvuru && govde.basvuru.azamiAlan)
     },
+    belgeAyarlari: {
+      programAdi: metin(govde.belgeAyarlari && govde.belgeAyarlari.programAdi) || undefined,
+      destekTuru: metin(govde.belgeAyarlari && govde.belgeAyarlari.destekTuru) || undefined,
+      mudurluk: metin(govde.belgeAyarlari && govde.belgeAyarlari.mudurluk) || undefined,
+      imzaYetkilisiAd: metin(govde.belgeAyarlari && govde.belgeAyarlari.imzaYetkilisiAd) || undefined,
+      imzaYetkilisiUnvan: metin(govde.belgeAyarlari && govde.belgeAyarlari.imzaYetkilisiUnvan) || undefined,
+      mahkeme: metin(govde.belgeAyarlari && govde.belgeAyarlari.mahkeme) || undefined,
+      donemTuru: metin(govde.belgeAyarlari && govde.belgeAyarlari.donemTuru) || undefined,
+      komisyonBaskani: metin(govde.belgeAyarlari && govde.belgeAyarlari.komisyonBaskani) || undefined,
+      komisyonUyeleri: String((govde.belgeAyarlari && govde.belgeAyarlari.komisyonUyeleri) || '').split(/[\n;]+/).map((x) => x.trim()).filter(Boolean)
+    },
     degerlendirme: {
       formuller: diziyeCevir(govde.formuller)
         .map((f) => ({

@@ -143,6 +143,18 @@ function degiskenDegerleri(talep, ciftci, proje, ayar, hesap, bbhbOzeti) {
   return d;
 }
 
+// Formülün birimi girilmemişse tahmin edilir: adı ot, yem, silaj, üretim ya da ihtiyaç
+// içeriyorsa kg; para değişkenleriyle (bedel, destek, katkı) hesaplanıyorsa TL; puan birimsiz.
+function birimTahmini(f) {
+  if (f.birim) return f.birim;
+  const metin = `${f.ad || ''} ${f.kod || ''}`.toLocaleLowerCase('tr');
+  if (/puan/.test(metin)) return '';
+  if (/\bot\b|ot_|yem|silaj|üretim|uretim|ihtiya|dengesi|açığı|acigi/.test(metin)) return 'kg';
+  if (/\b(bedel|destek|ciftci_katkisi)\b|_bedel\b/.test(String(f.ifade || ''))) return 'TL';
+  if (/bbhb/.test(String(f.ifade || '')) && !/[*\/]/.test(String(f.ifade || ''))) return 'BBHB';
+  return '';
+}
+
 // Başvurunun formül değerleri, puanı ve limit aşımları
 function degerlendirmeHesabi(talep, ciftci, proje, ayar, hesap, bbhbOzeti) {
   const h = hesap || talepHesabi(talep, proje, ayar);
@@ -150,7 +162,7 @@ function degerlendirmeHesabi(talep, ciftci, proje, ayar, hesap, bbhbOzeti) {
   const formuller = formulleri(proje).map((f) => {
     const r = formul.degerlendir(f.ifade, d);
     d[f.kod] = r.deger == null ? 0 : r.deger;
-    return { kod: f.kod, ad: f.ad, birim: f.birim || '', ondalik: f.ondalik != null ? f.ondalik : 2, puan: !!f.puan, deger: r.deger, hata: r.hata };
+    return { kod: f.kod, ad: f.ad, birim: birimTahmini(f), ondalik: f.ondalik != null ? f.ondalik : 2, puan: !!f.puan, deger: r.deger, hata: r.hata };
   });
   const puanF = formuller.find((f) => f.puan);
   const limitAsimlari = [];
@@ -162,5 +174,5 @@ function degerlendirmeHesabi(talep, ciftci, proje, ayar, hesap, bbhbOzeti) {
 }
 
 module.exports = {
-  kalemKodlari, degiskenTanimlari, tanimlariDenetle, degiskenDegerleri, degerlendirmeHesabi, formulleri, limitleri, uretimKodu
+  birimTahmini, kalemKodlari, degiskenTanimlari, tanimlariDenetle, degiskenDegerleri, degerlendirmeHesabi, formulleri, limitleri, uretimKodu
 };

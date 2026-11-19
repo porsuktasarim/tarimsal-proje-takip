@@ -4,7 +4,7 @@
   var adlar = { olusturma: 'Başvuru girildi', gonderme: 'Gönderildi', teslim_alma: 'Teslim alındı', degisiklik: 'Değer değiştirildi', not: 'Not', geri_gonderme: 'Yürütücüye gönderildi', karar: 'Karar', karar_geri_alma: 'Karar geri alındı', teslim: 'Teslim edildi', teslim_geri_alma: 'Teslim geri alındı', duzenleme: 'Başvuru formu düzenlendi' };
   var ikonlar = { olusturma: 'ti-file-plus', gonderme: 'ti-send', teslim_alma: 'ti-inbox', degisiklik: 'ti-pencil', not: 'ti-message', geri_gonderme: 'ti-arrow-back-up', karar: 'ti-gavel', karar_geri_alma: 'ti-arrow-back', teslim: 'ti-truck-delivery', teslim_geri_alma: 'ti-arrow-back', duzenleme: 'ti-edit' };
   var kayitlar = (talep.gecmis || []).slice().reverse();
-  var dg = function (v) { return v == null || v === '' ? '–' : y.sayi(v); };
+  var dg = function (v) { return v == null || v === '' ? '–' : (typeof v === 'number' ? y.sayi(v) : v); };
 %>
 <% if (!kayitlar.length) { %>
   <div class="text-secondary small">Geçmiş kaydı yok.</div>

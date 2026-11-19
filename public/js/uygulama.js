@@ -364,10 +364,12 @@
       fetch('/ciftciler/tc/' + tc).then(function (r) { return r.json(); }).then(function (c) {
         if (c.bulundu) {
           var ciftci = c.ciftci;
-          ['adSoyad', 'telefon', 'mahalle', 'adres'].forEach(function (a) {
+          ['adSoyad', 'telefon', 'mahalle', 'adres', 'cinsiyet', 'istihdam'].forEach(function (a) {
             var el = tForm.querySelector('[data-alan="' + a + '"]');
-            if (el) el.value = ciftci[a] || '';
+            if (el) el.value = ciftci[a] != null ? ciftci[a] : '';
           });
+          var dt = tForm.querySelector('[data-alan="dogumTarihi"]');
+          if (dt) dt.value = ciftci.dogumTarihi ? String(ciftci.dogumTarihi).slice(0, 10) : '';
           var cks = tForm.querySelector('[data-alan="cks"]');
           if (cks) cks.checked = !!ciftci.cks;
           tForm.querySelectorAll('[data-hayvan]').forEach(function (el) {
@@ -605,7 +607,17 @@
       var sutun = 0;
       Array.prototype.forEach.call(alt.cells, function (td) {
         var tur = td.getAttribute('data-toplam-sutun');
-        if (tur) {
+        if (tur === 'uretim') {
+          // Beklenen üretimler: tür tür toplanıp alt alta yazılır
+          var tanim = JSON.parse(td.getAttribute('data-uretim-tanim') || '[]');
+          var top = {};
+          Array.prototype.forEach.call(izgara.tBodies[0].rows, function (tr) {
+            var h = tr.cells[sutun];
+            var v = h ? JSON.parse(h.getAttribute('data-uretimler') || '{}') : {};
+            Object.keys(v).forEach(function (k) { top[k] = (top[k] || 0) + (Number(v[k]) || 0); });
+          });
+          td.textContent = tanim.filter(function (u) { return top[u.kod]; }).map(function (u) { return u.ad + ': ' + Number(top[u.kod]).toLocaleString('tr-TR', { maximumFractionDigits: 0 }) + ' ' + u.birim; }).join('\n');
+        } else if (tur) {
           var t = 0, var_ = false;
           Array.prototype.forEach.call(izgara.tBodies[0].rows, function (tr) {
             var h = tr.cells[sutun];
@@ -640,6 +652,7 @@
             td.textContent = h.metin;
             td.setAttribute('data-deger', h.deger == null ? '' : h.deger);
             td.title = h.ipucu || '';
+            if (h.degerler) td.setAttribute('data-uretimler', JSON.stringify(h.degerler));
           });
           tr.classList.toggle('limit-ustu', !!(v.hucreler.limit && v.hucreler.limit.deger));
           toplamlar();

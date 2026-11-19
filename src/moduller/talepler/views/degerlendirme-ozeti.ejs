@@ -10,8 +10,8 @@
 <% var dd = deg.degiskenler || {}; %>
 <div class="small mb-2">
   <i class="ti ti-horse me-1"></i>BBHB:
-  <% if (dd.bbhb_var) { %><strong><%= y.sayi(dd.bbhb) %></strong> <span class="text-secondary">(kayıt, <%= deg.bbhb.isletmeSayisi %> işletme)</span> · <% } else { %><span class="text-secondary">kayıt eşleşmedi ·</span> <% } %>
-  beyandan <%= y.sayi(dd.bbhb_beyan) %>
+  <% if (dd.bbhb_var) { %><strong><%= y.sayi(dd.bbhb) %> BBHB</strong> <span class="text-secondary">(kayıt, <%= deg.bbhb.isletmeSayisi %> işletme)</span> · <% } else { %><span class="text-secondary">kayıt eşleşmedi ·</span> <% } %>
+  beyandan <%= y.sayi(dd.bbhb_beyan) %> BBHB
 </div>
 <% if (deg.formuller.length) { %>
   <dl class="row mb-0 small">

@@ -29,6 +29,31 @@
           </div></div>
         <% } %>
 
+        <div class="row row-cards mb-3">
+          <div class="col-md-6">
+        <div class="card h-100">
+          <div class="card-header"><h3 class="card-title"><a href="/ciftciler/<%= ciftci._id %>" class="text-reset"><%= ciftci.adSoyad %></a></h3></div>
+          <div class="card-body">
+            <dl class="row mb-0">
+              <dt class="col-5">T.C. kimlik no</dt><dd class="col-7 font-monospace"><%= ciftci.tcKimlikNo %></dd>
+              <dt class="col-5">İlçe</dt><dd class="col-7"><%= ciftci.ilce %></dd>
+              <dt class="col-5">Mahalle / köy</dt><dd class="col-7"><%= ciftci.mahalle || '–' %></dd>
+              <dt class="col-5">Telefon</dt><dd class="col-7"><%= ciftci.telefon || '–' %></dd>
+              <dt class="col-5">ÇKS</dt><dd class="col-7"><%- ciftci.cks ? '<span class="badge bg-green-lt">Kaydı var</span>' : '<span class="badge bg-secondary-lt">Kaydı yok</span>' %></dd>
+              <dt class="col-5">Hayvan varlığı</dt><dd class="col-7"><%= y.hayvanMetni(talep.hayvanlar, ayar.hayvanTurleri) || 'Yok / girilmemiş' %></dd>
+            </dl>
+          </div>
+          <div class="card-footer"><a href="/ciftciler/<%= ciftci._id %>" class="btn btn-sm w-100"><i class="ti ti-list-details me-1"></i> Çiftçi icmali</a></div>
+        </div>
+          </div>
+          <div class="col-md-6">
+            <div class="card h-100">
+              <div class="card-header"><h3 class="card-title">Değerlendirme</h3><% if (deg.puan != null) { %><div class="card-actions"><span class="badge bg-purple-lt">Puan <%= y.sayi(deg.puan) %></span></div><% } %></div>
+              <div class="card-body"><%- include('degerlendirme-ozeti', { deg: deg }) %></div>
+            </div>
+          </div>
+        </div>
+
         <div class="card mb-3">
           <div class="card-header"><h3 class="card-title">Talep ve hesap</h3></div>
           <div class="table-responsive">
@@ -82,41 +107,135 @@
           <% } else { %>
           <div class="table-responsive">
             <table class="table table-vcenter card-table">
-              <thead><tr><th>Kalem</th><th>İlçe</th><th>Mahalle / köy</th><th>Ada / parsel</th><th class="tablo-sayi">Miktar</th></tr></thead>
+              <thead><tr><th>Kalem</th><th>İlçe</th><th>Mahalle / köy</th><th>Ada / parsel</th><th>Arazi</th><th class="tablo-sayi">Miktar</th></tr></thead>
               <tbody>
+                <% var SULAMA = { kuru: 'Kuru', sulu: 'Sulu' }, ARAZI = { islenen: 'İşlenen', islenmeyen: 'İşlenmeyen', nadas: 'Nadas', uygunOlmayan: 'İşlemeli tarıma uygun değil' }; %>
                 <% talep.satirlar.forEach(function (s) { %>
                   <tr>
                     <td><%= kalemAdi(s.kalemId) %></td>
                     <td><%= s.parselIlce || '–' %></td>
                     <td><%= s.mahalle || '–' %></td>
                     <td class="font-monospace"><%= s.ada || '–' %> / <%= s.parsel || '–' %></td>
+                    <td class="small"><%= [SULAMA[s.sulama], ARAZI[s.araziDurumu]].filter(Boolean).join(' · ') || '–' %></td>
                     <td class="tablo-sayi text-nowrap"><%= y.sayi(s.miktar != null ? s.miktar : s.alan) %> <%= kalemBirimi(s.kalemId) %><% if (s.en && s.boy) { %><div class="small text-secondary"><%= y.sayi(s.en) %> × <%= y.sayi(s.boy) %> m</div><% } %></td>
                   </tr>
                 <% }) %>
               </tbody>
-              <tfoot><tr class="fw-bold"><td colspan="4">Toplam</td><td class="tablo-sayi text-nowrap"><%= y.toplamMetni(hesap.parselToplamlari) %></td></tr></tfoot>
+              <tfoot><tr class="fw-bold"><td colspan="5">Toplam</td><td class="tablo-sayi text-nowrap"><%= y.toplamMetni(hesap.parselToplamlari) %></td></tr></tfoot>
             </table>
           </div>
           <% } %>
         </div>
+
+        <% var uygulamada = ['desteklendi', 'teslim'].indexOf(talep.durum) >= 0; var u = talep.uygulama || {}; %>
+        <% if (uygulamada) { %>
+          <div class="card mb-3" id="uygulama">
+            <div class="card-header"><h3 class="card-title">Uygulama</h3></div>
+            <div class="card-body">
+              <% if (uygulamaYetkisi) { %>
+                <form method="post" action="/talepler/<%= talep._id %>/uygulama" class="row g-2 align-items-end">
+                  <div class="col-md-3"><label class="form-label small mb-1">Katkı payı yatırma tarihi</label><input type="date" name="katkiPayiTarihi" value="<%= y.inputTarih(u.katkiPayiTarihi) %>" class="form-control form-control-sm"></div>
+                  <div class="col-md-3"><label class="form-label small mb-1">Makbuz / dekont no</label><input type="text" name="katkiPayiBelgeNo" value="<%= u.katkiPayiBelgeNo || '' %>" class="form-control form-control-sm"></div>
+                  <div class="col-md-3"><label class="form-label small mb-1">Sözleşme tarihi</label><input type="date" name="sozlesmeTarihi" value="<%= y.inputTarih(u.sozlesmeTarihi) %>" class="form-control form-control-sm"></div>
+                  <div class="col-md-3"><button class="btn btn-sm w-100"><i class="ti ti-device-floppy me-1"></i> Kaydet</button></div>
+                </form>
+              <% } else { %>
+                <div class="small">Katkı payı: <%= u.katkiPayiTarihi ? y.tarih(u.katkiPayiTarihi) : '–' %><%= u.katkiPayiBelgeNo ? ' · ' + u.katkiPayiBelgeNo : '' %> · Sözleşme: <%= u.sozlesmeTarihi ? y.tarih(u.sozlesmeTarihi) : '–' %></div>
+              <% } %>
+              <div class="small text-secondary mt-2"><i class="ti ti-truck-delivery me-1"></i>Teslim: <%= u.teslimTarihi ? y.tarih(u.teslimTarihi) + ' · ' + (u.teslimEdenAd || '–') : 'henüz teslim edilmedi' %></div>
+            </div>
+          </div>
+
+          <div class="card mb-3" id="kontroller">
+            <div class="card-header">
+              <h3 class="card-title">Saha kontrolleri <span class="text-secondary fw-normal">(<%= (talep.kontroller || []).length %>)</span></h3>
+            </div>
+            <% (talep.kontroller || []).slice().reverse().forEach(function (k) { %>
+              <div class="card-body border-bottom">
+                <div class="d-flex flex-wrap gap-2 align-items-center mb-1">
+                  <strong><%= y.tarih(k.tarih) %></strong>
+                  <span class="text-secondary small"><%= k.kontrolEdenler.map(function (x) { return x.ad + (x.gorev ? ' (' + x.gorev + ')' : ''); }).join(', ') %></span>
+                  <a class="btn btn-sm btn-ghost-secondary ms-auto" href="/belgeler/ek5?talep=<%= talep._id %>&kontrol=<%= k._id %>&bicim=pdf" target="_blank"><i class="ti ti-file-type-pdf me-1"></i>EK-5</a>
+                </div>
+                <div class="small">
+                  <% var eh = function (v, e, h) { return v === true ? e : (v === false ? h : '–'); }; %>
+                  Norma uygun ekim: <%= eh(k.normunaUygun, 'evet', 'hayır') %>
+                  <% if (k.cikisOrani != null) { %> · Çıkış %<%= y.sayi(k.cikisOrani) %><% } %>
+                  <% if (k.tutmaOrani != null) { %> · Tutma %<%= y.sayi(k.tutmaOrani) %><% } %>
+                  <% if (k.kulturelIslemler != null) { %> · Kültürel işlemler: <%= eh(k.kulturelIslemler, 'muntazam', 'yapılmamış') %><% } %>
+                  · Parseller: <%= k.parseller.filter(function (p) { return p.uygun === true; }).length %> uygun / <%= k.parseller.filter(function (p) { return p.uygun === false; }).length %> uygun değil
+                </div>
+                <% if (k.gorus) { %><div class="gecmis-not small mt-1"><%= k.gorus %></div><% } %>
+                <% if (k.ekTespit) { %><div class="small text-secondary mt-1"><%= k.ekTespit %></div><% } %>
+                <% if ((k.fotograflar || []).length) { %>
+                  <div class="d-flex flex-wrap gap-2 mt-2">
+                    <% k.fotograflar.forEach(function (f) { var src = '/talepler/' + talep._id + '/kontrol/' + k._id + '/foto/' + f.dosyaId; %>
+                      <a href="<%= src %>" target="_blank"><img src="<%= src %>" alt="<%= f.ad %>" class="kontrol-foto"></a>
+                    <% }) %>
+                  </div>
+                <% } %>
+              </div>
+            <% }) %>
+            <% if (uygulamaYetkisi) { %>
+              <div class="card-body">
+                <details <%= (talep.kontroller || []).length ? '' : 'open' %>>
+                  <summary class="text-primary mb-2">Saha kontrolü ekle</summary>
+                  <form method="post" action="/talepler/<%= talep._id %>/kontrol" enctype="multipart/form-data" class="row g-2">
+                    <div class="col-md-3"><label class="form-label small mb-1 required">Kontrol tarihi</label><input type="date" name="tarih" class="form-control form-control-sm" required value="<%= y.inputTarih(new Date()) %>"></div>
+                    <div class="col-md-9">
+                      <label class="form-label small mb-1 required">Kontrolü yapanlar</label>
+                      <select name="kontrolEdenler" class="form-select form-select-sm" multiple size="3" required>
+                        <% kisiler.forEach(function (k) { %><option value="<%= k._id %>" <%= ben && String(ben._id) === String(k._id) ? 'selected' : '' %>><%= k.adSoyad %><%= k.unvan ? ' — ' + k.unvan : '' %></option><% }) %>
+                      </select>
+                      <small class="form-hint">Ctrl / Cmd ile birden fazla kişi seçilir (tutanakta düzenleyenler).</small>
+                    </div>
+                    <% if (talep.satirlar.length) { %>
+                      <div class="col-12">
+                        <table class="table table-sm mb-0">
+                          <thead><tr><th>Parsel</th><th style="width:10rem">Ekim / dikim tarihi</th><th style="width:10rem">Görüş</th></tr></thead>
+                          <tbody>
+                            <% talep.satirlar.forEach(function (sat) { %>
+                              <tr>
+                                <td class="small"><%= kalemAdi(sat.kalemId) %> · <%= sat.mahalle || sat.parselIlce || '' %> <%= sat.ada || '–' %>/<%= sat.parsel || '–' %> · <%= y.sayi(sat.miktar) %> <%= kalemBirimi(sat.kalemId) %></td>
+                                <td><input type="date" name="parsel[<%= sat._id %>][ekimTarihi]" class="form-control form-control-sm"></td>
+                                <td><select name="parsel[<%= sat._id %>][uygun]" class="form-select form-select-sm"><option value="">–</option><option value="evet">Uygundur</option><option value="hayir">Uygun değildir</option></select></td>
+                              </tr>
+                            <% }) %>
+                          </tbody>
+                        </table>
+                      </div>
+                    <% } %>
+                    <div class="col-md-3"><label class="form-label small mb-1">Ekim normuna uygun</label><select name="normunaUygun" class="form-select form-select-sm"><option value="">–</option><option value="evet">Gerçekleştirdi</option><option value="hayir">Gerçekleştirmedi</option></select></div>
+                    <div class="col-md-3"><label class="form-label small mb-1">Çıkış oranı (%)</label><input type="number" min="0" max="100" step="any" name="cikisOrani" class="form-control form-control-sm"></div>
+                    <div class="col-md-3"><label class="form-label small mb-1">Tutma oranı (%)</label><input type="number" min="0" max="100" step="any" name="tutmaOrani" class="form-control form-control-sm" placeholder="fidan / aşı"></div>
+                    <div class="col-md-3"><label class="form-label small mb-1">Kültürel işlemler</label><select name="kulturelIslemler" class="form-select form-select-sm"><option value="">–</option><option value="evet">Muntazam</option><option value="hayir">Yapılmamış</option></select></div>
+                    <div class="col-md-6"><label class="form-label small mb-1">Görüşler (gelişim ve çiftçi memnuniyeti)</label><textarea name="gorus" rows="2" class="form-control form-control-sm"></textarea></div>
+                    <div class="col-md-6"><label class="form-label small mb-1">Diğer tespitler</label><textarea name="ekTespit" rows="2" class="form-control form-control-sm"></textarea></div>
+                    <div class="col-md-8"><label class="form-label small mb-1">Fotoğraflar</label><input type="file" name="fotograflar" accept="image/*" multiple class="form-control form-control-sm"></div>
+                    <div class="col-md-4 d-flex align-items-end"><button class="btn btn-sm btn-primary w-100"><i class="ti ti-device-floppy me-1"></i> Kontrolü kaydet</button></div>
+                  </form>
+                </details>
+              </div>
+            <% } %>
+          </div>
+        <% } %>
 
         <% if (talep.aciklama) { %><div class="card mb-3"><div class="card-body" style="white-space: pre-line"><%= talep.aciklama %></div></div><% } %>
       </div>
 
       <div class="col-lg-4">
         <div class="card mb-3">
-          <div class="card-header"><h3 class="card-title"><a href="/ciftciler/<%= ciftci._id %>" class="text-reset"><%= ciftci.adSoyad %></a></h3></div>
-          <div class="card-body">
-            <dl class="row mb-0">
-              <dt class="col-5">T.C. kimlik no</dt><dd class="col-7 font-monospace"><%= ciftci.tcKimlikNo %></dd>
-              <dt class="col-5">İlçe</dt><dd class="col-7"><%= ciftci.ilce %></dd>
-              <dt class="col-5">Mahalle / köy</dt><dd class="col-7"><%= ciftci.mahalle || '–' %></dd>
-              <dt class="col-5">Telefon</dt><dd class="col-7"><%= ciftci.telefon || '–' %></dd>
-              <dt class="col-5">ÇKS</dt><dd class="col-7"><%- ciftci.cks ? '<span class="badge bg-green-lt">Kaydı var</span>' : '<span class="badge bg-secondary-lt">Kaydı yok</span>' %></dd>
-              <dt class="col-5">Hayvan varlığı</dt><dd class="col-7"><%= y.hayvanMetni(talep.hayvanlar, ayar.hayvanTurleri) || 'Yok / girilmemiş' %></dd>
-            </dl>
+          <div class="card-header"><h3 class="card-title">Formlar</h3></div>
+          <div class="list-group list-group-flush">
+            <% [['ek1', 'EK-1 Başvuru formu', true], ['ek2', 'EK-2 Hibe desteği sözleşmesi', uygulamada], ['ek4', 'EK-4 Teslim tutanağı', uygulamada], ['ek5', 'EK-5 Arazi kontrol tutanağı', uygulamada]].forEach(function (b) { if (!b[2]) return; %>
+              <div class="list-group-item d-flex align-items-center gap-1 py-2">
+                <span class="small flex-fill"><%= b[1] %></span>
+                <a class="btn btn-sm btn-ghost-danger px-2" title="PDF" target="_blank" href="/belgeler/<%= b[0] %>?talep=<%= talep._id %>&bicim=pdf"><i class="ti ti-file-type-pdf"></i></a>
+                <a class="btn btn-sm btn-ghost-primary px-2" title="Word" href="/belgeler/<%= b[0] %>?talep=<%= talep._id %>&bicim=docx"><i class="ti ti-file-type-docx"></i></a>
+                <a class="btn btn-sm btn-ghost-success px-2" title="Excel" href="/belgeler/<%= b[0] %>?talep=<%= talep._id %>&bicim=xlsx"><i class="ti ti-file-spreadsheet"></i></a>
+              </div>
+            <% }) %>
           </div>
-          <div class="card-footer"><a href="/ciftciler/<%= ciftci._id %>" class="btn btn-sm w-100"><i class="ti ti-list-details me-1"></i> Çiftçi icmali</a></div>
         </div>
 
         <div class="card mb-3">
@@ -147,10 +266,6 @@
           </div>
         <% } %>
 
-        <div class="card mb-3">
-          <div class="card-header"><h3 class="card-title">Değerlendirme</h3><% if (deg.puan != null) { %><div class="card-actions"><span class="badge bg-purple-lt">Puan <%= y.sayi(deg.puan) %></span></div><% } %></div>
-          <div class="card-body"><%- include('degerlendirme-ozeti', { deg: deg }) %></div>
-        </div>
 
         <div class="card mb-3">
           <div class="card-header"><h3 class="card-title">Geçmiş ve notlar</h3></div>

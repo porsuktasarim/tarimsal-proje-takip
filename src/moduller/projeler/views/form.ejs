@@ -233,6 +233,61 @@
         </div>
       </div>
 
+      <% var ba = proje.belgeAyarlari || {}; %>
+      <div class="card mb-3" id="formlar">
+        <div class="card-header">
+          <div>
+            <h3 class="card-title"><span class="badge bg-primary-lt me-2">6</span> Formlar</h3>
+            <p class="card-subtitle">Başvuru formu, hibe desteği sözleşmesi, kesin icmal, teslim ve arazi kontrol tutanaklarında kullanılır. Boş bırakılanlar formda noktalı boşluk olarak çıkar.</p>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="row g-3">
+            <div class="col-md-8">
+              <label class="form-label">Program / üst proje adı</label>
+              <input type="text" name="belgeAyarlari[programAdi]" value="<%= ba.programAdi || '' %>" class="form-control" placeholder="TARIM ARAZİLERİNİN KULLANIMININ ETKİNLEŞTİRİLMESİ PROJESİ">
+              <small class="form-hint">Formların üst başlığı. Boş bırakılırsa TAKE başlığı kullanılır.</small>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Destek türü</label>
+              <input type="text" name="belgeAyarlari[destekTuru]" value="<%= ba.destekTuru || '' %>" class="form-control" list="dl-destek-turu" placeholder="Tohum">
+              <datalist id="dl-destek-turu"><option>Tohum</option><option>Fide</option><option>Fidan</option><option>Aşılama</option></datalist>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Uygulayan müdürlük</label>
+              <input type="text" name="belgeAyarlari[mudurluk]" value="<%= ba.mudurluk || '' %>" class="form-control" placeholder="<%= ayar.kurum || 'İstanbul İl Tarım ve Orman Müdürlüğü' %>">
+            </div>
+            <div class="col-md-3">
+              <label class="form-label">Dönem</label>
+              <select name="belgeAyarlari[donemTuru]" class="form-select">
+                <option value="">–</option>
+                <% ['Güz', 'Bahar'].forEach(function (d) { %><option <%= ba.donemTuru === d ? 'selected' : '' %>><%= d %></option><% }) %>
+              </select>
+            </div>
+            <div class="col-md-3">
+              <label class="form-label">Yetkili mahkeme</label>
+              <input type="text" name="belgeAyarlari[mahkeme]" value="<%= ba.mahkeme || '' %>" class="form-control" placeholder="<%= ayar.il || 'İstanbul' %>">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Sözleşme imza yetkilisi</label>
+              <input type="text" name="belgeAyarlari[imzaYetkilisiAd]" value="<%= ba.imzaYetkilisiAd || '' %>" class="form-control" placeholder="Adı soyadı">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">İmza yetkilisinin unvanı</label>
+              <input type="text" name="belgeAyarlari[imzaYetkilisiUnvan]" value="<%= ba.imzaYetkilisiUnvan || '' %>" class="form-control" placeholder="İl Tarım ve Orman Müdürü">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Kesin icmal: komisyon başkanı</label>
+              <input type="text" name="belgeAyarlari[komisyonBaskani]" value="<%= ba.komisyonBaskani || '' %>" class="form-control">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Komisyon üyeleri <span class="text-secondary fw-normal">(her satıra bir kişi)</span></label>
+              <textarea name="belgeAyarlari[komisyonUyeleri]" rows="2" class="form-control"><%= (ba.komisyonUyeleri || []).join('\n') %></textarea>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <%
         var dgr = proje.degerlendirme || {};
         var formuller = (dgr.formuller && dgr.formuller.length) ? dgr.formuller : [];

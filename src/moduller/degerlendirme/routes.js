@@ -11,7 +11,7 @@ const { metinVarMi } = require('../projeler/proje-metni');
 const metinSayfasi = (proje) => `/projeler/${proje._id}?bildirim=proje-metni-gerekli&metin=gerekli#proje-metni`;
 const { anahtar, diziyeCevir, sayi, para, sayiOku, hayvanlariOku } = require('../../core/yardimcilar');
 const { normOku } = require('../ayarlar/katalog');
-const { uretimKodu } = require('../projeler/degerlendirme-hesabi');
+const { uretimKodu, birimTahmini } = require('../projeler/degerlendirme-hesabi');
 const { normsuzMu } = require('../projeler/hesap');
 const { yetkiGerekli, ilceKisitliMi } = require('../../core/yetki');
 
@@ -56,7 +56,10 @@ function satirVerisi(t, proje, ayar, bbhbHarita) {
 function uretimSutunlari(proje, ayar) {
   return (ayar.ciktiNormlari || [])
     .filter((n) => proje.kalemler.some((k) => !normsuzMu(k, ayar) && normOku(k.normlar, n.kod)))
-    .map((n) => ({ kod: uretimKodu(n.kod), ad: n.ad.replace(/\s*verimi$/i, '') + ' üretimi', birim: String(n.birim || 'kg').split('/')[0] }));
+    .map((n) => {
+      const kisa = n.ad.replace(/\s*verimi$/i, '');
+      return { kod: uretimKodu(n.kod), ad: kisa + ' üretimi', kisaAd: kisa, birim: String(n.birim || 'kg').split('/')[0] };
+    });
 }
 
 // Izgaradaki hesaplanan hücreler: anahtar → { deger, metin, ipucu }
@@ -75,7 +78,12 @@ function hucreler(s, proje, uretimler) {
     bbhbVar ? `BBHB kaydı (${s.deg.bbhb.isletmeSayisi} işletme): ${sayi(s.deg.bbhb.buyukbas)} büyükbaş, ${sayi(s.deg.bbhb.kucukbas)} küçükbaş` : 'Kayıt eşleşmedi; beyan edilen sayılardan tahmin');
   koy('bedel', h.bedel, para(h.bedel));
   koy('katki', h.ciftciKatkisi, para(h.ciftciKatkisi));
-  uretimler.forEach((u) => koy(`u:${u.kod}`, d[u.kod], sayi(d[u.kod], 0)));
+  // Beklenen üretimler tek hücrede alt alta (ör. "Silaj: 84.000 kg")
+  const uretimDegerleri = {};
+  uretimler.forEach((u) => { uretimDegerleri[u.kod] = d[u.kod] || 0; });
+  const uretimMetni = uretimler.filter((u) => d[u.kod]).map((u) => `${u.kisaAd}: ${sayi(d[u.kod], 0)} ${u.birim}`).join('\n');
+  koy('uretim', uretimler.reduce((t, u) => t + (d[u.kod] || 0), 0), uretimMetni || '–', '');
+  o.uretim.degerler = uretimDegerleri;
   s.deg.formuller.forEach((f) => koy(`f:${f.kod}`, f.deger, f.hata ? 'hata' : sayi(f.deger, f.ondalik), f.hata || ''));
   koy('limit', s.deg.limitAsimlari.length, s.deg.limitAsimlari.length ? 'limit üstü' : '',
     s.deg.limitAsimlari.map((l) => `${l.ad}: ${sayi(l.deger)} > ${sayi(l.ust)} ${l.birim}`).join('\n'));
@@ -148,7 +156,7 @@ router.get('/', sar(async (req, res) => {
 
   res.render(V + 'liste', {
     baslik: 'Değerlendirme', projeler, proje, satirlar, sayilar, mahalleler, limitUstu, puanVar, destek, butce, toplam,
-    formuller: formulleri(proje), limitler: limitleri(proje), ASAMA_GRUPLARI, kalemAdi,
+    formuller: formulleri(proje).map((f) => ({ ...(f.toObject ? f.toObject() : f), birim: birimTahmini(f) })), limitler: limitleri(proje), ASAMA_GRUPLARI, kalemAdi,
     uretimler: uretimSutunlari(proje, ayar), hucreler,
     filtre: { proje: String(proje._id), asama: grup || req.query.asama, ilce, mahalle, q: req.query.q || '', limit: req.query.limit || '' },
     donus: '/degerlendirme?' + new URLSearchParams(Object.entries({

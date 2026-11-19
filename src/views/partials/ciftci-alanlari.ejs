@@ -32,6 +32,22 @@
     <label class="form-label">Mahalle / köy</label>
     <input type="text" name="<%= ad('mahalle') %>" value="<%= cf.mahalle || '' %>" class="form-control" data-alan="mahalle">
   </div>
+  <div class="col-md-4">
+    <label class="form-label">Cinsiyet</label>
+    <select name="<%= ad('cinsiyet') %>" class="form-select" data-alan="cinsiyet">
+      <option value="">–</option>
+      <option value="kadin" <%= cf.cinsiyet === 'kadin' ? 'selected' : '' %>>Kadın</option>
+      <option value="erkek" <%= cf.cinsiyet === 'erkek' ? 'selected' : '' %>>Erkek</option>
+    </select>
+  </div>
+  <div class="col-md-4">
+    <label class="form-label">Doğum tarihi</label>
+    <input type="date" name="<%= ad('dogumTarihi') %>" value="<%= y.inputTarih(cf.dogumTarihi) %>" class="form-control" data-alan="dogumTarihi">
+  </div>
+  <div class="col-md-4">
+    <label class="form-label">İstihdam ettiği kişi sayısı</label>
+    <input type="number" min="0" step="1" name="<%= ad('istihdam') %>" value="<%= cf.istihdam != null ? cf.istihdam : '' %>" class="form-control" data-alan="istihdam">
+  </div>
   <div class="col-md-8">
     <label class="form-label">Adres</label>
     <input type="text" name="<%= ad('adres') %>" value="<%= cf.adres || '' %>" class="form-control" data-alan="adres">

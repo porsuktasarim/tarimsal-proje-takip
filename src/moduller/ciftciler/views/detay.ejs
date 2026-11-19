@@ -18,6 +18,9 @@
               <dt class="col-5">Mahalle / köy</dt><dd class="col-7"><%= c.mahalle || '–' %></dd>
               <dt class="col-5">Adres</dt><dd class="col-7"><%= c.adres || '–' %></dd>
               <dt class="col-5">Telefon</dt><dd class="col-7"><%= c.telefon || '–' %></dd>
+              <dt class="col-5">Cinsiyet</dt><dd class="col-7"><%= c.cinsiyet === 'kadin' ? 'Kadın' : (c.cinsiyet === 'erkek' ? 'Erkek' : '–') %></dd>
+              <dt class="col-5">Doğum tarihi</dt><dd class="col-7"><%= c.dogumTarihi ? y.tarih(c.dogumTarihi) : '–' %></dd>
+              <dt class="col-5">İstihdam</dt><dd class="col-7"><%= c.istihdam != null ? c.istihdam + ' kişi' : '–' %></dd>
               <dt class="col-5">ÇKS</dt><dd class="col-7"><%- c.cks ? '<span class="badge bg-green-lt">Kaydı var</span>' : '<span class="badge bg-secondary-lt">Kaydı yok</span>' %></dd>
               <dt class="col-5">Hayvan varlığı</dt><dd class="col-7"><%= y.hayvanMetni(c.hayvanlar, ayar.hayvanTurleri) || '–' %><% if (c.hayvanTarihi) { %><div class="text-secondary small"><%= y.tarih(c.hayvanTarihi) %> itibarıyla</div><% } %></dd>
               <dt class="col-5">Kaydeden</dt><dd class="col-7"><%= c.kaydedenAd || '–' %><div class="text-secondary small"><%= y.tarih(c.olusturulma) %></div></dd>

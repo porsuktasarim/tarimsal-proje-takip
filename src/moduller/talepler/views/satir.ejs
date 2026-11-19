@@ -27,6 +27,22 @@
   <td><input type="text" name="<%= on %>[ada]" value="<%= dv(s.ada) %>" class="form-control form-control-sm"></td>
   <td><input type="text" name="<%= on %>[parsel]" value="<%= dv(s.parsel) %>" class="form-control form-control-sm"></td>
   <td>
+    <select name="<%= on %>[sulama]" class="form-select form-select-sm">
+      <option value="">–</option>
+      <option value="kuru" <%= s.sulama === 'kuru' ? 'selected' : '' %>>Kuru</option>
+      <option value="sulu" <%= s.sulama === 'sulu' ? 'selected' : '' %>>Sulu</option>
+    </select>
+  </td>
+  <td>
+    <select name="<%= on %>[araziDurumu]" class="form-select form-select-sm" title="Kesin icmalde (EK-3) alan sütunlarına yazılır">
+      <option value="">–</option>
+      <option value="islenen" <%= s.araziDurumu === 'islenen' ? 'selected' : '' %>>İşlenen</option>
+      <option value="islenmeyen" <%= s.araziDurumu === 'islenmeyen' ? 'selected' : '' %>>İşlenmeyen</option>
+      <option value="nadas" <%= s.araziDurumu === 'nadas' ? 'selected' : '' %>>Nadas</option>
+      <option value="uygunOlmayan" <%= s.araziDurumu === 'uygunOlmayan' ? 'selected' : '' %>>İşlemeli tarıma uygun olmayan</option>
+    </select>
+  </td>
+  <td>
     <div class="input-group input-group-sm flex-nowrap mb-1 talep-en-boy<%= tb === 'm²' ? '' : ' d-none' %>" title="Sera ölçüsü: en × boy (m); miktar hesaplanır">
       <input type="number" step="any" min="0" name="<%= on %>[en]" value="<%= dv(s.en) %>" class="form-control text-end talep-en" placeholder="en">
       <span class="input-group-text px-1">×</span>

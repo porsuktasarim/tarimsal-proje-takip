@@ -5,7 +5,7 @@ const mongoose = require('mongoose');
 const Ciftci = require('./model');
 const Talep = require('../talepler/model');
 const { talepHesabi } = require('../projeler/hesap');
-const { tcGecerliMi, anahtar } = require('../../core/yardimcilar');
+const { tcGecerliMi, anahtar, tarihOku, sayiOku } = require('../../core/yardimcilar');
 const { calisilanIlceler, ilceKisitliMi, yetkiGerekli } = require('../../core/yetki');
 
 const router = express.Router();
@@ -30,6 +30,9 @@ function ciftciFormuOku(g) {
     mahalle: metin(g.mahalle) || undefined,
     adres: metin(g.adres) || undefined,
     cks: g.cks === 'on' || g.cks === 'true' || g.cks === '1',
+    cinsiyet: ['kadin', 'erkek'].includes(g.cinsiyet) ? g.cinsiyet : null,
+    dogumTarihi: tarihOku(g.dogumTarihi),
+    istihdam: sayiOku(g.istihdam) !== undefined ? Math.max(0, Math.round(sayiOku(g.istihdam))) : undefined,
     aciklama: metin(g.aciklama) || undefined
   };
 }

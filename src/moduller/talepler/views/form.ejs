@@ -91,6 +91,18 @@
                 </tbody>
               </table>
             </div>
+            <div class="card-body border-top py-2">
+              <div class="row g-2 align-items-center">
+                <div class="col-auto"><label class="form-label mb-0">Bu yıl ekim yapmadığı / yapmayacağı toplam alan</label></div>
+                <div class="col-auto">
+                  <div class="input-group input-group-sm">
+                    <input type="number" step="any" min="0" name="ekilmeyenAlan" value="<%= talep.ekilmeyenAlan != null ? talep.ekilmeyenAlan : '' %>" class="form-control text-end" style="width:7rem">
+                    <span class="input-group-text">da</span>
+                  </div>
+                </div>
+                <div class="col"><small class="text-secondary">Başvuru formunda (EK-1) "Toplam ekilmeyen alan" olarak yazılır.</small></div>
+              </div>
+            </div>
           </div>
 
           <div class="card mb-3">
@@ -112,6 +124,8 @@
                     <th>Mahalle / köy</th>
                     <th style="width:6rem">Ada</th>
                     <th style="width:6rem">Parsel</th>
+                    <th style="width:6.5rem">Sulama</th>
+                    <th style="width:9rem">Arazi durumu</th>
                     <th style="width:14rem" class="text-end">Miktar</th>
                     <th class="w-1"></th>
                   </tr>

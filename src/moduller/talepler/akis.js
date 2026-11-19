@@ -107,6 +107,10 @@ function uygula(talep, kod, { not, ben, ayar, izin, kisitli }) {
     talep.basvuru = { tarih: new Date(), ...anlik(talep) };
   }
   talep.durum = yeni;
+  // Teslim tutanağı (EK-4) için teslim tarihi ve teslim eden
+  if (kod === 'teslimEt') {
+    talep.uygulama = { ...((talep.uygulama && talep.uygulama.toObject ? talep.uygulama.toObject() : talep.uygulama) || {}), teslimTarihi: new Date(), teslimEden: ben ? ben._id : undefined, teslimEdenAd: ben ? ben.adSoyad : undefined };
+  }
   if (t.karar) talep.karar = { sonuc: yeni, gerekce: n || undefined, tarih: new Date(), kisiAd: ben ? ben.adSoyad : undefined };
   if (kod === 'kararGeriAl') talep.karar = undefined;
   talep.gecmis.push({ ...kisiBilgisi(ben, ayar), tur: t.tur, onceki: onceki !== yeni ? onceki : undefined, durum: yeni, not: n || undefined });

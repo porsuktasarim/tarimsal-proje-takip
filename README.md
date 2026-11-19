@@ -79,6 +79,24 @@ Mera İzleme Sistemi'ndeki (misweb) BBHB modülü alınmıştır; katsayı tablo
 - **Formül değişkenleri:** `bbhb` (bağlı işletmelerin toplamı), `bbhb_var`, `bbhb_beyan` (beyan edilen sayılar × Ayarlar > Hayvan türleri'ndeki BBHB katsayısı), `bbhb_gecerli` (kayıt varsa kayıt, yoksa beyan), `bbhb_buyukbas`, `bbhb_kucukbas`.
 - **Ot ihtiyacı:** proje formundaki "Ot ihtiyacı formülleri" düğmesi `bbhb_gecerli * 12.5 * 365` (1 BBHB, günde ≈12,5 kg kuru madde), yalnız beyanla `bbhb_beyan * 12.5 * 365` ve `ot_acigi = ot_ihtiyaci - kuru_ot_uretimi` formüllerini ekler; değerler değiştirilebilir.
 
+### Uygulama ve formlar
+
+TAKE 2026 Uygulama Talimatı ekleri sisteme uyarlanmıştır. Her form tek bir belge tanımından PDF (tarayıcıda açılır), Word ve Excel olarak üretilir (`src/core/belge.js`).
+
+- **Formlar sayfası** (menü › Formlar, proje sayfasındaki "Formlar" düğmesi): proje ve ilçe seçilir; liste formları ile her başvurunun formları tek yerde.
+  - **EK-1 Hibe desteği başvuru formu:** üretici bilgileri (cinsiyet, istihdam, adres, telefon) ve arazi tablosu (köy, ada, parsel, bitki türü, alan, sulama, aşı yapılacak ağaç, ekilmeyen alan).
+  - **EK-2 Hibe desteği sözleşmesi:** talimattaki sözleşme metni; ilçe müdürlüğü, üretici, hibe oranı (100 − çiftçi katkı oranı), parsel ve girdi tablosu, dönem, yetkili mahkeme, imza yetkilisi doldurulur.
+  - **EK-3 Kesin icmal:** desteklenen/teslim edilen başvurular; talimattaki sütunlar (doğum tarihi, cinsiyet 1/0, sulama 1/0, işlenmeyen/nadas/uygun olmayan alan, istihdam, teslim edilen girdi, proje tutarı, hibe tutarı), TOPLAM satırı ve komisyon imzaları. Destek icmali sayfasından da alınır.
+  - **EK-4 Teslim tutanağı:** teslim edilen girdi miktarları, teslim tarihi ve teslim eden yetkili.
+  - **EK-5 Arazi kontrol tutanağı:** her saha kontrolü için doldurulmuş hâli ya da sahada elle doldurulacak boş hâli.
+  - **Arazi kontrol raporu:** kontrol listesi (ziyaret tarihi, fotoğraf eklendi mi, görüşler) ve kontrol edilen üretici oranı (talimat gereği asgari %50).
+  - **Asıl ve yedek liste:** ilçe bazında; yedekler puana göre sıralı, komisyon imzalı.
+- **Form başlıkları:** proje formunun "Formlar" bölümünde program adı, destek türü, müdürlük, imza yetkilisi, yetkili mahkeme, dönem (Güz/Bahar), komisyon başkanı ve üyeleri girilir; boş bırakılanlar formda doldurulacak nokta olarak çıkar.
+- **Başvuruya eklenen bilgiler:** çiftçide cinsiyet, doğum tarihi, istihdam edilen kişi sayısı; parselde sulama (kuru/sulu) ve arazi durumu (işlenen, işlenmeyen, nadas, işlemeli tarıma uygun olmayan); başvuruda bu yıl ekim yapılmayan toplam alan.
+- **Uygulama kartı** (desteklenen başvuruda): katkı payı yatırma tarihi ve makbuz no, sözleşme tarihi; "Teslim edildi" işleminde teslim tarihi ve teslim eden kendiliğinden yazılır. Değişiklikler geçmişe işlenir.
+- **Saha kontrolleri:** kontrol tarihi, kontrol edenler, parsel bazında ekim tarihi ve uygunluk, ekim normuna uygunluk, çıkış/tutma oranı, kültürel işlemler, görüş ve fotoğraflar. Her kayıt EK-5'e ve kontrol raporuna aktarılır.
+- **Yeni formlar** `src/moduller/belgeler/formlar.js` dosyasına aynı belge modeliyle eklenir; üç biçim de kendiliğinden çıkar.
+
 ### Kişiler, roller ve görevler
 
 - **Roller ve yetkiler:** roller Ayarlar > Roller ve yetkiler'den eklenir, adlandırılır, renklendirilir ve silinir (kişisi ya da görevi olan rol silinemez). Her role işaretlenerek yetki verilir: Genel Bakış, projeleri görme/yönetme, talep görme/girme, başvuru değerlendirme, BBHB görme/hesaplama, çiftçi görme/yönetme, tüm görevleri görme, görev verme, ayarlar (genel, katalog, kişi ve roller). "İlçe kısıtlı" roldeki kişiler yalnızca sorumlu oldukları ilçelerin çiftçisini ve talebini girer. Hazır roller: İş Planı, Proje Koordinatörü, Proje Yürütücüsü.
@@ -190,12 +208,14 @@ src/
     yetki.js                Rol yetkileri, yetki ara katmanı, ilçe kuralları
     modulYukleyici.js       Modülleri otomatik yükler, menüyü oluşturur
     yardimcilar.js          Sayı, tarih, miktar biçimleme
+    belge.js                Belge motoru: tek modelden PDF, Word, Excel
   views/                    Ortak şablonlar (üst/alt bölüm, bildirimler, hata sayfası)
   moduller/
     genel-bakis/            Toplu istatistik ve son durum panosu
     projeler/               Proje modeli, norm, miktar ve bütçe hesapları (hesap.js), sayfalar
     talepler/               Çiftçi talepleri, başvuru akışı (akis.js) ve geçmiş
     degerlendirme/          Değerlendirme sayfası ve destek icmali
+    belgeler/               Uygulama talimatı formları (EK-1…EK-5, kontrol raporu, asıl/yedek liste)
     ciftciler/              Çiftçi kaydı, çiftçi icmali ve bağlı işletmeler
     bbhb/                   BBHB hesaplama (misweb'den), Türkvet içe aktarma, işletme eşleştirme
     gorevler/               Görev modeli ve sayfaları
@@ -240,9 +260,8 @@ Yeni bir ayar listesi başka kayıtlarda kullanılacaksa `src/core/ayarlar.js` i
 ## Yol haritası
 
 - İlçe bazında hak sahipliği ve dağıtım listeleri
-- Teslim tutanakları ve çiftçi katkı tahsilatı
 - Gerçekleşen verimlerin girilmesi ve hedeflerle karşılaştırılması
-- Raporlar ve Excel/PDF çıktıları (çiftçi icmali, ilçe listeleri), başvuru formu ve parsel formu çıktıları
+- Süreç ilerledikçe çıkacak diğer formlar (aynı belge motoruyla)
 - Rollere göre ekranlar ve yetkiler; isteğe bağlı şifreli giriş
 
 ## Lisans

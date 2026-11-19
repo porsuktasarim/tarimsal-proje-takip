@@ -100,7 +100,7 @@
             <%
               var kalemler = proje.kalemler;
               var hayvanlar = ayar.hayvanTurleri;
-              var sutunSayisi = 4 + kalemler.length * 2 + hayvanlar.length + 3 + uretimler.length + formuller.length + 2;
+              var sutunSayisi = 4 + kalemler.length * 2 + hayvanlar.length + 3 + (uretimler.length ? 1 : 0) + formuller.length + 2;
               var dv = function (v) { return v == null || v === '' ? '' : v; };
             %>
             <div class="izgara-kaydet d-none" data-izgara-kaydet>
@@ -119,7 +119,7 @@
                     <th colspan="<%= kalemler.length %>" class="text-center grup-duzenlenir">Talep edilen <span class="fw-normal">(geçerli · düzenlenir)</span></th>
                     <th colspan="<%= hayvanlar.length %>" class="text-center grup-duzenlenir">Hayvan <span class="fw-normal">(düzenlenir)</span></th>
                     <th colspan="<%= kalemler.length + 3 %>" class="text-center">Hesap</th>
-                    <% if (uretimler.length) { %><th colspan="<%= uretimler.length %>" class="text-center grup-uretim">Beklenen üretim</th><% } %>
+                    <% if (uretimler.length) { %><th class="text-center grup-uretim"></th><% } %>
                     <% if (formuller.length) { %><th colspan="<%= formuller.length %>" class="text-center grup-formul">Formüller</th><% } %>
                     <th colspan="2"></th>
                   </tr>
@@ -134,7 +134,7 @@
                     <th class="tablo-sayi" data-sirala="sayi" title="BBHB kaydı; ~ ile başlayan beyandan tahmin">BBHB</th>
                     <th class="tablo-sayi" data-sirala="sayi">Bedel</th>
                     <th class="tablo-sayi" data-sirala="sayi">Çiftçi katkısı</th>
-                    <% uretimler.forEach(function (u) { %><th class="tablo-sayi grup-uretim" data-sirala="sayi" title="Talep edilen miktar × çıktı normu"><%= u.ad %> <span class="fw-normal">(<%= u.birim %>)</span></th><% }) %>
+                    <% if (uretimler.length) { %><th class="tablo-sayi grup-uretim" data-sirala="sayi" title="Talep edilen miktar × çıktı normu: <%= uretimler.map(function (u) { return u.ad; }).join(', ') %>">Beklenen üretim</th><% } %>
                     <% formuller.forEach(function (f) { %><th class="tablo-sayi grup-formul" data-sirala="sayi" title="<%= f.ifade %>"><%= f.ad %><%= f.birim ? ' (' + f.birim + ')' : '' %><%- f.puan ? ' <span class="badge bg-purple-lt">puan</span>' : '' %></th><% }) %>
                     <th>Son not</th>
                     <th class="w-1"></th>
@@ -183,9 +183,9 @@
                       <td class="tablo-sayi text-nowrap" data-hucre="bbhb" data-deger="<%= dv(hc.bbhb.deger) %>" title="<%= hc.bbhb.ipucu %>"><%= hc.bbhb.metin %></td>
                       <td class="tablo-sayi text-nowrap" data-hucre="bedel" data-deger="<%= dv(hc.bedel.deger) %>" data-toplam="para"><%= hc.bedel.metin %></td>
                       <td class="tablo-sayi text-nowrap" data-hucre="katki" data-deger="<%= dv(hc.katki.deger) %>" data-toplam="para"><%= hc.katki.metin %></td>
-                      <% uretimler.forEach(function (u) { var x = hc['u:' + u.kod]; %>
-                        <td class="tablo-sayi text-nowrap grup-uretim" data-hucre="u:<%= u.kod %>" data-deger="<%= dv(x.deger) %>" data-toplam="sayi"><%= x.metin %></td>
-                      <% }) %>
+                      <% if (uretimler.length) { %>
+                        <td class="tablo-sayi text-nowrap grup-uretim izgara-cok-satir" data-hucre="uretim" data-deger="<%= dv(hc.uretim.deger) %>" data-uretimler="<%= JSON.stringify(hc.uretim.degerler) %>"><%= hc.uretim.metin %></td>
+                      <% } %>
                       <% formuller.forEach(function (f) { var x = hc['f:' + f.kod]; %>
                         <td class="tablo-sayi text-nowrap grup-formul<%= f.puan ? ' fw-bold' : '' %><%= x.ipucu ? ' text-danger' : '' %>" data-hucre="f:<%= f.kod %>" data-deger="<%= dv(x.deger) %>" data-toplam="sayi" title="<%= x.ipucu %>"><%= x.metin %></td>
                       <% }) %>
@@ -208,7 +208,7 @@
                     <td class="tablo-sayi" data-toplam-sutun="sayi"></td>
                     <td class="tablo-sayi" data-toplam-sutun="para"></td>
                     <td class="tablo-sayi" data-toplam-sutun="para"></td>
-                    <% uretimler.forEach(function () { %><td class="tablo-sayi" data-toplam-sutun="sayi"></td><% }) %>
+                    <% if (uretimler.length) { %><td class="tablo-sayi izgara-cok-satir" data-toplam-sutun="uretim" data-uretim-tanim="<%= JSON.stringify(uretimler.map(function (u) { return { kod: u.kod, ad: u.kisaAd, birim: u.birim }; })) %>"></td><% } %>
                     <% formuller.forEach(function () { %><td class="tablo-sayi" data-toplam-sutun="sayi"></td><% }) %>
                     <td colspan="2"></td>
                   </tr>

@@ -186,3 +186,5 @@ th.siralanabilir[data-yon="azalan"]::after { content: '↓'; opacity: .8; }
 .degisim-adimlari li::before { content: ''; position: absolute; left: -.38rem; top: .35rem; width: .6rem; height: .6rem; border-radius: 50%; background: var(--tblr-primary); }
 .degisim-adimlari li:first-child::before { background: var(--tblr-secondary); }
 .degisim-deger { font-weight: 600; }
+.izgara td.izgara-cok-satir { white-space: pre-line; line-height: 1.25; }
+.kontrol-foto { width: 6rem; height: 6rem; object-fit: cover; border-radius: 6px; border: 1px solid var(--tblr-border-color); }

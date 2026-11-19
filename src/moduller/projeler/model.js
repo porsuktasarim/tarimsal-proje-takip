@@ -78,6 +78,18 @@ const projeSema = new mongoose.Schema({
       default: []
     }
   },
+  // Formlar (başvuru formu, sözleşme, kesin icmal, teslim ve kontrol tutanakları) için bilgiler
+  belgeAyarlari: {
+    programAdi: { type: String, trim: true },        // ör. TARIM ARAZİLERİNİN KULLANIMININ ETKİNLEŞTİRİLMESİ PROJESİ
+    destekTuru: { type: String, trim: true },        // Tohum / Fide / Fidan / Aşılama
+    mudurluk: { type: String, trim: true },          // ör. İstanbul İl Tarım ve Orman Müdürlüğü
+    imzaYetkilisiAd: { type: String, trim: true },
+    imzaYetkilisiUnvan: { type: String, trim: true },
+    mahkeme: { type: String, trim: true },           // yetkili mahkeme ve icra daireleri (ör. İstanbul)
+    donemTuru: { type: String, trim: true },         // Güz / Bahar
+    komisyonBaskani: { type: String, trim: true },
+    komisyonUyeleri: { type: [String], default: undefined }
+  },
   // Proje metni (PDF ya da Word). Her yükleme yeni sürümdür; sonuncusu geçerlidir.
   // Değerlendirme proje metni yüklenmeden yapılamaz.
   belgeler: {

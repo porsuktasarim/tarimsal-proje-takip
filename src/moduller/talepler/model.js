@@ -21,7 +21,25 @@ const satirSema = new mongoose.Schema({
   parsel: { type: String, trim: true },
   en: { type: Number, min: 0 },                                         // m² ile sayılan kalemlerde (sera) en ve boy, m
   boy: { type: Number, min: 0 },
-  miktar: { type: Number, required: true, min: 0 }                      // parseldeki miktar (kalemin talep biriminde)
+  miktar: { type: Number, required: true, min: 0 },                     // parseldeki miktar (kalemin talep biriminde)
+  sulama: { type: String, enum: ['kuru', 'sulu', null], default: null },
+  araziDurumu: { type: String, enum: ['islenen', 'islenmeyen', 'nadas', 'uygunOlmayan', null], default: null }  // kesin icmal (EK-3) alan sütunları
+}, { _id: true });
+
+// Saha kontrolü (EK-5 arazi kontrol tutanağı ve arazi kontrol raporu)
+const kontrolSema = new mongoose.Schema({
+  tarih: { type: Date, required: true },
+  kontrolEdenler: [{ _id: false, kisi: { type: mongoose.Schema.Types.ObjectId, ref: 'Kisi' }, ad: String, gorev: String }],
+  parseller: [{ _id: false, satirId: mongoose.Schema.Types.ObjectId, ekimTarihi: Date, uygun: { type: Boolean, default: null } }],
+  normunaUygun: { type: Boolean, default: null },               // ekim/dikim normuna uygun mu
+  cikisOrani: { type: Number, min: 0, max: 100 },               // çıkış oranı %
+  tutmaOrani: { type: Number, min: 0, max: 100 },               // fidan / aşı tutma oranı %
+  kulturelIslemler: { type: Boolean, default: null },           // meyve bahçesinde kültürel işlemler muntazam mı
+  ekTespit: { type: String, trim: true },
+  gorus: { type: String, trim: true },                          // gelişim ve çiftçi memnuniyeti (kontrol raporu)
+  fotograflar: [{ _id: false, dosyaId: mongoose.Schema.Types.ObjectId, ad: String }],
+  kaydedenAd: { type: String, trim: true },
+  kayitTarihi: { type: Date, default: Date.now }
 }, { _id: true });
 
 // Başvuru geçmişi: her aşama değişikliği, değer değişikliği ve not bir kayıttır.
@@ -44,6 +62,17 @@ const talepSema = new mongoose.Schema({
   ilce: { type: String, required: true, trim: true },                   // talebi alan ilçe (çiftçinin ilçesi)
   talepKalemleri: { type: [talepKalemiSema], default: [] },
   satirlar: { type: [satirSema], default: [] },
+  ekilmeyenAlan: { type: Number, min: 0 },                               // üreticinin bu yıl ekim yapmadığı toplam alan (da) — EK-1
+  // Uygulama: katkı payı, sözleşme, teslim (EK-2, EK-3, EK-4)
+  uygulama: {
+    katkiPayiTarihi: { type: Date },
+    katkiPayiBelgeNo: { type: String, trim: true },
+    sozlesmeTarihi: { type: Date },
+    teslimTarihi: { type: Date },
+    teslimEden: { type: mongoose.Schema.Types.ObjectId, ref: 'Kisi' },
+    teslimEdenAd: { type: String, trim: true }
+  },
+  kontroller: { type: [kontrolSema], default: [] },
   hayvanlar: { type: mongoose.Schema.Types.Mixed, default: {} },       // { <hayvan türü kodu>: sayı } talep anındaki varlık
   durum: { type: String, enum: Object.keys(talepDurumlari), default: 'taslak' },   // başvuru aşaması
   // Koordinatöre ilk gönderildiğindeki değerler (başvuru); değerlendirmede değişse de korunur

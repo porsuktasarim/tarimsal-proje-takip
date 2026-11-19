@@ -27,7 +27,11 @@ const ciftciSema = new mongoose.Schema({
   ilce: { type: String, required: true, trim: true },
   mahalle: { type: String, trim: true },          // mahalle / köy
   adres: { type: String, trim: true },
-  cks: { type: Boolean, default: false },         // Çiftçi Kayıt Sistemi kaydı var mı
+  cks: { type: Boolean, default: false },
+  // Başvuru formu ve kesin icmal (EK-1, EK-3) için
+  cinsiyet: { type: String, enum: ['kadin', 'erkek', null], default: null },
+  dogumTarihi: { type: Date },
+  istihdam: { type: Number, min: 0 },                          // istihdam ettiği kişi sayısı         // Çiftçi Kayıt Sistemi kaydı var mı
   hayvanlar: { type: mongoose.Schema.Types.Mixed, default: {} },  // son talepte girilen hayvan varlığı
   hayvanTarihi: { type: Date },
   isletmeler: { type: [isletmeBagiSema], default: [] },
