@@ -12,6 +12,10 @@ const { sayi, tarih } = require('../../core/yardimcilar');
 const { miktarHesabi, normsuzMu } = require('../projeler/hesap');
 
 const NOKTA = '……………………';
+// Etiket-değer kutularında (EK-1 düzeni) kullanılan yardımcılar
+const K = { kapali: true };
+const deger = (metin, rs) => ({ metin: `: ${metin}`, satirBirlesik: rs });
+const etiket = (metin, rs) => ({ metin, satirBirlesik: rs });
 const n = (v, bos = NOKTA) => (v === undefined || v === null || v === '' ? bos : String(v));
 const buyuk = (s) => String(s || '').toLocaleUpperCase('tr');
 const kisaTarih = (t) => (t ? tarih(t) : '…../…../…...');
@@ -85,14 +89,22 @@ function araziSatirlari(talep, ciftci, proje, ayar, hesap) {
 }
 
 // "800 kg tohum (Yulaf), 50 adet fidan (Ceviz)"
+// Teslim miktarı içerik ve ambalajıyla: "520 kg (13 çuval)", "50.000 adet (1 torba)";
+// ambalajsız kalemde yalnızca miktar: "5 adet"
+function teslimIfadesi(hk) {
+  const icerik = `${sayi(hk.teslim)} ${hk.teslimBirimi || ''}`.trim();
+  const olcu = hk.kalem && hk.kalem.olcuBirimi;
+  const ambalajli = hk.ambalaj && hk.miktar != null && olcu && String(olcu).toLocaleLowerCase('tr') !== String(hk.teslimBirimi || '').toLocaleLowerCase('tr');
+  return ambalajli ? `${icerik} (${sayi(hk.miktar)} ${olcu})` : icerik;
+}
 function teslimMetni(hesap) {
   return hesap.kalemler.filter((hk) => hk.teslim != null)
-    .map((hk) => `${sayi(hk.teslim)} ${hk.teslimBirimi || ''} ${String(hk.kalem.tur || '').toLocaleLowerCase('tr')} (${bitkiTuru(hk.kalem)})`.replace(/\s+/g, ' '))
+    .map((hk) => `${teslimIfadesi(hk)} ${String(hk.kalem.tur || '').toLocaleLowerCase('tr')} (${bitkiTuru(hk.kalem)})`.replace(/\s+/g, ' '))
     .join(', ');
 }
-// Ürün bazında teslim edilecek miktarlar: "Yulaf: 520 kg"
+// Ürün bazında teslim edilecek miktarlar: "Yulaf: 520 kg (13 çuval)"
 const urunToplamlari = (hesap) => hesap.kalemler.filter((hk) => hk.teslim != null)
-  .map((hk) => `${bitkiTuru(hk.kalem)}: ${sayi(hk.teslim)} ${hk.teslimBirimi || ''}`.trim()).join('\n');
+  .map((hk) => `${bitkiTuru(hk.kalem)}: ${teslimIfadesi(hk)}`).join('\n');
 // Satırlardaki alanların birim bazında toplamı: "25 da" ya da "25 da; 40 adet"
 const alanToplami = (satirlar) => {
   const t = {};
@@ -156,9 +168,8 @@ function ek1(v) {
         t: 'tablo', cerceve: 'dis', dikeyHiza: 'ust', satirYuksekligi: 14, genislik: [1.3, 1.7, 1.4, 1.6],
         basliklar: [{ metin: 'Üreticinin', birlesik: 4 }],
         satirlar: (() => {
-          const K = { kapali: true };
-          const d = (metin, rs) => ({ metin: `: ${metin}`, satirBirlesik: rs });
-          const e = (metin, rs) => ({ metin, satirBirlesik: rs });
+          const d = deger;
+          const e = etiket;
           return [
             [e('Adı Soyadı', 2), d(ciftci.adSoyad, 2), 'Cinsiyeti', d(`${kad} Kadın   ${erk} Erkek`)],
             [K, K, 'İstihdam Ettiği Kişi Sayısı', d(n(ciftci.istihdam, '……'))],
@@ -319,13 +330,16 @@ function ek4(v) {
       { t: 'p', metin: `Proje başvuru formunda belirtmiş olduğum arazide kullanmak üzere ${teslimMetni(hesap) || '…. kg tohum / ….. adet fide / …… adet fidan / ….. adet aşılama işlemi'} teslim aldım. ${kisaTarih(u.teslimTarihi)}` },
       { t: 'bosluk', yukseklik: 6 },
       {
-        t: 'tablo', genislik: [1, 1],
-        basliklar: ['Teslim Alan Üretici', 'Teslim Eden Yetkilinin'],
+        // EK-1 düzeni, çerçevesiz: eşit iki yarı, ":" ile hizalı; ad soyad 2, imza 5 satır
+        t: 'tablo', kenarsiz: true, dikeyHiza: 'ust', satirYuksekligi: 14, genislik: [1.1, 1.9, 1.1, 1.9],
+        basliklar: [{ metin: 'Teslim Alan Üretici', birlesik: 2 }, { metin: 'Teslim Eden Yetkilinin', birlesik: 2 }],
         satirlar: [
-          [`TC Kimlik No: ${ciftci.tcKimlikNo}`, `Adı Soyadı: ${n(u.teslimEdenAd || (teslimEden && teslimEden.adSoyad))}`],
-          [`Adı Soyadı: ${ciftci.adSoyad}`, `Unvanı: ${n(teslimEden && teslimEden.unvan)}`],
-          [`Doğum Tarihi: ${ciftci.dogumTarihi ? tarih(ciftci.dogumTarihi) : NOKTA}`, `Görev Yeri: ${ilceMudurlugu(talep.ilce)}`],
-          ['İmza: ……………………', 'İmza: ……………………']
+          [etiket('Adı Soyadı', 2), deger(ciftci.adSoyad, 2), etiket('Adı Soyadı', 2), deger(n(u.teslimEdenAd || (teslimEden && teslimEden.adSoyad)), 2)],
+          [K, K, K, K],
+          ['TC Kimlik No', deger(ciftci.tcKimlikNo), 'Unvanı', deger(n(teslimEden && teslimEden.unvan))],
+          ['Doğum Tarihi', deger(ciftci.dogumTarihi ? tarih(ciftci.dogumTarihi) : NOKTA), 'Görev Yeri', deger(ilceMudurlugu(talep.ilce))],
+          [etiket('İmza', 5), deger('', 5), etiket('İmza', 5), deger('', 5)],
+          [K, K, K, K], [K, K, K, K], [K, K, K, K], [K, K, K, K]
         ]
       }
     ]
@@ -350,8 +364,16 @@ function ek5(v) {
     ad: `EK-5 Arazi kontrol tutanağı — ${ciftci.adSoyad}`,
     ogeler: [
       ...ustBaslik(o, 'EK-5', [`${buyuk(o.destekTuru)} HİBE DESTEĞİNE ESAS ARAZİ KONTROL TUTANAĞI`]),
-      { t: 'baslik', metin: 'Üretici Bilgileri', boyut: 3, hiza: 'sol' },
-      { t: 'tablo', kenarsiz: true, genislik: [1, 3], satirlar: [['T.C. Kimlik No', `: ${ciftci.tcKimlikNo}`], ['Adı Soyadı', `: ${ciftci.adSoyad}`], ['İl/İlçe', `: ${o.il}/${talep.ilce}`], ['Mahalle/Köy/Belde', `: ${n(ciftci.mahalle)}`]] },
+      {
+        // EK-1 düzeni, çerçevesiz: eşit iki yarı, ":" ile hizalı
+        t: 'tablo', kenarsiz: true, dikeyHiza: 'ust', satirYuksekligi: 14, genislik: [1.2, 1.8, 1.3, 1.7],
+        basliklar: [{ metin: 'Üretici Bilgileri', birlesik: 4 }],
+        satirlar: [
+          [etiket('Adı Soyadı', 2), deger(ciftci.adSoyad, 2), 'İl/İlçe', deger(`${o.il}/${talep.ilce}`)],
+          [K, K, etiket('Mahalle/Köy/Belde', 2), deger(n(ciftci.mahalle), 2)],
+          ['T.C. Kimlik No', deger(ciftci.tcKimlikNo), K, K]
+        ]
+      },
       {
         t: 'tablo', kucuk: true, genislik: [0.6, 0.8, 0.8, 1.2, 1.2, 1.6, 1.6], hizalar: ['orta', 'orta', 'orta', 'sag', 'orta', 'sol', 'orta'],
         basliklar: ['Sıra No', 'Ada No', 'Parsel No', 'Ekim/Dikim/Aşılama Alanı (da)', 'Ekim/Dikim/Aşılama Tarihi', 'Bitki Türü', 'Görüşler (uygundur/uygun değildir)'],
@@ -374,9 +396,18 @@ function ek5(v) {
       ...(k.gorus ? [{ t: 'p', metin: `Görüşler: ${k.gorus}` }] : []),
       { t: 'bosluk', yukseklik: 6 },
       {
-        t: 'tablo', genislik: duz.map(() => 1),
-        basliklar: [{ metin: 'Düzenleyenler', birlesik: duz.length }],
-        satirlar: [duz.map((d) => `Adı Soyadı: ${n(d.ad)}`), duz.map((d) => `Görevi: ${n(d.gorev)}`), duz.map(() => `Tarih: ${kisaTarih(k.tarih)}`), duz.map(() => 'İmza:')]
+        // Çerçevesiz; her düzenleyen için etiket ve ":" ile hizalı değer, imzaya 3 satır
+        t: 'tablo', kenarsiz: true, dikeyHiza: 'ust', satirYuksekligi: 14, kucuk: duz.length > 2,
+        genislik: duz.flatMap(() => [0.9, 1.6]),
+        basliklar: [{ metin: 'Düzenleyenler', birlesik: duz.length * 2 }],
+        satirlar: [
+          duz.flatMap((d) => ['Adı Soyadı', deger(n(d.ad))]),
+          duz.flatMap((d) => ['Görevi', deger(n(d.gorev))]),
+          duz.flatMap(() => ['Tarih', deger(kisaTarih(k.tarih))]),
+          duz.flatMap(() => ['İmza', deger('')]),
+          duz.flatMap(() => ['', '']),
+          duz.flatMap(() => ['', ''])
+        ]
       }
     ]
   };

@@ -9,6 +9,7 @@
 //   { t: 'p', metin | parcalar: [{ metin, kalin }], hiza?, kucuk? } paragraf ('iki' = iki yana yaslı)
 //   { t: 'tablo', basliklar?, satirlar, genislik?, hizalar?, kenarsiz?, kucuk?, toplam?,
 //     cerceve?: 'dis' (yalnızca dış çerçeve ve başlık altı çizgisi), dikeyHiza?: 'ust',
+//     ayiricilar? (dış çerçevede, solunda dikey çizgi olacak mantıksal sütun sıraları),
 //     satirYuksekligi? (her satırın en az yüksekliği, punto) }
 //       hücre: metin ya da { metin, kalin, hiza, birlesik (sütun sayısı), satirBirlesik (satır sayısı) }
 //       satirBirlesik ile kaplanan alt satırlardaki konumlara { kapali: true } yazılır.
@@ -88,7 +89,7 @@ function pdfOge(o) {
             text: hucreMetni(z.h), bold: baslik || hucreKalin(z.h),
             colSpan: z.b > 1 ? z.b : undefined, rowSpan: z.rs > 1 ? z.rs : undefined,
             alignment: PDF_HIZA[baslik ? 'orta' : hucreHiza(z.h, o.hizalar && o.hizalar[z.li])],
-            fontSize: o.kucuk ? 7 : 9, fillColor: baslik ? '#eeeeee' : undefined
+            fontSize: o.kucuk ? 7 : 9, fillColor: baslik && !o.kenarsiz ? '#eeeeee' : undefined
           });
           for (let k = 1; k < z.b; k += 1) r.push({});
         });
@@ -102,7 +103,7 @@ function pdfOge(o) {
       else if (o.cerceve === 'dis') {
         layout = {
           hLineWidth: (i, node) => (i === 0 || i === node.table.body.length || (baslikSatiri && i === baslikSatiri) ? 0.5 : 0),
-          vLineWidth: (i, node) => (i === 0 || i === node.table.widths.length ? 0.5 : 0),
+          vLineWidth: (i, node) => (i === 0 || i === node.table.widths.length || (o.ayiricilar || []).includes(i) ? 0.5 : 0),
           paddingTop: () => 2, paddingBottom: () => 2
         };
       }
@@ -204,8 +205,9 @@ function docxOge(o, sayfaGenisligi) {
             columnSpan: z.b > 1 ? z.b : undefined,
             rowSpan: z.rs > 1 ? z.rs : undefined,
             width: { size: w, type: docx.WidthType.DXA },
-            shading: baslik ? { fill: 'EEEEEE' } : undefined,
-            borders: baslik && o.cerceve === 'dis' ? { bottom: CIZGI } : undefined,
+            shading: baslik && !o.kenarsiz ? { fill: 'EEEEEE' } : undefined,
+            borders: o.cerceve === 'dis' && (baslik || (o.ayiricilar || []).includes(z.li))
+              ? { ...(baslik ? { bottom: CIZGI } : {}), ...((o.ayiricilar || []).includes(z.li) ? { left: CIZGI } : {}) } : undefined,
             verticalAlign: o.dikeyHiza === 'ust' && !baslik ? docx.VerticalAlign.TOP : docx.VerticalAlign.CENTER,
             children: hucreMetni(z.h).split('\n').map((satirMetni) => docxParagraf([{ metin: satirMetni }], { hiza, kalin: baslik || hucreKalin(z.h), boyut, once: 20, sonra: 20 }))
           }));
@@ -335,7 +337,7 @@ async function xlsxOlustur(belge) {
         const bas = [0];
         izgaraPaylari(oranlar, sutun).forEach((x) => bas.push(bas[bas.length - 1] + x));
         const ilkSatir = r;
-        const baslikSatiri = o.basliklar ? 1 : 0;
+        const yerlesim = [];
         duzen.forEach((x) => {
           const baslik = x.tur === 'baslik';
           const toplamSatiri = x.tur === 'toplam';
@@ -346,6 +348,7 @@ async function xlsxOlustur(belge) {
             const son = bas[z.li + z.b];
             const alt = r + z.rs - 1;
             if (son > c || alt > r) ws.mergeCells(r, c, alt, son);
+            yerlesim.push({ ust: r, alt, c, sag: son, baslik });
             const hc = ws.getCell(r, c);
             const m = hucreMetni(z.h);
             const sayi = !baslik ? sayiyaCevir(m) : null;
@@ -356,7 +359,7 @@ async function xlsxOlustur(belge) {
               horizontal: XLSX_HIZA[baslik ? 'orta' : hucreHiza(z.h, o.hizalar && o.hizalar[z.li])],
               vertical: o.dikeyHiza === 'ust' && !baslik ? 'top' : 'middle', wrapText: true
             };
-            if (baslik) hc.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEEEEEE' } };
+            if (baslik && !o.kenarsiz) hc.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEEEEEE' } };
             if (!o.kenarsiz && !o.cerceve) {
               for (let rr = r; rr <= alt; rr += 1) for (let k = c; k <= son; k += 1) ws.getCell(rr, k).border = { top: ince, left: ince, bottom: ince, right: ince };
             }
@@ -370,19 +373,18 @@ async function xlsxOlustur(belge) {
           ws.getRow(r).height = Math.max(enAz, enCokSatir * (o.kucuk ? 11 : 13));
           r += 1;
         });
-        // Yalnızca dış çerçeve (ve başlık altı)
+        // Yalnızca dış çerçeve (ve başlık altı, ayırıcı çizgiler). exceljs'te birleşik hücrenin
+        // tüm hücreleri ana hücrenin biçimini paylaştığından kenarlar yerleşime göre bir kerede verilir.
         if (o.cerceve === 'dis' && !o.kenarsiz && r > ilkSatir) {
           const son = r - 1;
-          for (let rr = ilkSatir; rr <= son; rr += 1) {
-            for (let k = 1; k <= sutun; k += 1) {
-              const kenar = {};
-              if (rr === ilkSatir) kenar.top = ince;
-              if (rr === son || (baslikSatiri && rr === ilkSatir)) kenar.bottom = ince;
-              if (k === 1) kenar.left = ince;
-              if (k === sutun) kenar.right = ince;
-              if (Object.keys(kenar).length) ws.getCell(rr, k).border = kenar;
-            }
-          }
+          yerlesim.forEach(({ ust, alt, c, sag, baslik }) => {
+            const kenar = {};
+            if (ust === ilkSatir) kenar.top = ince;
+            if (alt === son || baslik) kenar.bottom = ince;
+            if (c === 1 || (!baslik && (o.ayiricilar || []).some((li) => bas[li] + 1 === c))) kenar.left = ince;
+            if (sag === sutun) kenar.right = ince;
+            if (Object.keys(kenar).length) ws.getCell(ust, c).border = kenar;
+          });
         }
         r += 1;
       }
