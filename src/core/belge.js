@@ -16,6 +16,7 @@
 // Tabloya sayfaSonu: true verilirse sayfanın en altına sabitlenir (elle doldurulacak imza blokları);
 // üstteki içerik o alana taşarsa tablo sonraki sayfanın altına geçer. Excel'de sayfa olmadığından akışta kalır.
 // Belge düzeyinde: altBilgi (sol alt bilgi metni); sağda her zaman "Sayfa #/#" yazılır.
+//   { t: 'resim', veri: Buffer (png/jpeg), genislik (punto), yanMetin?: 'satır\nsatır' }  logo ve yanındaki kurum adı
 //   { t: 'bosluk', yukseklik? }
 //   { t: 'liste', maddeler: [metin] }
 
@@ -31,6 +32,28 @@ const hucreBirlesik = (h) => (h && typeof h === 'object' && h.birlesik) || 1;
 const hucreSatirBirlesik = (h) => (h && typeof h === 'object' && h.satirBirlesik) || 1;
 const kapaliMi = (h) => !!(h && typeof h === 'object' && h.kapali);
 const parcalar = (o) => (o.parcalar || [{ metin: o.metin || '' }]);
+
+// Resmin türü ve piksel boyutu (PNG ve JPEG başlığından)
+function resimBilgisi(b) {
+  if (!b || b.length < 24) return null;
+  if (b[0] === 0x89 && b[1] === 0x50) return { tur: 'png', en: b.readUInt32BE(16), boy: b.readUInt32BE(20) };
+  if (b[0] === 0xff && b[1] === 0xd8) {
+    let i = 2;
+    while (i < b.length - 9) {
+      if (b[i] !== 0xff) { i += 1; continue; }
+      const m = b[i + 1];
+      if (m >= 0xc0 && m <= 0xcf && ![0xc4, 0xc8, 0xcc].includes(m)) return { tur: 'jpg', boy: b.readUInt16BE(i + 5), en: b.readUInt16BE(i + 7) };
+      i += 2 + b.readUInt16BE(i + 2);
+    }
+  }
+  return null;
+}
+// Resmin punto cinsinden boyutu (genişlik verilir, yükseklik orantılı)
+function resimBoyutu(o) {
+  const bilgi = resimBilgisi(o.veri) || { en: 1, boy: 1 };
+  const en = o.genislik || 60;
+  return { bilgi, en, boy: Math.round((en * bilgi.boy) / Math.max(1, bilgi.en)) };
+}
 const kalinYap = (h) => (h && typeof h === 'object' ? { ...h, kalin: !h.kapali } : { metin: h, kalin: true });
 
 // Tablonun satırlarını üç biçim için ortak düzene çevirir: her hücrenin mantıksal sütunu (li),
@@ -80,6 +103,13 @@ function pdfOge(o) {
       return { ul: o.maddeler, fontSize: 10, margin: [6, 2, 0, 4] };
     case 'bosluk':
       return { text: ' ', margin: [0, 0, 0, o.yukseklik || 8] };
+    case 'resim': {
+      const { bilgi, en } = resimBoyutu(o);
+      if (!bilgi || !o.veri) return { text: o.yanMetin || '', bold: true, fontSize: 9 };
+      const img = { image: `data:image/${bilgi.tur === 'jpg' ? 'jpeg' : 'png'};base64,${o.veri.toString('base64')}`, width: en };
+      if (!o.yanMetin) return { ...img, alignment: PDF_HIZA[o.hiza || 'sol'], margin: [0, 0, 0, 4] };
+      return { columns: [{ ...img, width: en }, { text: o.yanMetin, bold: true, fontSize: 9, margin: [6, 4, 0, 0], color: '#333333' }], columnGap: 4, margin: [0, 0, 0, 6] };
+    }
     case 'tablo': {
       const { n: sutun, satirlar } = tabloDuzeni(o);
       const govde = satirlar.map((x) => {
@@ -208,6 +238,23 @@ function docxOge(o, sayfaGenisligi) {
       return o.maddeler.map((m) => docxParagraf([{ metin: `• ${m}` }], { hiza: 'iki' }));
     case 'bosluk':
       return [docxParagraf([{ metin: '' }], { sonra: (o.yukseklik || 8) * 15 })];
+    case 'resim': {
+      const { bilgi, en, boy } = resimBoyutu(o);
+      if (!o.veri || !resimBilgisi(o.veri)) return o.yanMetin ? [docxParagraf([{ metin: o.yanMetin, kalin: true }], { boyut: 18 })] : [];
+      // punto → piksel (96 dpi)
+      const resim = new docx.ImageRun({ type: bilgi.tur, data: o.veri, transformation: { width: Math.round(en * 4 / 3), height: Math.round(boy * 4 / 3) } });
+      if (!o.yanMetin) return [new docx.Paragraph({ alignment: DOCX_HIZA[o.hiza || 'sol'], children: [resim] })];
+      const YOK = { style: docx.BorderStyle.NONE, size: 0, color: 'FFFFFF' };
+      const ilk = Math.round(en * 20 + 200);
+      return [new docx.Table({
+        width: { size: sayfaGenisligi, type: docx.WidthType.DXA }, columnWidths: [ilk, sayfaGenisligi - ilk],
+        borders: { top: YOK, bottom: YOK, left: YOK, right: YOK, insideHorizontal: YOK, insideVertical: YOK },
+        rows: [new docx.TableRow({ children: [
+          new docx.TableCell({ width: { size: ilk, type: docx.WidthType.DXA }, children: [new docx.Paragraph({ children: [resim] })] }),
+          new docx.TableCell({ width: { size: sayfaGenisligi - ilk, type: docx.WidthType.DXA }, verticalAlign: docx.VerticalAlign.CENTER, children: o.yanMetin.split('\n').map((m) => docxParagraf([{ metin: m, kalin: true }], { boyut: 18, once: 0, sonra: 0 })) })
+        ] })]
+      }), docxParagraf([{ metin: '' }], { once: 0, sonra: 40 })];
+    }
     case 'tablo': {
       const { n: sutun, satirlar: duzen } = tabloDuzeni(o);
       const oranlar = o.genislik && o.genislik.length === sutun ? o.genislik : Array(sutun).fill(1);
@@ -362,6 +409,24 @@ async function xlsxOlustur(belge) {
       else if (o.t === 'p') birlesikSatir(parcalar(o).map((x) => x.metin).join(''), { hiza: o.hiza || 'iki', boyut: o.kucuk ? 8 : 10 });
       else if (o.t === 'liste') o.maddeler.forEach((m) => birlesikSatir(`• ${m}`, { boyut: 10 }));
       else if (o.t === 'bosluk') { r += 1; }
+      else if (o.t === 'resim') {
+        const { bilgi, en, boy } = resimBoyutu(o);
+        const satirSayisi = Math.max(2, Math.ceil((boy * 4 / 3) / 20));
+        if (o.veri && resimBilgisi(o.veri)) {
+          const id = kitap.addImage({ buffer: o.veri, extension: bilgi.tur === 'jpg' ? 'jpeg' : 'png' });
+          ws.addImage(id, { tl: { col: 0.1, row: r - 1 + 0.1 }, ext: { width: Math.round(en * 4 / 3), height: Math.round(boy * 4 / 3) } });
+        }
+        if (o.yanMetin) {
+          const bas = Math.min(sutun - 1, Math.ceil((en * 4 / 3) / (izgaraGenisligi * 7)) + 2);
+          ws.mergeCells(r, bas, r + satirSayisi - 1, sutun);
+          const c = ws.getCell(r, bas);
+          c.value = o.yanMetin;
+          c.font = { name: 'Times New Roman', size: 10, bold: true };
+          c.alignment = { vertical: 'middle', wrapText: true };
+        }
+        for (let k = 0; k < satirSayisi; k += 1) ws.getRow(r + k).height = 20;
+        r += satirSayisi;
+      }
       else if (o.t === 'tablo') {
         const { n, satirlar: duzen } = tabloDuzeni(o);
         const oranlar = o.genislik && o.genislik.length === n ? o.genislik : Array(n).fill(1);
@@ -425,10 +490,114 @@ async function xlsxOlustur(belge) {
 }
 
 // ---------------------------------------------------------------------------
+// HTML: tarayıcıda düzenlenip yazdırılan önizleme (metinler tıklanarak değiştirilir)
+// ---------------------------------------------------------------------------
+const kac = (m) => String(m == null ? '' : m).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+const satirKir = (m) => kac(m).replace(/\n/g, '<br>');
+const HTML_HIZA = { sol: 'left', orta: 'center', sag: 'right', iki: 'justify' };
+
+function htmlOge(o) {
+  switch (o.t) {
+    case 'baslik':
+      return `<div class="b b${o.boyut || 2}" style="text-align:${HTML_HIZA[o.hiza || 'orta']}">${satirKir(o.metin)}</div>`;
+    case 'p':
+      return `<p class="${o.kucuk ? 'k' : ''}" style="text-align:${HTML_HIZA[o.hiza || 'iki']}">${parcalar(o).map((x) => (x.kalin ? `<b>${satirKir(x.metin)}</b>` : satirKir(x.metin))).join('')}</p>`;
+    case 'liste':
+      return `<ul>${o.maddeler.map((m) => `<li>${satirKir(m)}</li>`).join('')}</ul>`;
+    case 'bosluk':
+      return `<div style="height:${o.yukseklik || 8}pt"></div>`;
+    case 'resim': {
+      const { bilgi, en } = resimBoyutu(o);
+      const img = o.veri && resimBilgisi(o.veri) ? `<img src="data:image/${bilgi.tur === 'jpg' ? 'jpeg' : 'png'};base64,${o.veri.toString('base64')}" style="width:${en}pt">` : '';
+      return `<div class="logo">${img}${o.yanMetin ? `<div>${satirKir(o.yanMetin)}</div>` : ''}</div>`;
+    }
+    case 'tablo': {
+      const { n, satirlar } = tabloDuzeni(o);
+      const oranlar = o.genislik && o.genislik.length === n ? o.genislik : Array(n).fill(1);
+      const top = oranlar.reduce((a, b) => a + b, 0);
+      const sinif = ['t', o.kenarsiz ? 'kenarsiz' : '', o.cerceve === 'dis' ? 'dis' : '', o.kucuk ? 'k' : ''].join(' ');
+      const ayirici = new Set(o.ayiricilar || []);
+      const govde = satirlar.map((x) => {
+        const baslik = x.tur === 'baslik';
+        const etiket = baslik ? 'th' : 'td';
+        const hucreler = x.hucreler.filter((z) => !z.kapali).map((z) => {
+          const stil = [`text-align:${HTML_HIZA[baslik ? 'orta' : hucreHiza(z.h, o.hizalar && o.hizalar[z.li])]}`];
+          if (o.dikeyHiza === 'ust' && !baslik) stil.push('vertical-align:top');
+          if (hucreKalin(z.h) || x.tur === 'toplam') stil.push('font-weight:bold');
+          if (ayirici.has(z.li)) stil.push('border-left:0.5pt solid #000');
+          return `<${etiket}${z.b > 1 ? ` colspan="${z.b}"` : ''}${z.rs > 1 ? ` rowspan="${z.rs}"` : ''} style="${stil.join(';')}">${satirKir(hucreMetni(z.h))}</${etiket}>`;
+        }).join('');
+        return `<tr${o.satirYuksekligi && !baslik ? ` style="height:${o.satirYuksekligi + 4}pt"` : ''}>${hucreler}${'<td></td>'.repeat(x.eksik)}</tr>`;
+      }).join('');
+      return `<table class="${sinif}${o.sayfaSonu ? ' sayfa-sonu' : ''}"><colgroup>${oranlar.map((g) => `<col style="width:${((100 * g) / top).toFixed(2)}%">`).join('')}</colgroup>${govde}</table>`;
+    }
+    default:
+      return '';
+  }
+}
+
+function htmlOlustur(belge) {
+  const yatay = belge.yon === 'yatay';
+  // CSS içeriği için kaçış (HTML varlıkları <style> içinde çözülmez)
+  const alt = String(belge.altBilgi || '').replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/</g, '\\3c ');
+  const sayfalar = belge.sayfalar.map((s) => `<section class="sayfa">${s.ogeler.map(htmlOge).join('\n')}</section>`).join('\n');
+  const html = `<!doctype html>
+<html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${kac(belge.ad || 'Belge')}</title>
+<style>
+  @page { size: A4 ${yatay ? 'landscape' : 'portrait'}; margin: ${yatay ? '10mm 10mm 14mm' : '14mm 17mm 17mm'};
+    @bottom-left { content: "${alt}"; font: 7.5pt 'Times New Roman', serif; color: #444; }
+    @bottom-right { content: "Sayfa " counter(page) "/" counter(pages); font: 7.5pt 'Times New Roman', serif; color: #444; } }
+  :root { color-scheme: light; }
+  body { margin: 0; background: #e9ecef; font: 10.5pt/1.3 'Times New Roman', serif; color: #000; }
+  .arac { position: sticky; top: 0; z-index: 5; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; padding: 10px 16px;
+    background: #1f2937; color: #fff; font: 14px system-ui, sans-serif; }
+  .arac b { font-weight: 600; }
+  .arac button { font: inherit; padding: 6px 14px; border: 0; border-radius: 6px; background: #16a34a; color: #fff; cursor: pointer; }
+  .arac button.ikincil { background: #4b5563; }
+  .arac .ipucu { opacity: .85; }
+  .kagit { box-sizing: border-box; width: ${yatay ? '297mm' : '210mm'}; max-width: calc(100vw - 32px); margin: 16px auto; padding: ${yatay ? '10mm' : '14mm 17mm'}; background: #fff; box-shadow: 0 2px 10px rgba(0,0,0,.15); }
+  .kagit[contenteditable="true"]:focus { outline: none; }
+  .kagit [contenteditable] *:hover { outline: 1px dashed #93c5fd; }
+  .sayfa + .sayfa { break-before: page; margin-top: 24px; padding-top: 24px; border-top: 1px dashed #bbb; }
+  .b { font-weight: bold; margin: 2pt 0; } .b1 { font-size: 13pt; } .b2 { font-size: 11.5pt; } .b3 { font-size: 10.5pt; }
+  p { margin: 3pt 0; } .k { font-size: 8.5pt; }
+  ul { margin: 2pt 0 4pt 14pt; padding: 0; }
+  table.t { width: 100%; border-collapse: collapse; margin: 4pt 0 6pt; table-layout: fixed; }
+  table.t td, table.t th { border: 0.5pt solid #000; padding: 2pt 3pt; font-size: 9.5pt; vertical-align: middle; word-wrap: break-word; white-space: pre-wrap; }
+  table.t th { background: #eee; }
+  table.t.k td, table.t.k th { font-size: 7.5pt; }
+  table.kenarsiz td, table.kenarsiz th { border: 0; background: none; }
+  table.dis { border: 0.5pt solid #000; } table.dis td, table.dis th { border: 0; } table.dis th { border-bottom: 0.5pt solid #000; }
+  .logo { display: flex; align-items: center; gap: 8pt; font-weight: bold; font-size: 9pt; margin-bottom: 6pt; }
+  @media print {
+    body { background: #fff; } .arac { display: none; }
+    .kagit { width: auto; max-width: none; margin: 0; padding: 0; box-shadow: none; }
+    .kagit [contenteditable] *:hover { outline: none; }
+    .sayfa + .sayfa { margin-top: 0; padding-top: 0; border-top: 0; }
+    table.sayfa-sonu { break-inside: avoid; }
+  }
+</style></head>
+<body>
+<div class="arac"><b>${kac(belge.formAdi || belge.ad || 'Belge')}</b>
+  <span class="ipucu">Düzenlemek için metnin üzerine tıklayın. Değişiklikler yalnızca bu çıktıya yansır, kaydedilmez.</span>
+  <span style="flex:1"></span>
+  <button type="button" onclick="window.print()">Yazdır / PDF olarak kaydet</button>
+  <button type="button" class="ikincil" onclick="location.reload()">Değişiklikleri geri al</button>
+</div>
+<div class="kagit" contenteditable="true" spellcheck="false">
+${sayfalar}
+</div>
+</body></html>`;
+  return Promise.resolve(Buffer.from(html, 'utf8'));
+}
+
+// ---------------------------------------------------------------------------
 const BICIMLER = {
   pdf: { uzanti: 'pdf', tur: 'application/pdf', olustur: pdfOlustur },
   docx: { uzanti: 'docx', tur: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', olustur: docxOlustur },
-  xlsx: { uzanti: 'xlsx', tur: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', olustur: xlsxOlustur }
+  xlsx: { uzanti: 'xlsx', tur: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', olustur: xlsxOlustur },
+  html: { uzanti: 'html', tur: 'text/html; charset=utf-8', olustur: htmlOlustur }
 };
 
 async function olustur(belge, bicim) {

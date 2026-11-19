@@ -24,6 +24,20 @@ const Kisi = () => mongoose.model('Kisi');
 const IlceYetkilisi = require('./model');
 const { tarihOku } = require('../../core/yardimcilar');
 const metin = (v) => (typeof v === 'string' ? v.trim() : '');
+const multer = require('multer');
+const dosyalar = require('../../core/dosyalar');
+const taramaYukle = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024, files: 1 } });
+const SORULAR = ['s1', 's2', 's3', 's4', 's5', 's6'];
+// İzleme raporunu kaydeden: proje yöneten, değerlendiren ya da talep giren (yürütücü)
+const izlemeYetkisi = (req) => req.izin(['proje.yonet', 'talep.degerlendir', 'talep.gir']);
+
+// Kurum logosu (Ayarlar › Genel): formların başlığında
+async function logoAl(ayar) {
+  let veri = null;
+  try { if (ayar.logoDosyaId && await dosyalar.bilgi(ayar.logoDosyaId)) veri = await dosyalar.oku(ayar.logoDosyaId); } catch (e) { veri = null; }
+  return { veri, yanMetin: ayar.logoUstMetin || 'T.C. Tarım ve Orman Bakanlığı\nBitkisel Üretim Genel Müdürlüğü' };
+}
+const cevaplariOku = (q) => Object.fromEntries(SORULAR.map((k) => [k, { secim: metin(q[k]), aciklama: metin(q[k + 'a']) }]));
 
 // İlçe müdürünü kim düzenler: Sistem Yöneticisi, genel ayar yetkisi olan ya da
 // ilçesi kendisine bağlı ve talep giren kişi (ilçe sorumlusu)
@@ -50,6 +64,8 @@ const asciiAd = (s) => s.replace(/[çÇğĞıİöÖşŞüÜ]/g, (c) => ({ ç: 'c
 
 async function gonder(res, model, bicim, ad) {
   const { icerik, tur, uzanti } = await belge.olustur(model, bicim);
+  // Düzenlenebilir önizleme: tarayıcıda açılır, yazdırılır
+  if (bicim === 'html') { res.set('Content-Type', tur); return res.send(icerik); }
   const tam = `${dosyaAdi(ad)}.${uzanti}`;
   const tip = bicim === 'pdf' ? 'inline' : 'attachment';
   res.set('Content-Type', tur);
@@ -108,9 +124,15 @@ router.get('/hazirla/:form', sar(async (req, res, next) => {
     const proje = await Proje().findById(req.query.proje).lean();
     if (!proje) return next();
     const kisiler = await Kisi().find({ aktif: true }).sort({ adSoyad: 1 }).select('adSoyad unvan eposta telefon').lean();
-    const ekip = [...(proje.koordinatorler || []), ...(proje.yurutuculer || [])].map(String);
+    const izlemeler = (proje.izlemeler || []).slice().sort((a, b) => new Date(b.tarih || b.olusturulma) - new Date(a.tarih || a.olusturulma));
+    const secili = req.query.izleme ? izlemeler.find((x) => String(x._id) === String(req.query.izleme)) : null;
+    // Fotoğraf sayısı önerisi: projenin saha kontrollerindeki fotoğraflar
+    const kontrolFoto = await Talep().find({ projeId: proje._id, 'kontroller.0': { $exists: true } }).select('kontroller.fotograflar').lean()
+      .then((l) => l.reduce((t, x) => t + (x.kontroller || []).reduce((a, k) => a + (k.fotograflar || []).length, 0), 0)).catch(() => 0);
     return res.render(V + 'hazirla-liste', {
-      baslik: tanim.ad, tanim, form: req.params.form, proje, kisiler, ekip,
+      baslik: tanim.ad, tanim, form: req.params.form, proje, kisiler, izlemeler, secili, kontrolFoto,
+      koordinatorler: (proje.koordinatorler || []).map(String), yurutuculer: (proje.yurutuculer || []).map(String),
+      izlemeYetkisi: izlemeYetkisi(req),
       ilce: typeof req.query.ilce === 'string' ? req.query.ilce : '', ilceler: calisilanIlceler(req.ben, res.locals.ayar)
     });
   }
@@ -124,6 +146,67 @@ router.get('/hazirla/:form', sar(async (req, res, next) => {
     baslik: `${tanim.kod} ${tanim.ad}`, tanim, form: req.params.form, talep, kayit: kayit || {},
     duzenlenebilir: yetkiliDuzenlerMi(req, talep.ilce), donus: req.originalUrl
   });
+}));
+
+// İzleme raporu: kaydet (yeni ya da var olanı güncelle)
+router.post('/izleme/kaydet', sar(async (req, res) => {
+  const b = req.body || {};
+  if (!mongoose.isValidObjectId(b.proje) || !projeErisebilirMi(req, b.proje)) return projeErisimYok(res);
+  if (!izlemeYetkisi(req)) return res.status(403).send('İzleme raporu kaydetme yetkiniz yok.');
+  const proje = await Proje().findById(b.proje);
+  if (!proje) return res.redirect('/belgeler');
+  const veri = {
+    tarih: tarihOku(b.tarih) || new Date(),
+    yurutenler: [].concat(b.yurutenler || []).filter((id) => mongoose.isValidObjectId(id)),
+    cevaplar: cevaplariOku(b),
+    fotoSayisi: b.fotoSayisi !== undefined && b.fotoSayisi !== '' && Number.isFinite(Number(b.fotoSayisi)) ? Number(b.fotoSayisi) : undefined,
+    ilce: metin(b.ilce) || undefined,
+    kaydedenAd: req.ben ? req.ben.adSoyad : undefined
+  };
+  let kayit = mongoose.isValidObjectId(b.izlemeId) ? proje.izlemeler.id(b.izlemeId) : null;
+  if (kayit) kayit.set(veri); else { proje.izlemeler.push(veri); kayit = proje.izlemeler[proje.izlemeler.length - 1]; }
+  proje.markModified('izlemeler');
+  await proje.save();
+  return res.redirect(`/belgeler/hazirla/izleme?proje=${proje._id}&izleme=${kayit._id}&bildirim=kaydedildi`);
+}));
+
+// İmzalı taramayı yükle / indir; raporu sil (yalnızca Sistem Yöneticisi)
+router.post('/izleme/:id/imzali', taramaYukle.single('tarama'), sar(async (req, res, next) => {
+  const proje = mongoose.isValidObjectId(req.params.id) ? await Proje().findOne({ 'izlemeler._id': req.params.id }) : null;
+  if (!proje) return next();
+  if (!projeErisebilirMi(req, proje._id)) return projeErisimYok(res);
+  if (!izlemeYetkisi(req)) return res.status(403).send('Yetkiniz yok.');
+  const kayit = proje.izlemeler.id(req.params.id);
+  const donus = `/belgeler/hazirla/izleme?proje=${proje._id}&izleme=${kayit._id}`;
+  if (!req.file || !/^(application\/pdf|image\/(png|jpe?g))$/.test(req.file.mimetype)) return res.redirect(donus + '&bildirim=islem-yapilamadi&hata=' + encodeURIComponent('PDF ya da resim (PNG/JPEG) seçilmelidir.'));
+  const eski = kayit.imzali && kayit.imzali.dosyaId;
+  const dosyaId = await dosyalar.kaydet(req.file.buffer, req.file.originalname, req.file.mimetype, { tur: 'izleme', proje: String(proje._id) });
+  kayit.imzali = { dosyaId: String(dosyaId), ad: req.file.originalname, yukleyenAd: req.ben ? req.ben.adSoyad : undefined, tarih: new Date() };
+  proje.markModified('izlemeler');
+  await proje.save();
+  if (eski) await dosyalar.sil(eski);
+  return res.redirect(donus + '&bildirim=kaydedildi');
+}));
+router.get('/izleme/:id/imzali', sar(async (req, res, next) => {
+  const proje = mongoose.isValidObjectId(req.params.id) ? await Proje().findOne({ 'izlemeler._id': req.params.id }).lean() : null;
+  if (!proje) return next();
+  if (!projeErisebilirMi(req, proje._id)) return projeErisimYok(res);
+  const kayit = proje.izlemeler.find((x) => String(x._id) === req.params.id);
+  const b = kayit && kayit.imzali && kayit.imzali.dosyaId ? await dosyalar.bilgi(kayit.imzali.dosyaId) : null;
+  if (!b) return next();
+  res.set('Content-Type', (b.metadata && b.metadata.icerikTuru) || 'application/octet-stream');
+  res.set('Content-Disposition', `inline; filename*=UTF-8''${encodeURIComponent(kayit.imzali.ad || 'izleme')}`);
+  return dosyalar.okumaAkisi(kayit.imzali.dosyaId).pipe(res);
+}));
+router.post('/izleme/:id/sil', sar(async (req, res, next) => {
+  const proje = mongoose.isValidObjectId(req.params.id) ? await Proje().findOne({ 'izlemeler._id': req.params.id }) : null;
+  if (!proje) return next();
+  const kayit = proje.izlemeler.id(req.params.id);
+  if (kayit.imzali && kayit.imzali.dosyaId) await dosyalar.sil(kayit.imzali.dosyaId);
+  kayit.deleteOne();
+  proje.markModified('izlemeler');
+  await proje.save();
+  return res.redirect(`/belgeler/hazirla/izleme?proje=${proje._id}&bildirim=izleme-silindi`);
 }));
 
 router.get('/:form', sar(async (req, res, next) => {
@@ -186,9 +269,16 @@ router.get('/:form', sar(async (req, res, next) => {
   const q = req.query;
   const secenekler = {
     tarih: tarihOku(q.tarih), sonTarih: tarihOku(q.sonTarih), sayi: metin(q.sayi), imzaciAd: metin(q.imzaciAd), imzaciUnvan: metin(q.imzaciUnvan),
-    cevaplar: Object.fromEntries(['s1', 's2', 's3', 's4', 's5', 's6'].map((k) => [k, { secim: metin(q[k]), aciklama: metin(q[k + 'a']) }]))
+    cevaplar: cevaplariOku(q), fotoSayisi: q.fotoSayisi !== undefined && q.fotoSayisi !== '' ? Number(q.fotoSayisi) : null
   };
-  const yurutenIdleri = [].concat(q.yurutenler || []).filter((id) => mongoose.isValidObjectId(id));
+  let yurutenIdleri = [].concat(q.yurutenler || []).filter((id) => mongoose.isValidObjectId(id));
+  // Kayıtlı izleme raporu: değerler kayıttan
+  const kayitli = req.query.izleme ? (proje.izlemeler || []).find((x) => String(x._id) === String(req.query.izleme)) : null;
+  if (kayitli) {
+    Object.assign(secenekler, { tarih: kayitli.tarih, cevaplar: kayitli.cevaplar || {}, fotoSayisi: kayitli.fotoSayisi != null ? kayitli.fotoSayisi : null });
+    yurutenIdleri = (kayitli.yurutenler || []).map(String);
+  }
+  if (tanim.hazirla) secenekler.logo = await logoAl(ayar);
   secenekler.yurutenler = yurutenIdleri.length ? await Kisi().find({ _id: { $in: yurutenIdleri } }).select('adSoyad unvan eposta telefon').lean() : [];
   const model = tanim.liste({ satirlar, proje, ayar, ilce, puanVar, ilceYetkilileri, secenekler });
   model.altBilgi = `${proje.kisaAd || proje.ad}${ilce ? ' | ' + ilce : ''} | ${model.formAdi || tanim.ad}`;

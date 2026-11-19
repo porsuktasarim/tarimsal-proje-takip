@@ -1,5 +1,5 @@
 <%- include('_bas') %>
-<form method="post" action="/ayarlar/genel" class="card">
+<form method="post" action="/ayarlar/genel" class="card" enctype="multipart/form-data">
   <div class="card-header">
     <div>
       <h3 class="card-title">Genel</h3>
@@ -15,6 +15,23 @@
       <div class="col-md-4">
         <label class="form-label required">İl</label>
         <input type="text" name="il" value="<%= deger.il || '' %>" class="form-control" required>
+      </div>
+      <div class="col-12"><div class="hr-text my-1">Kurum logosu</div>
+        <div class="small text-secondary">Proje izleme formunun ve il müdürlüğü yazılarının başında yer alır; tüm projelerde kullanılır. PNG ya da JPEG, en çok 3 MB.</div></div>
+      <div class="col-md-3 text-center">
+        <% if (deger.logoDosyaId) { %>
+          <img src="/ayarlar/logo?v=<%= deger.logoDosyaId %>" alt="Kurum logosu" style="max-width: 100%; max-height: 96px">
+          <label class="form-check mt-2 small"><input type="checkbox" class="form-check-input" name="logoSil"><span class="form-check-label">Logoyu kaldır</span></label>
+        <% } else { %>
+          <div class="border rounded text-secondary small p-4">Logo yok</div>
+        <% } %>
+      </div>
+      <div class="col-md-9">
+        <label class="form-label"><%= deger.logoDosyaId ? 'Logoyu değiştir' : 'Logo yükle' %></label>
+        <input type="file" name="logo" accept="image/png,image/jpeg" class="form-control mb-2">
+        <label class="form-label">Logonun yanındaki yazı</label>
+        <textarea name="logoUstMetin" rows="2" class="form-control" placeholder="T.C. Tarım ve Orman Bakanlığı&#10;Bitkisel Üretim Genel Müdürlüğü"><%= deger.logoUstMetin || '' %></textarea>
+        <small class="form-hint">Boş bırakılırsa "T.C. Tarım ve Orman Bakanlığı / Bitkisel Üretim Genel Müdürlüğü" yazılır.</small>
       </div>
       <% var kh = deger.katkiHesabi || {}; %>
       <div class="col-12"><div class="hr-text my-1">Üretici katkı payı hesabı (varsayılan)</div>

@@ -7,6 +7,9 @@ const {
   normTipleri, normBirimOnerileri, ambalajBirimleri, yetkiGruplari, tumYetkiler, rolRenkSecenekleri
 } = require('../../config/sabitler');
 const katalog = require('./katalog');
+const multer = require('multer');
+const dosyalar = require('../../core/dosyalar');
+const logoYukle = multer({ storage: multer.memoryStorage(), limits: { fileSize: 3 * 1024 * 1024, files: 1 } });
 const { yetkisizSayfa } = require('../../core/yetki');
 const { diziyeCevir, tarihOku, anahtar, kodUret, sayiOku } = require('../../core/yardimcilar');
 
@@ -50,7 +53,17 @@ router.get('/genel', (req, res) => {
   res.render(V + 'genel', { baslik: 'Genel', deger: res.locals.ayar, hatalar: [] });
 });
 
-router.post('/genel', sar(async (req, res) => {
+// Kurum logosu (herkese açık; formlarda ve önizlemede kullanılır)
+router.get('/logo', sar(async (req, res, next) => {
+  const id = res.locals.ayar.logoDosyaId;
+  const b = id ? await dosyalar.bilgi(id) : null;
+  if (!b) return next();
+  res.set('Content-Type', (b.metadata && b.metadata.icerikTuru) || 'image/png');
+  res.set('Cache-Control', 'no-cache');
+  return dosyalar.okumaAkisi(id).pipe(res);
+}));
+
+router.post('/genel', logoYukle.single('logo'), sar(async (req, res) => {
   const k = req.body.katkiHesabi || {};
   const deger = {
     kurum: (req.body.kurum || '').trim(), il: (req.body.il || '').trim(),
@@ -59,7 +72,17 @@ router.post('/genel', sar(async (req, res) => {
   const hatalar = [];
   if (!deger.kurum) hatalar.push('Kurum adı girilmelidir.');
   if (!deger.il) hatalar.push('İl adı girilmelidir.');
-  if (hatalar.length) return res.status(422).render(V + 'genel', { baslik: 'Genel', deger, hatalar });
+  deger.logoUstMetin = String(req.body.logoUstMetin || '').trim();
+  if (req.file && !/^image\/(png|jpe?g)$/.test(req.file.mimetype)) hatalar.push('Logo PNG ya da JPEG olmalıdır.');
+  if (hatalar.length) return res.status(422).render(V + 'genel', { baslik: 'Genel', deger: { ...res.locals.ayar, ...deger }, hatalar });
+  const eski = res.locals.ayar.logoDosyaId;
+  if (req.file) {
+    deger.logoDosyaId = String(await dosyalar.kaydet(req.file.buffer, req.file.originalname, req.file.mimetype, { tur: 'logo' }));
+    if (eski) await dosyalar.sil(eski);
+  } else if (req.body.logoSil === 'on' && eski) {
+    await dosyalar.sil(eski);
+    deger.logoDosyaId = '';
+  }
   await ayarlar.guncelle(deger);
   return res.redirect('/ayarlar/genel?bildirim=kaydedildi');
 }));

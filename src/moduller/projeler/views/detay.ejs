@@ -168,6 +168,59 @@
       </div>
 
       <div class="col-lg-8">
+        <!-- Süreç: koordinatörün adım adım listesi -->
+        <% var tamamSayisi = surecAdimlari.filter(function (a) { return (surecKayit[a.kod] || {}).tamam; }).length; var surecYonet = izin('proje.yonet'); %>
+        <div class="card mb-3" id="surec">
+          <div class="card-header">
+            <div>
+              <h3 class="card-title">Süreç</h3>
+              <p class="card-subtitle">Her adım tamamlandığında işaretlenir ve gerekirse not düşülür. Sağdaki bilgi sistemdeki kayıtlardan hesaplanır.</p>
+            </div>
+            <div class="card-actions"><span class="badge bg-<%= tamamSayisi === surecAdimlari.length ? 'green' : 'blue' %>-lt"><%= tamamSayisi %>/<%= surecAdimlari.length %></span></div>
+          </div>
+          <div class="progress progress-sm rounded-0"><div class="progress-bar bg-green" style="width: <%= Math.round(100 * tamamSayisi / surecAdimlari.length) %>%"></div></div>
+          <div class="list-group list-group-flush surec-liste">
+            <% surecAdimlari.forEach(function (a, i) { var k = surecKayit[a.kod] || {}; var ip = surecIpuclari[a.kod] || {}; %>
+              <div class="list-group-item py-2">
+                <div class="d-flex align-items-start gap-2">
+                  <% if (surecYonet) { %>
+                    <form method="post" action="/projeler/<%= proje._id %>/surec/<%= a.kod %>" class="pt-1">
+                      <input type="hidden" name="tamam" value="<%= k.tamam ? '' : 'on' %>">
+                      <button class="btn btn-icon btn-sm <%= k.tamam ? 'btn-success' : 'btn-outline-secondary' %>" title="<%= k.tamam ? 'İşareti kaldır' : 'Tamamlandı olarak işaretle' %>" style="width:26px;height:26px"><i class="ti <%= k.tamam ? 'ti-check' : 'ti-square' %>"></i></button>
+                    </form>
+                  <% } else { %>
+                    <span class="pt-1"><i class="ti <%= k.tamam ? 'ti-circle-check text-success' : 'ti-circle text-secondary' %> fs-2"></i></span>
+                  <% } %>
+                  <div class="flex-fill">
+                    <div class="<%= k.tamam ? 'text-secondary' : '' %>"><span class="text-secondary small me-1"><%= i + 1 %>.</span><%= a.ad %>
+                      <% if (k.tamam) { %><span class="small text-success ms-1"><%= y.tarih(k.tarih) %><%= k.kisiAd ? ' · ' + k.kisiAd : '' %></span><% } %>
+                    </div>
+                    <% if (a.aciklama) { %><div class="small text-secondary"><%= a.aciklama %></div><% } %>
+                    <% (k.notlar || []).forEach(function (n) { %>
+                      <div class="small gecmis-not mt-1"><i class="ti ti-note me-1"></i><%= n.metin %> <span class="text-secondary">— <%= n.kisiAd || '' %>, <%= y.tarih(n.tarih) %></span></div>
+                    <% }) %>
+                    <% if (surecYonet) { %>
+                      <details class="mt-1">
+                        <summary class="small text-secondary">Not ekle<%= k.tamam ? ' / tarihi değiştir' : '' %></summary>
+                        <form method="post" action="/projeler/<%= proje._id %>/surec/<%= a.kod %>" class="d-flex flex-wrap gap-2 mt-1">
+                          <input type="hidden" name="tamam" value="<%= k.tamam ? 'on' : '' %>">
+                          <input type="text" name="not" class="form-control form-control-sm flex-fill" placeholder="Not (ör. yazı sayısı, gönderim tarihi, eksik ilçeler)" style="min-width: 14rem">
+                          <% if (k.tamam) { %><input type="date" name="tarih" class="form-control form-control-sm" style="max-width: 10rem"><% } %>
+                          <button class="btn btn-sm"><i class="ti ti-device-floppy me-1"></i>Kaydet</button>
+                        </form>
+                      </details>
+                    <% } %>
+                  </div>
+                  <div class="text-end small text-nowrap">
+                    <% if (ip.metin) { %><div class="<%= ip.tamamGibi ? 'text-success' : 'text-secondary' %>"><%= ip.metin %></div><% } %>
+                    <% if (ip.bag) { %><a href="<%= ip.bag %>"<%= /bicim=/.test(ip.bag) ? ' target="_blank"' : '' %>>Aç <i class="ti ti-arrow-right"></i></a><% } %>
+                  </div>
+                </div>
+              </div>
+            <% }) %>
+          </div>
+        </div>
+
         <!-- Kalemler ve dağıtım miktarı -->
         <div class="card mb-3">
           <div class="card-header">

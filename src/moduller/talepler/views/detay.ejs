@@ -238,6 +238,7 @@
                 <a class="btn btn-sm btn-ghost-danger px-2" title="PDF" target="_blank" href="/belgeler/<%= b[0] %>?talep=<%= talep._id %>&bicim=pdf"><i class="ti ti-file-type-pdf"></i></a>
                 <a class="btn btn-sm btn-ghost-primary px-2" title="Word" href="/belgeler/<%= b[0] %>?talep=<%= talep._id %>&bicim=docx"><i class="ti ti-file-type-docx"></i></a>
                 <a class="btn btn-sm btn-ghost-success px-2" title="Excel" href="/belgeler/<%= b[0] %>?talep=<%= talep._id %>&bicim=xlsx"><i class="ti ti-file-spreadsheet"></i></a>
+                <a class="btn btn-sm btn-ghost-secondary px-2" title="Önizle ve düzenle" target="_blank" href="/belgeler/<%= b[0] %>?talep=<%= talep._id %>&bicim=html"><i class="ti ti-edit"></i></a>
                 <% } %>
               </div>
             <% }) %>

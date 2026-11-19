@@ -29,6 +29,8 @@ const ayarSema = new mongoose.Schema({
   _id: { type: String, default: 'genel' },
   kurum: { type: String, trim: true },
   il: { type: String, trim: true },
+  logoDosyaId: { type: String, trim: true },         // kurum logosu (GridFS); izleme formu ve yazılarda kullanılır
+  logoUstMetin: { type: String, trim: true },        // logonun yanındaki satırlar (ör. T.C. Tarım ve Orman Bakanlığı / Bitkisel Üretim Genel Müdürlüğü)
   katkiHesabi: {                                     // üretici katkı payının yatırıldığı varsayılan hesap
     type: new mongoose.Schema({ banka: { type: String, trim: true }, alici: { type: String, trim: true }, iban: { type: String, trim: true } }, { _id: false }),
     default: undefined

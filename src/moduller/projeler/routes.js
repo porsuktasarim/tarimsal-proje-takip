@@ -7,6 +7,7 @@ const katalog = require('../ayarlar/katalog');
 const { projeHesabi, taleplerOzeti } = require('./hesap');
 const degerlendirmeHesabi = require('./degerlendirme-hesabi');
 const projeMetni = require('./proje-metni');
+const surec = require('./surec');
 const dosyalar = require('../../core/dosyalar');
 const { yetkiGerekli, projeFiltresi, projeErisebilirMi, projeErisimYok } = require('../../core/yetki');
 const { projeDurumlari } = require('../../config/sabitler');
@@ -301,7 +302,10 @@ router.get('/:id', sar(projeBul), sar(async (req, res) => {
     asamaSayilari,
     katalogEklenen: parseInt(req.query.katalog, 10) || 0,
     metinYukleyebilir: projeMetni.yukleyebilirMi(req.ben, req.proje, res.locals.adminVar),
-    metinGerekli: req.query.metin === 'gerekli'
+    metinGerekli: req.query.metin === 'gerekli',
+    surecAdimlari: surec.ADIMLAR,
+    surecIpuclari: surec.ipuclari(req.proje, tumTalepler),
+    surecKayit: req.proje.surec || {}
   });
 }));
 
@@ -379,6 +383,29 @@ router.get('/:id/belge/:dosyaId', sar(projeBul), sar(async (req, res, next) => {
   res.set('Content-Disposition', `${satirIci ? 'inline' : 'attachment'}; filename*=UTF-8''${encodeURIComponent(belge.ad || 'proje-metni.' + belge.tur)}`);
   res.set('Cache-Control', 'private, max-age=3600');
   dosyalar.okumaAkisi(belge.dosyaId).on('error', next).pipe(res);
+}));
+
+// Süreç adımı: işaretle / işareti kaldır, tarih ve not (koordinatör)
+router.post('/:id/surec/:kod', sar(projeBul), sar(async (req, res) => {
+  const adim = surec.ADIMLAR.find((a) => a.kod === req.params.kod);
+  if (!adim) return res.redirect(`/projeler/${req.proje._id}#surec`);
+  const s = { ...(req.proje.surec || {}) };
+  const k = { notlar: [], ...(s[adim.kod] || {}) };
+  const tamam = req.body.tamam === 'on' || req.body.tamam === '1';
+  if (tamam !== !!k.tamam) {
+    k.tamam = tamam;
+    k.tarih = tamam ? (tarihOku(req.body.tarih) || new Date()) : null;
+    k.kisiAd = req.ben ? req.ben.adSoyad : undefined;
+  } else if (tamam && tarihOku(req.body.tarih)) {
+    k.tarih = tarihOku(req.body.tarih);
+  }
+  const not = metin(req.body.not);
+  if (not) k.notlar = [...(k.notlar || []), { metin: not, kisiAd: req.ben ? req.ben.adSoyad : undefined, tarih: new Date() }];
+  s[adim.kod] = k;
+  req.proje.surec = s;
+  req.proje.markModified('surec');
+  await req.proje.save();
+  return res.redirect(`/projeler/${req.proje._id}?bildirim=surec-kaydedildi#surec`);
 }));
 
 router.post('/:id/durum', sar(projeBul), sar(async (req, res) => {

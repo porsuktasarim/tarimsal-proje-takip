@@ -108,6 +108,21 @@ const projeSema = new mongoose.Schema({
     default: []
   },
   // Proje ekibi (Ayarlar > Kişiler)
+  // Proje izleme raporları (aylık): her biri yeniden açılıp düzenlenebilir, imzalı taraması yüklenebilir
+  izlemeler: {
+    type: [new mongoose.Schema({
+      tarih: Date,
+      yurutenler: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Kisi' }],
+      cevaplar: { type: mongoose.Schema.Types.Mixed, default: {} },   // s1..s6: { secim, aciklama }
+      fotoSayisi: Number,
+      ilce: String,
+      kaydedenAd: String,
+      imzali: { dosyaId: String, ad: String, yukleyenAd: String, tarih: Date }
+    }, { timestamps: { createdAt: 'olusturulma', updatedAt: 'guncellenme' } })],
+    default: []
+  },
+  // Koordinatörün süreç listesi: adım kodu → { tamam, tarih, not, kisiAd }
+  surec: { type: mongoose.Schema.Types.Mixed, default: {} },
   koordinatorler: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Kisi' }],
   yurutuculer: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Kisi' }]
 }, { collection: 'projeler', timestamps: { createdAt: 'olusturulma', updatedAt: 'guncellenme' } });

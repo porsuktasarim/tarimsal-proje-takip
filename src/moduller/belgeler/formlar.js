@@ -734,7 +734,9 @@ function izleme(v) {
     ad: 'Proje izleme formu',
     formAdi: 'Proje İzleme Formu',
     ogeler: [
-      { t: 'p', parcalar: [{ metin: 'T.C. Tarım ve Orman Bakanlığı\nBitkisel Üretim Genel Müdürlüğü', kalin: true }], hiza: 'sol' },
+      secenekler.logo && secenekler.logo.veri
+        ? { t: 'resim', veri: secenekler.logo.veri, genislik: 42, yanMetin: secenekler.logo.yanMetin }
+        : { t: 'p', parcalar: [{ metin: (secenekler.logo && secenekler.logo.yanMetin) || 'T.C. Tarım ve Orman Bakanlığı\nBitkisel Üretim Genel Müdürlüğü', kalin: true }], hiza: 'sol' },
       { t: 'baslik', metin: 'PROJE İZLEME FORMU *', boyut: 2 },
       { t: 'p', metin: '* İzleme faaliyeti, proje yürütücüleri tarafından proje süresince periyodik olarak gerçekleştirilecektir. İzleme formu en az aylık olarak düzenlenecek ve proje dosyasında muhafaza edilecektir.', kucuk: true },
       { t: 'baslik', metin: '1. İzlemeye Konu Proje Bilgileri', boyut: 3, hiza: 'sol' },
@@ -777,7 +779,9 @@ function izleme(v) {
         satirlar: butce,
         toplam: [{ metin: 'TOPLAM', birlesik: 8, hiza: 'orta' }, tl(top(gercek, 'bedel')), tl(top(gercek, 'destek')), tl(top(gercek, 'katki'))]
       },
-      { t: 'p', metin: 'Planlanan değerler desteklenen başvurulardan, gerçekleşen değerler teslim edilen başvurulardan hesaplanmıştır. Saha fotoğrafları forma eklenir.', kucuk: true, hiza: 'sol' }
+      { t: 'p', metin: 'Planlanan değerler desteklenen başvurulardan, gerçekleşen değerler teslim edilen başvurulardan hesaplanmıştır.', kucuk: true, hiza: 'sol' },
+      { t: 'bosluk', yukseklik: 4 },
+      { t: 'p', metin: `Saha fotoğrafları (${secenekler.fotoSayisi != null && !Number.isNaN(secenekler.fotoSayisi) ? sayi(secenekler.fotoSayisi) : '…….'} adet) ektedir.`, hiza: 'sol' }
     ]
   };
 }
@@ -824,6 +828,7 @@ function odemeYazisi(v) {
     sayfalar: [{
       ad: 'Yazı',
       ogeler: [
+        ...(secenekler.logo && secenekler.logo.veri ? [{ t: 'resim', veri: secenekler.logo.veri, genislik: 46 }] : []),
         { t: 'baslik', metin: `T.C.\n${buyuk(o.il)} VALİLİĞİ\n${o.mudurluk.replace(new RegExp('^' + o.il + '\\s*', 'i'), '')}`, boyut: 3 },
         {
           t: 'tablo', kenarsiz: true, genislik: [0.6, 3, 1], hizalar: ['sol', 'sol', 'sag'],

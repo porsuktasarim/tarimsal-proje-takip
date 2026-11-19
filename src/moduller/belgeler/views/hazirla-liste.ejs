@@ -9,15 +9,80 @@
     ['s5', 'Yerel katkı gerçekleşti mi?', 'ekh'],
     ['s6', 'Faaliyetler sonucunda istenen neticelere ulaşıldı mı?', 'metin']
   ];
+  var izleme = form === 'izleme';
+  var kayit = secili || null;
+  var cev = (kayit && kayit.cevaplar) || {};
+  var c = function (k) { return cev[k] || {}; };
+  // Yürütenler: kayıtta seçilenler; yeni raporda projenin yürütücüleri seçili gelir
+  var seciliKisiler = kayit ? (kayit.yurutenler || []).map(String) : yurutuculer.slice();
+  var kisiAdi = function (id) { var k = kisiler.find(function (x) { return String(x._id) === String(id); }); return k ? k.adSoyad : '–'; };
+  var ekipte = yurutuculer.concat(koordinatorler);
+  var digerleri = kisiler.filter(function (k) { return ekipte.indexOf(String(k._id)) < 0; });
+  var kisiSatiri = function (k) {
+    return '<label class="form-check mb-1"><input class="form-check-input" type="checkbox" name="yurutenler" value="' + k._id + '"' + (seciliKisiler.indexOf(String(k._id)) >= 0 ? ' checked' : '') + '><span class="form-check-label">' + k.adSoyad + (k.unvan ? ' <span class="text-secondary small">· ' + k.unvan + '</span>' : '') + (!k.eposta && !k.telefon ? ' <span class="text-warning small">(e-posta/telefon yok)</span>' : '') + '</span></label>';
+  };
+  var tarihDeger = function (t) { if (!t) return ''; var d = new Date(t); return isNaN(d) ? '' : d.toISOString().slice(0, 10); };
 %>
 <div class="page-body">
   <div class="container-xl">
-    <form method="get" action="/belgeler/<%= form %>" class="card" style="max-width: 56rem">
+    <%- include('../../../views/partials/bildirim') %>
+
+    <% if (izleme) { %>
+      <div class="card mb-3">
+        <div class="card-header">
+          <div>
+            <h3 class="card-title">İzleme raporları</h3>
+            <p class="card-subtitle">İzleme formu en az aylık düzenlenir; proje süresince yapılan izlemelerin raporlarıdır. Her rapor yeniden açılıp düzenlenebilir, yeniden alınabilir; imzalı taraması yüklenebilir.</p>
+          </div>
+          <div class="card-actions"><a class="btn btn-sm" href="/belgeler/hazirla/izleme?proje=<%= proje._id %>"><i class="ti ti-plus me-1"></i>Yeni izleme raporu</a></div>
+        </div>
+        <div class="table-responsive">
+          <table class="table table-vcenter card-table table-sm">
+            <thead><tr><th>İzleme dönemi</th><th>Yürütenler</th><th>Fotoğraf</th><th>Kaydeden</th><th>İmzalı tarama</th><th class="text-end">Çıktı</th></tr></thead>
+            <tbody>
+              <% if (!izlemeler.length) { %><tr><td colspan="6" class="text-secondary">Henüz kaydedilmiş izleme raporu yok. Aşağıdaki formu doldurup "Raporu kaydet" ile kaydedin.</td></tr><% } %>
+              <% izlemeler.forEach(function (x) { var aktif = kayit && String(kayit._id) === String(x._id); var adr = '/belgeler/izleme?proje=' + proje._id + '&izleme=' + x._id + (x.ilce ? '&ilce=' + encodeURIComponent(x.ilce) : ''); %>
+                <tr class="<%= aktif ? 'table-active' : '' %>">
+                  <td><a href="/belgeler/hazirla/izleme?proje=<%= proje._id %>&izleme=<%= x._id %>"><%= y.tarih(x.tarih) %></a><%= x.ilce ? ' · ' + x.ilce : '' %><% if (aktif) { %> <span class="badge bg-blue-lt">açık</span><% } %></td>
+                  <td class="small"><%= (x.yurutenler || []).map(kisiAdi).join(', ') || '–' %></td>
+                  <td><%= x.fotoSayisi != null ? x.fotoSayisi : '–' %></td>
+                  <td class="small"><%= x.kaydedenAd || '–' %><div class="text-secondary"><%= y.tarih(x.guncellenme || x.olusturulma) %></div></td>
+                  <td class="small">
+                    <% if (x.imzali && x.imzali.dosyaId) { %>
+                      <a href="/belgeler/izleme/<%= x._id %>/imzali" target="_blank"><i class="ti ti-file-check me-1"></i><%= x.imzali.ad %></a>
+                      <div class="text-secondary"><%= x.imzali.yukleyenAd || '' %> · <%= y.tarih(x.imzali.tarih) %></div>
+                    <% } %>
+                    <% if (izlemeYetkisi) { %>
+                      <form method="post" action="/belgeler/izleme/<%= x._id %>/imzali" enctype="multipart/form-data" class="d-flex gap-1 mt-1">
+                        <input type="file" name="tarama" accept="application/pdf,image/png,image/jpeg" class="form-control form-control-sm" required>
+                        <button class="btn btn-sm" title="İmzalı taramayı yükle"><i class="ti ti-upload"></i></button>
+                      </form>
+                    <% } %>
+                  </td>
+                  <td class="text-end text-nowrap">
+                    <a class="btn btn-sm btn-ghost-danger px-2" title="PDF" target="_blank" href="<%= adr %>&bicim=pdf"><i class="ti ti-file-type-pdf"></i></a>
+                    <a class="btn btn-sm btn-ghost-primary px-2" title="Word" href="<%= adr %>&bicim=docx"><i class="ti ti-file-type-docx"></i></a>
+                    <a class="btn btn-sm btn-ghost-success px-2" title="Excel" href="<%= adr %>&bicim=xlsx"><i class="ti ti-file-spreadsheet"></i></a>
+                    <a class="btn btn-sm btn-ghost-secondary px-2" title="Önizle ve düzenle" target="_blank" href="<%= adr %>&bicim=html"><i class="ti ti-edit"></i></a>
+                    <% if (silebilir) { %>
+                      <form method="post" action="/belgeler/izleme/<%= x._id %>/sil" class="d-inline" onsubmit="return confirm('İzleme raporu silinsin mi?')"><button class="btn btn-sm btn-ghost-secondary px-2" title="Sil"><i class="ti ti-trash"></i></button></form>
+                    <% } %>
+                  </td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    <% } %>
+
+    <form method="get" action="/belgeler/<%= form %>" class="card" style="max-width: 60rem">
       <input type="hidden" name="proje" value="<%= proje._id %>">
+      <% if (kayit) { %><input type="hidden" name="izlemeId" value="<%= kayit._id %>"><% } %>
       <div class="card-header">
         <div>
-          <h3 class="card-title"><%= tanim.ad %></h3>
-          <p class="card-subtitle">Bu bilgiler yalnızca bu çıktıya yazılır; boş bırakılanlar formda noktalı çıkar. Sayısal bilgiler başvurulardan hesaplanır.</p>
+          <h3 class="card-title"><%= izleme ? (kayit ? 'İzleme raporu · ' + y.tarih(kayit.tarih) : 'Yeni izleme raporu') : tanim.ad %></h3>
+          <p class="card-subtitle"><%= izleme ? 'Rapor kaydedilirse sonradan açılıp düzenlenebilir. Kaydetmeden de çıktı alınabilir.' : 'Bu bilgiler yalnızca bu çıktıya yazılır; boş bırakılanlar formda noktalı çıkar.' %> Sayısal bilgiler başvurulardan hesaplanır.</p>
         </div>
       </div>
       <div class="card-body">
@@ -26,35 +91,53 @@
             <label class="form-label">İlçe</label>
             <select name="ilce" class="form-select">
               <option value="">İl geneli</option>
-              <% ilceler.forEach(function (i) { %><option <%= ilce === i ? 'selected' : '' %>><%= i %></option><% }) %>
+              <% ilceler.forEach(function (i) { %><option <%= (kayit ? kayit.ilce : ilce) === i ? 'selected' : '' %>><%= i %></option><% }) %>
             </select>
           </div>
-          <% if (form === 'izleme') { %>
+          <% if (izleme) { %>
             <div class="col-md-4">
               <label class="form-label">İzleme dönemi (tarih)</label>
-              <input type="date" name="tarih" class="form-control">
+              <input type="date" name="tarih" class="form-control" value="<%= tarihDeger(kayit && kayit.tarih) %>">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Saha fotoğrafı sayısı</label>
+              <input type="number" min="0" name="fotoSayisi" class="form-control" value="<%= kayit && kayit.fotoSayisi != null ? kayit.fotoSayisi : '' %>" placeholder="<%= kontrolFoto || '' %>">
+              <small class="form-hint">"Saha fotoğrafları (… adet) ektedir." olarak yazılır.<%= kontrolFoto ? ' Saha kontrollerinde ' + kontrolFoto + ' fotoğraf var.' : '' %></small>
             </div>
             <div class="col-12">
               <label class="form-label">İzleme faaliyetini yürütenler</label>
-              <select name="yurutenler" class="form-select" multiple size="5">
-                <% kisiler.forEach(function (k) { %>
-                  <option value="<%= k._id %>" <%= ekip.indexOf(String(k._id)) >= 0 ? 'selected' : '' %>><%= k.adSoyad %><%= k.unvan ? ' · ' + k.unvan : '' %><%= k.eposta ? ' · ' + k.eposta : '' %></option>
-                <% }) %>
-              </select>
-              <small class="form-hint">Projenin koordinatör ve yürütücüleri seçili gelir; adla birlikte e-posta ve telefonları yazılır (Ayarlar › Kişiler).</small>
+              <div class="row">
+                <div class="col-md-4">
+                  <div class="small text-secondary mb-1">Proje yürütücüleri</div>
+                  <% if (!yurutuculer.length) { %><div class="small text-secondary">Projede yürütücü yok (proje formu › ekip).</div><% } %>
+                  <% kisiler.filter(function (k) { return yurutuculer.indexOf(String(k._id)) >= 0; }).forEach(function (k) { %><%- kisiSatiri(k) %><% }) %>
+                </div>
+                <div class="col-md-4">
+                  <div class="small text-secondary mb-1">Koordinatörler</div>
+                  <% kisiler.filter(function (k) { return koordinatorler.indexOf(String(k._id)) >= 0 && yurutuculer.indexOf(String(k._id)) < 0; }).forEach(function (k) { %><%- kisiSatiri(k) %><% }) %>
+                </div>
+                <div class="col-md-4">
+                  <div class="small text-secondary mb-1">Diğer personel</div>
+                  <details <%= digerleri.some(function (k) { return seciliKisiler.indexOf(String(k._id)) >= 0; }) ? 'open' : '' %>>
+                    <summary class="small">Listeyi aç (<%= digerleri.length %>)</summary>
+                    <% digerleri.forEach(function (k) { %><%- kisiSatiri(k) %><% }) %>
+                  </details>
+                </div>
+              </div>
+              <small class="form-hint">Formda adla birlikte e-posta ve telefon yazılır (Ayarlar › Kişiler).</small>
             </div>
             <div class="col-12"><div class="hr-text my-1">İzleme dönemi proje faaliyetleri</div></div>
-            <% sorular.forEach(function (q) { %>
+            <% sorular.forEach(function (q) { var x = c(q[0]); %>
               <div class="col-md-5 small fw-medium"><%= q[1] %></div>
               <div class="col-md-7">
                 <% if (q[2] !== 'metin') { %>
                   <div class="mb-1">
-                    <label class="form-check form-check-inline"><input class="form-check-input" type="radio" name="<%= q[0] %>" value="evet"><span class="form-check-label">Evet</span></label>
-                    <% if (q[2] === 'ekh') { %><label class="form-check form-check-inline"><input class="form-check-input" type="radio" name="<%= q[0] %>" value="kismen"><span class="form-check-label">Kısmen</span></label><% } %>
-                    <label class="form-check form-check-inline"><input class="form-check-input" type="radio" name="<%= q[0] %>" value="hayir"><span class="form-check-label">Hayır</span></label>
+                    <label class="form-check form-check-inline"><input class="form-check-input" type="radio" name="<%= q[0] %>" value="evet" <%= x.secim === 'evet' ? 'checked' : '' %>><span class="form-check-label">Evet</span></label>
+                    <% if (q[2] === 'ekh') { %><label class="form-check form-check-inline"><input class="form-check-input" type="radio" name="<%= q[0] %>" value="kismen" <%= x.secim === 'kismen' ? 'checked' : '' %>><span class="form-check-label">Kısmen</span></label><% } %>
+                    <label class="form-check form-check-inline"><input class="form-check-input" type="radio" name="<%= q[0] %>" value="hayir" <%= x.secim === 'hayir' ? 'checked' : '' %>><span class="form-check-label">Hayır</span></label>
                   </div>
                 <% } %>
-                <textarea name="<%= q[0] %>a" rows="<%= q[2] === 'metin' ? 2 : 1 %>" class="form-control form-control-sm" placeholder="<%= q[2] === 'metin' ? 'Açıklama' : 'Açıklama (gerekirse)' %>"></textarea>
+                <textarea name="<%= q[0] %>a" rows="<%= q[2] === 'metin' ? 2 : 1 %>" class="form-control form-control-sm" placeholder="<%= q[2] === 'metin' ? 'Açıklama' : 'Açıklama (gerekirse)' %>"><%= x.aciklama || '' %></textarea>
               </div>
             <% }) %>
           <% } else { %>
@@ -85,9 +168,14 @@
         </div>
       </div>
       <div class="card-footer d-flex flex-wrap gap-2">
+        <% if (izleme && izlemeYetkisi) { %>
+          <button class="btn btn-primary" formmethod="post" formaction="/belgeler/izleme/kaydet"><i class="ti ti-device-floppy me-1"></i> <%= kayit ? 'Değişiklikleri kaydet' : 'Raporu kaydet' %></button>
+          <span class="vr mx-1"></span>
+        <% } %>
         <button class="btn btn-danger" name="bicim" value="pdf" formtarget="_blank"><i class="ti ti-file-type-pdf me-1"></i> PDF</button>
-        <button class="btn btn-primary" name="bicim" value="docx"><i class="ti ti-file-type-docx me-1"></i> Word</button>
+        <button class="btn btn-outline-primary" name="bicim" value="docx"><i class="ti ti-file-type-docx me-1"></i> Word</button>
         <button class="btn btn-success" name="bicim" value="xlsx"><i class="ti ti-file-spreadsheet me-1"></i> Excel</button>
+        <button class="btn" name="bicim" value="html" formtarget="_blank" title="Metinleri yazdırmadan önce tıklayarak değiştirebilirsiniz"><i class="ti ti-edit me-1"></i> Önizle ve düzenle</button>
       </div>
     </form>
     <div class="mt-3"><a href="/belgeler?proje=<%= proje._id %>"><i class="ti ti-arrow-left me-1"></i>Formlara dön</a></div>
