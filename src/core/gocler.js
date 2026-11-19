@@ -55,6 +55,7 @@ const gocler = [
         aciklama: r.aciklama,
         renk: r.renk || v(r.kod).renk || 'secondary',
         ilceKisitli: r.ilceKisitli !== undefined ? r.ilceKisitli : !!v(r.kod).ilceKisitli,
+        projeKisitli: !!r.projeKisitli,
         yetkiler: Array.isArray(r.yetkiler) ? r.yetkiler : (v(r.kod).yetkiler || [])
       }));
       const admin = (ayar.roller || []).find((r) => r.kod === 'admin') || v('admin');

@@ -9,7 +9,7 @@ const ayarlar = require('./core/ayarlar');
 const { modulleriYukle } = require('./core/modulYukleyici');
 const { gocleriUygula } = require('./core/gocler');
 const { kimlikAraKatmani, kimlikRouter } = require('./core/kimlik');
-const { yetkiAraKatmani } = require('./core/yetki');
+const { yetkiAraKatmani, projeErisimi } = require('./core/yetki');
 
 const app = express();
 const KOK = path.join(__dirname, '..');
@@ -55,6 +55,7 @@ app.use((req, res, next) => {
 
 app.use(kimlikAraKatmani);
 app.use(yetkiAraKatmani);
+app.use(projeErisimi);
 app.use('/kimlik', kimlikRouter);
 
 app.get('/', (req, res) => res.redirect(req.izin('pano.gor') ? '/genel-bakis' : '/gorevler'));

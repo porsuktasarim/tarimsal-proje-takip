@@ -56,5 +56,9 @@
       <input type="checkbox" class="form-check-input" name="<%= on %>[ilceKisitli]" <%= r.ilceKisitli ? 'checked' : '' %>>
       <span class="form-check-label">İlçe kısıtlı <span class="text-secondary small">(kişi yalnızca sorumlu olduğu ilçelerin çiftçisini ve talebini girer)</span></span>
     </label>
+    <label class="form-check form-switch mt-1 mb-0">
+      <input type="checkbox" class="form-check-input" name="<%= on %>[projeKisitli]" <%= r.projeKisitli ? 'checked' : '' %>>
+      <span class="form-check-label">Proje kısıtlı <span class="text-secondary small">(kişi yalnızca koordinatörü ya da yürütücüsü olduğu projeleri, başvurularını ve formlarını görür; proje formunun ekip bölümünden atanır)</span></span>
+    </label>
   <% } %>
 </div>

@@ -10,6 +10,8 @@ const { tumYetkiler } = require('../config/sabitler');
 //   yalnızca Sistem Yöneticisi tarafından yapılır.
 // - Rolü "ilçe kısıtlı" olan kişiler yalnızca sorumlu oldukları ilçelerin
 //   çiftçisini ve talebini girer.
+// - Rolü "proje kısıtlı" olan kişiler yalnızca koordinatörü ya da yürütücüsü
+//   oldukları projeleri (ve bu projelerin başvurularını, formlarını) görür.
 //
 // Şifreli giriş olmadığı için bunlar bir güvenlik önlemi değil, iş kuralıdır.
 
@@ -63,4 +65,32 @@ function calisilanIlceler(ben, ayar) {
   return ilceKisitliMi(ben, ayar) ? ben.ilceler.slice() : ayar.ilceler.slice();
 }
 
-module.exports = { silebilirMi, kisiYetkileri, yetkiAraKatmani, yetkiGerekli, yetkisizSayfa, ilceKisitliMi, calisilanIlceler };
+function projeKisitliMi(ben, ayar) {
+  if (!ben || ben.rol === 'admin') return false;
+  const rol = ayar.rolHaritasi[ben.rol];
+  return !!(rol && rol.projeKisitli);
+}
+
+// İstek başına kişinin erişebildiği projeler: null = tümü, yoksa proje kimlikleri (metin)
+async function projeErisimi(req, res, next) {
+  try {
+    req.erisilenProjeler = null;
+    if (projeKisitliMi(req.ben, res.locals.ayar)) {
+      const mongoose = require('mongoose');
+      const projeler = await mongoose.model('Proje').find({ $or: [{ koordinatorler: req.ben._id }, { yurutuculer: req.ben._id }] }).select('_id').lean();
+      req.erisilenProjeler = projeler.map((p) => String(p._id));
+    }
+    res.locals.erisilenProjeler = req.erisilenProjeler;
+    res.locals.projeKisitli = !!req.erisilenProjeler;
+    next();
+  } catch (e) { next(e); }
+}
+
+// Sorgu filtresi: { _id: { $in: [...] } } ya da talepler için alan = 'projeId'
+const projeFiltresi = (req, alan = '_id') => (req.erisilenProjeler ? { [alan]: { $in: req.erisilenProjeler } } : {});
+const projeErisebilirMi = (req, id) => !req.erisilenProjeler || req.erisilenProjeler.includes(String((id && id._id) || id));
+const projeErisimYok = (res) => res.status(403).render('hata', {
+  baslik: 'Yetkiniz yok', kod: 403, mesaj: 'Bu proje size atanmamış. Rolünüz yalnızca koordinatörü ya da yürütücüsü olduğunuz projeleri görür.'
+});
+
+module.exports = { projeKisitliMi, projeErisimi, projeFiltresi, projeErisebilirMi, projeErisimYok, silebilirMi, kisiYetkileri, yetkiAraKatmani, yetkiGerekli, yetkisizSayfa, ilceKisitliMi, calisilanIlceler };

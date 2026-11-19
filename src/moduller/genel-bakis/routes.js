@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const { projeHesabi, taleplerOzeti } = require('../projeler/hesap');
 const { projeDurumlari } = require('../../config/sabitler');
 
-const { yetkiGerekli } = require('../../core/yetki');
+const { yetkiGerekli, projeFiltresi } = require('../../core/yetki');
 
 const router = express.Router();
 router.use(yetkiGerekli('pano.gor'));
@@ -22,7 +22,7 @@ router.get('/', sar(async (req, res) => {
   const ben = req.ben;
 
   const donem = req.query.donem && ayar.donemAdlari.includes(req.query.donem) ? req.query.donem : '';
-  const projeler = await Proje.find(donem ? { donem } : {}).sort({ olusturulma: -1 });
+  const projeler = await Proje.find({ ...projeFiltresi(req), ...(donem ? { donem } : {}) }).sort({ olusturulma: -1 });
   const projeIdleri = projeler.map((p) => p._id);
   const gorevler = await Gorev.find({ projeId: { $in: projeIdleri } }).select('projeId durum sonTarih').lean();
   const tumTalepler = await mongoose.model('Talep').find({ projeId: { $in: projeIdleri }, durum: { $ne: 'desteklenmedi' } }).lean();

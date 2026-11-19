@@ -8,7 +8,7 @@
 
 ### Projeler
 
-- **Proje Başlat:** proje adı, kısa ad, yürütücü birim, dönem, başlangıç ve bitiş tarihleri, açıklama
+- **Proje Başlat:** proje adı, kısa ad (zorunlu; proje yılı, dönemi ve esas ürünü, ör. "2027 Bahar - Silajlık Yerli Mısır"; tüm formların alt bilgisinde yer alır), yürütücü birim, dönem, başlangıç ve bitiş tarihleri, açıklama
 - **Kalemler:** tür (tohum, gübre, malzeme, makine…), ürün (Mısır, Yulaf…), çeşit (AGA, ADA…), talep birimi (da, adet, m²), hedef miktar, dağıtım birimi (çuval, paket, torba, top, adet), ambalaj içeriği (1 torba = 25.000 adet, 1 top = 100 m²), normlar (değer + birim) ve toplam dağıtım
   - **Talep birimi:** tohumda dekar, fidan ve fidede adet, sera naylonunda m². Ekim normunun birimi "ambalaj içeriği / talep birimi" olur (kg/da, adet/da, adet/adet)
   - **Normsuz türler** (Ayarlar > Kalem türleri'nde işaretlenir; varsayılan malzeme, makine, ekipman, diğer): ekim ve çıktı normu sorulmaz, talep edilen miktar doğrudan dağıtılır. Ambalaj isteğe bağlıdır ve içeriği talep birimindedir (1 top = 100 m² → 150 m² isteyene 2 top); ambalajsızsa 1 adet = 1 adet. Teknik özellik / marka-model girilebilir
@@ -93,12 +93,17 @@ TAKE 2026 Uygulama Talimatı ekleri sisteme uyarlanmıştır. Her form tek bir b
   - **Arazi kontrol raporu:** kontrol listesi (ziyaret tarihi, fotoğraf eklendi mi, görüşler) ve kontrol edilen üretici oranı (talimat gereği asgari %50).
   - **Asıl ve yedek liste:** ilçe bazında; yedekler puana göre sıralı. Her ilçenin listesini ilçe proje uygulama birimi (teknik personel ve birim başkanı ilçe müdürü) imzalar, sonda il proje uygulama komisyonunun onayı yer alır.
   - **İl proje uygulama komisyonu** (talimat md. 4/e) il müdürlüğünce oluşturulur: il müdürü ya da yardımcısı başkanlığında şube müdürü, ilçe müdürleri ve en az iki ziraat mühendisi. Üyeler ve başkan proje formunun Formlar bölümünde girilir; EK-3 ve asıl/yedek listede üyeler üstte, başkan altta ortada imzalar.
-- **Alt bilgi:** her belgede solda "proje kısa adı | başvuranın T.C.'si - adı soyadı" (liste formlarında form adı ve ilçe), sağda "Sayfa #/#".
 - **EK-1 üretici bilgileri** yalnızca dış çerçeveli, eşit iki yarıda; etiketler tek sütunda, değerler ":" ile hizalı. Adres 6, imza 7 satırlık alan kaplar.
 - **EK-4 ve EK-5'teki etiket kutuları** (teslim alan/eden, üretici bilgileri, düzenleyenler) EK-1 düzeninde ama çerçevesizdir. EK-5'in parsel tablosu çizgilidir.
 - **Üretici katkı payı dilekçesi:** ödeme sırasında dekontla verilir. Bireysel (başvuru sayfası › Formlar) ya da toplu (Formlar sayfası, proje/ilçe) alınır. Her üretici için bitki türü, miktar (ambalajıyla), birim fiyat, toplam tutar, hibe payı ve üretici payı; TOPLAM satırı; "banka dekontu ekte" ibaresi. Toplu dilekçede yatıran kısmı boştur (herhangi bir üretici yatırabilir). Yatırılacak hesap proje formunun Formlar bölümünde girilir.
 - **EK-5 düzenleyenler** ve toplu dilekçenin yatıran kısmı sayfanın en altına sabitlenir (elle doldurulur).
 - **Alt bilgi** "proje kısa adı | T.C. - ad soyad | form adı" biçimindedir (ör. "Ek-5 Tohum Hibe Desteğine Esas Arazi Kontrol Tutanağı").
+- **İlçe uygulamasından uyarlanan formlar** (her proje için):
+  - **Katkı payı icmal listesi:** çiftçi adına göre alfabetik; ilçe, mahalle, ekilecek alan, ambalaj (torba/çuval) sayısı, çiftçi payı ve dekont açıklaması (İlçe, Proje kodu, Üretici, Miktar). Dekontlar bu sırayla dizilir. Excel ve imzalı PDF.
+  - **İlçe teslim tutanağı:** yüklenicinin il müdürlüğü adına ilçe müdürlüğüne teslim ettiği girdi ("… 53 torba … tohumu teslim edilmiştir"); ilçe başına bir sayfa; teslim eden yüklenici, teslim alan ilçe müdürü.
+  - **Proje izleme formu (BÜGEM):** proje bilgileri, bütçe (B-Bakanlık, Y-Yerel katkı) ve gerçekleşmesi, uygulama yerleri, izleme faaliyetini yürütenler; Evet/Hayır soruları "Hazırla" ekranında işaretlenir; faaliyet çıktıları ve bütçe tablosu başvurulardan hesaplanır.
+  - **Çiftçi talepleri ve katkı payı ödemesi yazısı** (il müdürlüğünden ilçelere, EBYS'ye aktarılacak taslak): torba fiyatı, toplam torba, torba başına katkı payı, hesap bilgisi, dekont açıklaması kuralı, ilçelerden istenecek evrak, son tarih, imzacı, dağıtım; ekinde ilçe ilçe çiftçi listesi.
+- **Katkı payı hesabı:** varsayılan hesap Ayarlar › Genel'dedir (banka/şube, alıcı, IBAN); proje için farklıysa projenin Formlar bölümünde yazılır. Projede ayrıca dekont açıklamasındaki **proje kodu** (ör. Mısır-01) ve girdiyi ilçelere teslim eden **yüklenici** girilir.
 - **Teslim miktarı** içerik ve ambalajıyla yazılır: "520 kg (13 çuval)", "50.000 adet (1 torba)" (EK-4 metni, EK-1/EK-2 toplam satırı).
 - **EK-2, EK-4, EK-5** başvuru desteklendi ya da teslim aşamasına geçince açılır; öncesinde başvuru sayfasında ve Formlar sayfasında "karardan sonra" olarak görünür. Doldurulmuş EK-5 her saha kontrolünün yanında, boş EK-5 Formlar kartındadır.
 - **Excel çıktıları** eşit genişlikte bir ızgaraya yerleşir (dikey 40, yatay 60 sütun); her tablo sütunu genişliği oranında birden çok hücreyi birleştirerek kaplar. Böylece aynı sayfadaki tablolar ve imza blokları birbirinin sütun genişliğini bozmaz.
@@ -110,7 +115,7 @@ TAKE 2026 Uygulama Talimatı ekleri sisteme uyarlanmıştır. Her form tek bir b
 
 ### Kişiler, roller ve görevler
 
-- **Roller ve yetkiler:** roller Ayarlar > Roller ve yetkiler'den eklenir, adlandırılır, renklendirilir ve silinir (kişisi ya da görevi olan rol silinemez). Her role işaretlenerek yetki verilir: Genel Bakış, projeleri görme/yönetme, talep görme/girme, başvuru değerlendirme, BBHB görme/hesaplama, çiftçi görme/yönetme, tüm görevleri görme, görev verme, ayarlar (genel, katalog, kişi ve roller). "İlçe kısıtlı" roldeki kişiler yalnızca sorumlu oldukları ilçelerin çiftçisini ve talebini girer. Hazır roller: İş Planı, Proje Koordinatörü, Proje Yürütücüsü.
+- **Roller ve yetkiler:** roller Ayarlar > Roller ve yetkiler'den eklenir, adlandırılır, renklendirilir ve silinir (kişisi ya da görevi olan rol silinemez). Her role işaretlenerek yetki verilir: Genel Bakış, projeleri görme/yönetme, talep görme/girme, başvuru değerlendirme, BBHB görme/hesaplama, çiftçi görme/yönetme, tüm görevleri görme, görev verme, ayarlar (genel, katalog, kişi ve roller). "İlçe kısıtlı" roldeki kişiler yalnızca sorumlu oldukları ilçelerin çiftçisini ve talebini girer. "Proje kısıtlı" roldeki kişiler yalnızca koordinatörü ya da yürütücüsü oldukları projeleri, bu projelerin başvurularını, değerlendirmesini, formlarını ve görevlerini görür (atama proje formunun ekip bölümünden). Hazır roller: İş Planı, Proje Koordinatörü, Proje Yürütücüsü.
 - **Sistem Yöneticisi:** tüm yetkilere sahip sabit roldür ve yalnızca bir kişiye verilebilir. Sistem Yöneticisi atanana kadar yetki denetimi uygulanmaz (ilk kurulum) ve üstte uyarı görünür.
 - **Kişiler:** ad soyad, unvan, rol, birim, sorumlu ilçeler, iletişim; pasif yapılabilir.
 - **Giriş:** şifre yoktur. İlk kişi tanımlandıktan sonra sisteme girişte "Kimsiniz?" ekranında kişi seçilir; seçim tarayıcıda hatırlanır, üst çubuktaki menüden değiştirilebilir.
@@ -126,7 +131,7 @@ TAKE 2026 Uygulama Talimatı ekleri sisteme uyarlanmıştır. Her form tek bir b
 |---|---|
 | Genel | Kurum adı, il |
 | Kişiler | Sistemi kullanan kişiler, rolleri ve sorumlu ilçeleri |
-| Roller ve yetkiler | Rol ekleme, silme, renk, ilçe kısıtı ve yetkiler; Sistem Yöneticisi |
+| Roller ve yetkiler | Rol ekleme, silme, renk, ilçe ve proje kısıtı, yetkiler; Sistem Yöneticisi |
 | Yürütücü birimler | Projeleri yürüten birimler |
 | Dönemler | Dönem adı, başlangıç/bitiş, yeni projede seçili gelecek varsayılan dönem |
 | Ürün kataloğu | Türe göre ürünler; dağıtım birimi, ambalaj içeriği, normların varsayılan değer ve birimleri; çeşitler ve çeşide özel değerler |

@@ -51,7 +51,10 @@ function ortak(proje, ayar, hesap) {
     il: ayar.il || 'İstanbul',
     yil,
     hibeOrani: katki != null ? 100 - katki : null,
-    katkiOrani: katki
+    katkiOrani: katki,
+    // Katkı payı hesabı: projede yazılmışsa o, yoksa Ayarlar › Genel'deki varsayılan
+    hesap: ba.katkiHesabi ? { metin: ba.katkiHesabi } : (ayar.katkiHesabi && ayar.katkiHesabi.iban ? ayar.katkiHesabi : null),
+    dekontKodu: ba.dekontKodu || proje.kisaAd || ''
   };
 }
 
@@ -488,7 +491,16 @@ function asilYedek(v) {
 // ---------------------------------------------------------------------------
 // Üretici katkı payı dilekçesi (ödeme için): bireysel ya da toplu (proje/ilçe)
 const tl = (v) => (v == null ? '' : sayi(v, 2));
-const hesapMetni = (o) => (o.ba.katkiHesabi ? `${o.ba.katkiHesabi} hesabına` : '……………………………………………… hesabına');
+const hesapMetni = (o) => {
+  const h = o.hesap;
+  if (!h) return '……………………………………………… hesabına';
+  if (h.metin) return `${h.metin} hesabına`;
+  return `${[h.banka, h.alici ? h.alici + ' adına kayıtlı' : ''].filter(Boolean).join(' ')} ${h.iban} IBAN numaralı hesaba`.replace(/\s+/g, ' ').trim();
+};
+// Dekont açıklaması (il müdürlüğü yazısındaki kural): İlçe, Proje Kodu, Üretici, Miktar
+const ambalajMiktari = (hesap) => hesap.kalemler.filter((hk) => hk.miktar != null)
+  .map((hk) => `${sayi(hk.miktar)} ${String(hk.kalem.olcuBirimi || '').toLocaleLowerCase('tr')}`).join(' + ');
+const dekontAciklamasi = (o, ilce, adSoyad, hesap) => [ilce, o.dekontKodu, adSoyad, ambalajMiktari(hesap)].filter(Boolean).join(', ');
 const projeAdi = (proje) => (/projes[iİı]$/i.test(String(proje.ad).trim()) ? proje.ad : `${proje.ad} Projesi`);
 const payBasliklari = (o) => [`Hibe Payı${o.hibeOrani != null ? ` (%${sayi(o.hibeOrani)})` : ''} (TL)`, `Üretici Payı${o.katkiOrani != null ? ` (%${sayi(o.katkiOrani)})` : ''} (TL)`];
 const birimFiyatMetni = (hk) => (hk.kalem.birimFiyat != null ? `${tl(hk.kalem.birimFiyat)} TL/${hk.fiyatBirimi || fiyatBirimi(hk.kalem)}` : '');
@@ -524,6 +536,7 @@ function katkiBireysel(v) {
       { t: 'bosluk', yukseklik: 4 },
       { t: 'p', metin: `Müdürlüğünüzce yürütülen ${projeAdi(proje)} kapsamında tarafıma hibe ile ayni olarak verilecek ${o.destekTuru.toLocaleLowerCase('tr')} için ödemem gereken ve aşağıda ayrıntısı bulunan üretici katkı payı tutarı olan ${tl(t.katki)} TL ${hesapMetni(o)} yatırılmış olup banka dekontu ekte sunulmuştur.` },
       { t: 'p', metin: 'Gereğini bilgilerinize arz ederim.' },
+      { t: 'p', parcalar: [{ metin: 'Dekont açıklaması: ', kalin: true }, { metin: dekontAciklamasi(o, talep.ilce, ciftci.adSoyad, hesap) }], hiza: 'sol', kucuk: true },
       {
         t: 'tablo', kucuk: true, genislik: [1.7, 1.5, 1.2, 1.2, 1.2, 1.2], hizalar: ['sol', 'sag', 'sag', 'sag', 'sag', 'sag'],
         basliklar: ['Bitki Türü', 'Miktar', 'Birim Fiyat', 'Toplam Tutar (TL)', hibeB, ureticiB],
@@ -572,6 +585,286 @@ function katkiToplu(v) {
   };
 }
 
+// ---------------------------------------------------------------------------
+// Ortak: ilçe müdürü imzası, ambalaj sayıları
+const ilceYetkilisiBul = (liste, ilce) => (liste || []).find((x) => x.ilce === ilce) || {};
+const ilcelerOf = (satirlar) => [...new Set(satirlar.map((s) => s.talep.ilce))].sort((a, b) => a.localeCompare(b, 'tr'));
+// Kalem bazında toplam ambalaj (torba/çuval) ve içerik miktarı
+function kalemToplamlari(satirlar) {
+  const t = {};
+  satirlar.forEach((s) => s.hesap.kalemler.forEach((hk) => {
+    const id = String(hk.kalem._id);
+    if (!t[id]) t[id] = { kalem: hk.kalem, ambalaj: 0, icerik: 0, icerikBirimi: hk.teslimBirimi, uretici: 0, alan: 0, bedel: 0, destek: 0, katki: 0, ambalajli: !!hk.ambalaj };
+    const x = t[id];
+    x.ambalaj += hk.miktar || 0; x.icerik += hk.teslim || 0; x.uretici += 1; x.alan += hk.esasMiktari || 0;
+    x.bedel += hk.bedel || 0; x.destek += hk.destek || 0; x.katki += hk.ciftciKatkisi || 0;
+  }));
+  return Object.values(t);
+}
+// Türkçe iyelik eki: tohum → tohumu, fidan → fidanı, fide → fidesi
+function iyelik(kelime) {
+  const k = String(kelime || '');
+  const unluler = k.match(/[aıoueiöü]/gi);
+  if (!unluler) return k;
+  const son = unluler[unluler.length - 1].toLocaleLowerCase('tr');
+  const ek = { a: 'ı', ı: 'ı', o: 'u', u: 'u', e: 'i', i: 'i', ö: 'ü', ü: 'ü' }[son];
+  return /[aıoueiöü]$/i.test(k) ? `${k}s${ek}` : `${k}${ek}`;
+}
+const kalemMetni = (x) => {
+  const olcu = String(x.kalem.olcuBirimi || '').toLocaleLowerCase('tr');
+  const tur = String(x.kalem.tur || '').toLocaleLowerCase('tr');
+  const icerik = x.ambalajli && x.icerikBirimi && x.icerikBirimi !== x.kalem.olcuBirimi ? ` (${sayi(x.icerik)} ${x.icerikBirimi})` : '';
+  return `${sayi(x.ambalaj)} ${olcu} ${bitkiTuru(x.kalem)} ${iyelik(tur)}${icerik}`.replace(/\s+/g, ' ');
+};
+// Ambalajın (torba/çuval) birim fiyatı
+const ambalajFiyati = (k) => {
+  if (k.birimFiyat == null) return null;
+  const fb = fiyatBirimi(k);
+  if (String(fb).toLocaleLowerCase('tr') === String(k.olcuBirimi).toLocaleLowerCase('tr')) return k.birimFiyat;
+  return k.ambalaj && k.ambalaj.miktar ? k.birimFiyat * k.ambalaj.miktar : null;
+};
+
+// ---------------------------------------------------------------------------
+// İlçe teslim tutanağı: yüklenicinin il müdürlüğü adına ilçe müdürlüğüne teslim ettiği girdi
+function ilceTeslim(v) {
+  const { satirlar, proje, ayar, ilce, ilceYetkilileri } = v;
+  const o = ortak(proje, ayar, { kalemler: satirlar.flatMap((x) => x.hesap.kalemler) });
+  const sayfalar = (ilce ? [ilce] : ilcelerOf(satirlar)).map((ic) => {
+    const ss = satirlar.filter((x) => x.talep.ilce === ic);
+    const kalemler = kalemToplamlari(ss);
+    const y = ilceYetkilisiBul(ilceYetkilileri, ic);
+    return {
+      ad: ic,
+      ogeler: [
+        { t: 'bosluk', yukseklik: 40 },
+        { t: 'baslik', metin: 'TUTANAKTIR', boyut: 1 },
+        { t: 'bosluk', yukseklik: 16 },
+        { t: 'p', metin: `…../…../${o.yil} tarihinde ${o.ba.yuklenici || '……………………………………'} tarafından ${o.mudurluk} adına ${ilceMudurlugu(ic)}'ne ${kalemler.length ? kalemler.map(kalemMetni).join(', ') : '……… torba ……… tohumu'} teslim edilmiştir.` },
+        { t: 'bosluk', yukseklik: 8 },
+        {
+          t: 'tablo', kucuk: true, genislik: [2.4, 1.2, 1.4, 1.1], hizalar: ['sol', 'sag', 'sag', 'sag'],
+          basliklar: ['Bitki Türü', 'Ambalaj', 'İçerik', 'Üretici Sayısı'],
+          satirlar: kalemler.map((x) => [bitkiTuru(x.kalem), `${sayi(x.ambalaj)} ${x.kalem.olcuBirimi || ''}`, x.ambalajli ? `${sayi(x.icerik)} ${x.icerikBirimi || ''}` : '', sayi(x.uretici)])
+        },
+        { t: 'bosluk', yukseklik: 30 },
+        {
+          t: 'tablo', kenarsiz: true, genislik: [1, 1], hizalar: ['orta', 'orta'],
+          satirlar: [
+            [{ metin: 'Teslim Eden', kalin: true, hiza: 'orta' }, { metin: 'Teslim Alan', kalin: true, hiza: 'orta' }],
+            [o.ba.yuklenici || BOS_AD, y.ad || BOS_AD],
+            ['Kaşe / İmza', `${y.unvan || 'İlçe Müdürü'}\nİmza`]
+          ]
+        }
+      ]
+    };
+  });
+  return { ad: 'İlçe teslim tutanağı', formAdi: 'İlçe Teslim Tutanağı', sayfalar };
+}
+
+// ---------------------------------------------------------------------------
+// Katkı payı icmal listesi: çiftçi adına göre alfabetik (dekontlar bu sırayla dizilir)
+function katkiIcmal(v) {
+  const { satirlar, proje, ayar, ilce, ilceYetkilileri } = v;
+  const o = ortak(proje, ayar, { kalemler: satirlar.flatMap((x) => x.hesap.kalemler) });
+  const olculer = [...new Set(satirlar.flatMap((x) => x.hesap.kalemler.map((hk) => hk.kalem.olcuBirimi)).filter(Boolean))];
+  const ambalajBasligi = `${olculer.length === 1 ? basHarfli(buyuk(olculer[0])) : 'Ambalaj'} (Adet)`;
+  const sirali = satirlar.slice().sort((a, b) => a.ciftci.adSoyad.localeCompare(b.ciftci.adSoyad, 'tr'));
+  const t = { alan: 0, ambalaj: 0, katki: 0 };
+  const govde = sirali.map((x, i) => {
+    const ambalaj = x.hesap.kalemler.reduce((a, hk) => a + (hk.miktar || 0), 0);
+    const katki = x.hesap.kalemler.reduce((a, hk) => a + (hk.ciftciKatkisi || 0), 0);
+    t.alan += x.hesap.toplamAlan || 0; t.ambalaj += ambalaj; t.katki += katki;
+    return [String(i + 1), x.talep.ilce, x.ciftci.mahalle || '', x.ciftci.adSoyad, sayi(x.hesap.toplamAlan || 0, 2), sayi(ambalaj), tl(katki), dekontAciklamasi(o, x.talep.ilce, x.ciftci.adSoyad, x.hesap)];
+  });
+  const y = ilce ? ilceYetkilisiBul(ilceYetkilileri, ilce) : {};
+  return {
+    ad: 'Katkı payı icmal listesi',
+    formAdi: 'Üretici Katkı Payı İcmal Listesi',
+    yon: 'yatay',
+    ogeler: [
+      { t: 'baslik', metin: `${projeAdi(proje)}`, boyut: 2 },
+      { t: 'baslik', metin: `ÜRETİCİ KATKI PAYI İCMAL LİSTESİ${ilce ? ' — ' + buyuk(ilce) : ''}`, boyut: 2 },
+      { t: 'p', metin: 'Çiftçi adına göre alfabetik sıradadır; dekontlar bu listedeki sırayla dizilir.', hiza: 'sol', kucuk: true },
+      {
+        t: 'tablo', kucuk: true, genislik: [0.45, 1.1, 1.2, 1.8, 0.9, 0.8, 1.1, 2.6],
+        hizalar: ['orta', 'sol', 'sol', 'sol', 'sag', 'sag', 'sag', 'sol'],
+        basliklar: ['Sıra No', 'İlçe', 'Mahalle', 'Adı Soyadı', 'Ekilecek Alan (da)', ambalajBasligi, `Çiftçi Payı${o.katkiOrani != null ? ` (%${sayi(o.katkiOrani)})` : ''} (TL)`, 'Dekont Açıklaması'],
+        satirlar: govde.length ? govde : [['1', '', '', '', '', '', '', '']],
+        toplam: [{ metin: 'TOPLAM', birlesik: 4, hiza: 'orta' }, sayi(t.alan, 2), sayi(t.ambalaj), tl(t.katki), '']
+      },
+      { t: 'bosluk', yukseklik: 10 },
+      { ...imzaBlogu(ilce ? 'İlçe Müdürü' : 'Düzenleyen', [y.ad || BOS_AD])[0], sayfaSonu: true }
+    ]
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Proje izleme formu (Bitkisel Üretim Genel Müdürlüğü şablonu): proje düzeyinde, izleme dönemi başına
+function izleme(v) {
+  const { satirlar, proje, ayar, secenekler = {} } = v;
+  const o = ortak(proje, ayar, { kalemler: satirlar.flatMap((x) => x.hesap.kalemler) });
+  const teslim = satirlar.filter((x) => x.talep.durum === 'teslim');
+  const plan = kalemToplamlari(satirlar);
+  const gercek = kalemToplamlari(teslim);
+  const gercekBul = (k) => gercek.find((x) => String(x.kalem._id) === String(k._id)) || { ambalaj: 0, icerik: 0, alan: 0, uretici: 0, bedel: 0, destek: 0, katki: 0 };
+  const top = (l, a) => l.reduce((t, x) => t + (x[a] || 0), 0);
+  // Uygulama yerleri: ilçe: mahalle-mahalle
+  const yerler = ilcelerOf(satirlar).map((ic) => `${ic}: ${[...new Set(satirlar.filter((x) => x.talep.ilce === ic).map((x) => x.ciftci.mahalle).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'tr')).join('-')}`).join('; ');
+  const sonTeslim = teslim.map((x) => x.talep.uygulama && x.talep.uygulama.teslimTarihi).filter(Boolean).sort().pop();
+  const c = secenekler.cevaplar || {};
+  const isaret = (k, deger) => ((c[k] && c[k].secim) === deger ? '(X)' : '(  )');
+  const aciklama = (k) => (c[k] && c[k].aciklama ? `\n${c[k].aciklama}` : '');
+  const evetHayir = (k, kismen) => `: ${isaret(k, 'evet')} Evet   ${kismen ? `${isaret(k, 'kismen')} Kısmen   ` : ''}${isaret(k, 'hayir')} Hayır   (Lütfen açıklayınız.)${aciklama(k)}`;
+  const yurutenler = (secenekler.yurutenler || []).map((k) => [k.adSoyad, k.eposta, k.telefon].filter(Boolean).join(' – ')).join('\n');
+  const tutar = (b, y) => `: ${tl(b)} TL (B)      ${tl(y)} TL (Y)`;
+  const yuzde = (g, p) => (p ? `%${sayi((100 * g) / p, 1)}` : '');
+  const ciktilar = [];
+  plan.forEach((x) => {
+    const g = gercekBul(x.kalem);
+    ciktilar.push([`${bitkiTuru(x.kalem)} ekimi`, sayi(x.alan, 2), x.kalem.talepBirimi || 'da', sayi(g.alan, 2), yuzde(g.alan, x.alan)]);
+    ciktilar.push([`${bitkiTuru(x.kalem)} ${String(x.kalem.tur || '').toLocaleLowerCase('tr')} dağıtımı`, sayi(x.ambalaj), x.kalem.olcuBirimi || '', sayi(g.ambalaj), yuzde(g.ambalaj, x.ambalaj)]);
+  });
+  ciktilar.push(['Desteklenen üretici', sayi(satirlar.length), 'kişi', sayi(teslim.length), yuzde(teslim.length, satirlar.length)]);
+  const butce = plan.map((x) => {
+    const g = gercekBul(x.kalem);
+    const af = ambalajFiyati(x.kalem);
+    return [bitkiTuru(x.kalem), sayi(x.ambalaj), x.kalem.olcuBirimi || '', tl(af), sonTeslim ? tarih(sonTeslim) : '', sayi(g.ambalaj), x.kalem.olcuBirimi || '', tl(af), tl(g.bedel), tl(g.destek), tl(g.katki)];
+  });
+  return {
+    ad: 'Proje izleme formu',
+    formAdi: 'Proje İzleme Formu',
+    ogeler: [
+      { t: 'p', parcalar: [{ metin: 'T.C. Tarım ve Orman Bakanlığı\nBitkisel Üretim Genel Müdürlüğü', kalin: true }], hiza: 'sol' },
+      { t: 'baslik', metin: 'PROJE İZLEME FORMU *', boyut: 2 },
+      { t: 'p', metin: '* İzleme faaliyeti, proje yürütücüleri tarafından proje süresince periyodik olarak gerçekleştirilecektir. İzleme formu en az aylık olarak düzenlenecek ve proje dosyasında muhafaza edilecektir.', kucuk: true },
+      { t: 'baslik', metin: '1. İzlemeye Konu Proje Bilgileri', boyut: 3, hiza: 'sol' },
+      {
+        t: 'tablo', cerceve: 'dis', dikeyHiza: 'ust', genislik: [1.3, 2.7],
+        satirlar: [
+          ['İlin Adı', `: ${buyuk(o.il)}`],
+          ['Projenin Adı', `: ${buyuk(projeAdi(proje))}`],
+          ['Başlangıç ve Bitiş Tarihleri', `: ${proje.baslangicTarihi ? tarih(proje.baslangicTarihi) : '…'} - ${proje.bitisTarihi ? tarih(proje.bitisTarihi) : '…'}`],
+          ['Proje Uygulama Yer(ler)i', `: ${yerler || '…'}`],
+          ['İzleme Dönemi', `: ${secenekler.tarih ? tarih(secenekler.tarih) : '…../…../' + o.yil}`],
+          ['Proje Bütçesi\n(B-Bakanlık, Y-Yerel Katkı)', tutar(top(plan, 'destek'), top(plan, 'katki'))],
+          ['İzleme Dönemi Bütçe Gerçekleşmesi\n(B-Bakanlık, Y-Yerel Katkı)', tutar(top(gercek, 'destek'), top(gercek, 'katki'))],
+          ['İzleme Faaliyetini Yürütenler', `: ${yurutenler || '…'}`]
+        ]
+      },
+      { t: 'baslik', metin: '2. İzleme Dönemi Proje Faaliyetleri', boyut: 3, hiza: 'sol' },
+      {
+        t: 'tablo', cerceve: 'dis', dikeyHiza: 'ust', genislik: [1.5, 2.5],
+        satirlar: [
+          ['Faaliyetler planlandığı gibi yürütülüyor mu?', `: ${(c.s1 && c.s1.aciklama) || '……………………………………'}`],
+          ['Çıktılar beklenildiği gibi gerçekleşiyor mu?', evetHayir('s2')],
+          ['Beklenmedik bir durum var mı? Varsa proje revize edilmeli mi?', evetHayir('s3')],
+          ['Faaliyetler için ihtiyaç duyulan girdiler planlanan bütçe çerçevesinde temin edildi mi?', evetHayir('s4')],
+          ['Yerel katkı gerçekleşti mi?', evetHayir('s5', true)],
+          ['Faaliyetler sonucunda istenen neticelere ulaşıldı mı?', `: ${(c.s6 && c.s6.aciklama) || '……………………………………'}`]
+        ]
+      },
+      { t: 'baslik', metin: '3. İzleme Dönemi Faaliyet Çıktıları', boyut: 3, hiza: 'sol' },
+      {
+        t: 'tablo', kucuk: true, genislik: [2.4, 1, 1, 1, 0.8], hizalar: ['sol', 'sag', 'orta', 'sag', 'sag'],
+        basliklar: ['Planlanan: Faaliyet Adı', 'Çıktı', 'Birimi (adet, dekar, ton, kg vb.)', 'Gerçekleşen: Çıktı Miktarı', 'Oran (%)'],
+        satirlar: ciktilar
+      },
+      { t: 'baslik', metin: '4. İzleme Dönemi Proje Bütçesi', boyut: 3, hiza: 'sol' },
+      {
+        t: 'tablo', kucuk: true, genislik: [1.5, 0.75, 0.7, 0.9, 1.1, 0.75, 0.7, 0.9, 1, 1, 1],
+        hizalar: ['sol', 'sag', 'orta', 'sag', 'orta', 'sag', 'orta', 'sag', 'sag', 'sag', 'sag'],
+        basliklar: ['Planlanan: Girdi Adı', 'Miktarı', 'Birimi', 'Birim Maliyet (TL)', 'Gerçekleşen: Tarih', 'Miktarı', 'Birimi', 'Birim Maliyet (TL)', 'Toplam Maliyet (TL)', 'Bakanlık Katkısı (TL)', 'Yerel Katkı (TL)'],
+        satirlar: butce,
+        toplam: [{ metin: 'TOPLAM', birlesik: 8, hiza: 'orta' }, tl(top(gercek, 'bedel')), tl(top(gercek, 'destek')), tl(top(gercek, 'katki'))]
+      },
+      { t: 'p', metin: 'Planlanan değerler desteklenen başvurulardan, gerçekleşen değerler teslim edilen başvurulardan hesaplanmıştır. Saha fotoğrafları forma eklenir.', kucuk: true, hiza: 'sol' }
+    ]
+  };
+}
+
+// ---------------------------------------------------------------------------
+// İl müdürlüğünden ilçelere çiftçi talepleri ve katkı payı ödemesi yazısı (taslak; EBYS'ye aktarılır)
+function odemeYazisi(v) {
+  const { satirlar, proje, ayar, secenekler = {} } = v;
+  const o = ortak(proje, ayar, { kalemler: satirlar.flatMap((x) => x.hesap.kalemler) });
+  const kalemler = kalemToplamlari(satirlar);
+  const h = o.hesap || {};
+  const ornekIlce = ilcelerOf(satirlar)[0] || 'İlçe';
+  const ilk = kalemler[0];
+  const olcu = ilk ? String(ilk.kalem.olcuBirimi || '').toLocaleLowerCase('tr') : 'torba';
+  const fiyatlar = kalemler.map((x) => {
+    const af = ambalajFiyati(x.kalem);
+    return `${bitkiTuru(x.kalem)} için ${String(x.kalem.olcuBirimi || '').toLocaleLowerCase('tr')} fiyatı ${af != null ? tl(af) + ' TL (%100)' : '……… TL'} üzerinden toplam ${sayi(x.ambalaj)} ${String(x.kalem.olcuBirimi || '').toLocaleLowerCase('tr')}`;
+  }).join('; ');
+  const paylar = kalemler.map((x) => {
+    const af = ambalajFiyati(x.kalem);
+    const pay = af != null && o.katkiOrani != null ? (af * o.katkiOrani) / 100 : null;
+    return { olcu: String(x.kalem.olcuBirimi || '').toLocaleLowerCase('tr'), tutar: pay != null ? tl(pay) + ' TL' : '……… TL', ad: bitkiTuru(x.kalem) };
+  });
+  // Tek kalemde: "torba başına %25 çiftçi katkısı olan 1.375 TL'nin"; birden çokta kalem kalem
+  const katkilar = paylar.length === 1
+    ? `${paylar[0].olcu} başına %${n(o.katkiOrani, '..')} çiftçi katkısı olan ${paylar[0].tutar}'nin`
+    : `%${n(o.katkiOrani, '..')} çiftçi katkılarının (${paylar.map((p) => `${p.ad}: ${p.olcu} başına ${p.tutar}`).join('; ') || '………'})`;
+  const hesapSatirlari = h.metin ? [`Hesap: ${h.metin}`] : [`Banka/Şube: ${h.banka || '…………………'}`, `Alıcı Adı: ${h.alici || '…………………'}`, `IBAN: ${h.iban || '…………………'}`];
+  const ilceler = ilcelerOf(satirlar);
+  const ek = ilceler.map((ic) => {
+    const ss = satirlar.filter((x) => x.talep.ilce === ic).sort((a, b) => a.ciftci.adSoyad.localeCompare(b.ciftci.adSoyad, 'tr'));
+    return [
+      { t: 'baslik', metin: `${ic} (${ss.length} üretici)`, boyut: 3, hiza: 'sol' },
+      {
+        t: 'tablo', kucuk: true, genislik: [0.5, 2, 1.6, 1.1, 1.1, 1.3], hizalar: ['orta', 'sol', 'sol', 'sag', 'sag', 'sag'],
+        basliklar: ['Sıra No', 'Adı Soyadı', 'Mahalle', 'Alan (da)', 'Ambalaj', 'Çiftçi Payı (TL)'],
+        satirlar: ss.map((x, i) => [String(i + 1), x.ciftci.adSoyad, x.ciftci.mahalle || '', sayi(x.hesap.toplamAlan || 0, 2), ambalajMiktari(x.hesap), tl(x.hesap.kalemler.reduce((a, hk) => a + (hk.ciftciKatkisi || 0), 0))])
+      }
+    ];
+  }).flat();
+  return {
+    ad: 'Katkı payı ödeme yazısı',
+    formAdi: 'Çiftçi Talepleri ve Katkı Payı Ödemesi Yazısı',
+    sayfalar: [{
+      ad: 'Yazı',
+      ogeler: [
+        { t: 'baslik', metin: `T.C.\n${buyuk(o.il)} VALİLİĞİ\n${o.mudurluk.replace(new RegExp('^' + o.il + '\\s*', 'i'), '')}`, boyut: 3 },
+        {
+          t: 'tablo', kenarsiz: true, genislik: [0.6, 3, 1], hizalar: ['sol', 'sol', 'sag'],
+          satirlar: [
+            ['Sayı', `: ${secenekler.sayi || '……………………'}`, secenekler.tarih ? tarih(secenekler.tarih) : `…../…../${o.yil}`],
+            ['Konu', `: ${proje.kisaAd || proje.ad} - Çiftçi Talepleri ve Katkı Payı Ödemesi`, '']
+          ]
+        },
+        { t: 'bosluk', yukseklik: 6 },
+        { t: 'baslik', metin: 'DAĞITIM YERLERİNE', boyut: 3 },
+        { t: 'p', metin: `${o.kaynak ? o.kaynak + ' kapsamında, ' : ''}"${projeAdi(proje)}" uygulanacaktır. Proje kapsamında ${fiyatlar} alımı gerçekleştirilecektir.` },
+        { t: 'p', metin: `Ekte yer alan çiftçi listesi esas alınarak, ${katkilar} aşağıdaki hesaba aktarılması gerekmektedir.` },
+        { t: 'liste', maddeler: hesapSatirlari },
+        { t: 'p', parcalar: [{ metin: 'Dekont Açıklaması İçin Önemli Kural: ', kalin: true }, { metin: `Ödemeler esnasında banka dekontlarının açıklama kısmına uzun proje adı yazılmamalıdır. Bunun yerine sadece "${o.dekontKodu || '…'}" kodu kullanılarak, açıklama kısmı mutlak surette şu sırayla doldurulmalıdır: İlçe, Proje Kodu, Üretici, Miktar (Örnek: ${ornekIlce}, ${o.dekontKodu || '…'}, Ahmet Yılmaz, 1 ${olcu}).` }] },
+        { t: 'p', parcalar: [{ metin: 'İlçe Müdürlüklerince Teslim Edilecek Evraklar: ', kalin: true }, { metin: 'Ödemelere ait dekontların İlçe Müdürlüğünüzce toplanarak aşağıda belirtilen formatta hazırlanması gerekmektedir.' }] },
+        { t: 'liste', maddeler: ['İcmal Listeleri: Çiftçi adına göre alfabetik sırada listelenmiş Excel ve PDF (imzalı) formatında (Formlar › Katkı payı icmal listesi).', 'Dekontlar: İcmal listesindeki sıraya paralel olacak şekilde toplu olarak taranmış PDF formatında.'] },
+        { t: 'p', metin: `Hazırlanan bu bilgi ve belgelerin en geç ${secenekler.sonTarih ? tarih(secenekler.sonTarih) : '…../…../' + o.yil} tarihi mesai bitimine kadar İl Müdürlüğümüze iletilmesi hususunda;` },
+        { t: 'p', metin: 'Gereğini rica ederim.' },
+        { t: 'bosluk', yukseklik: 10 },
+        { t: 'tablo', kenarsiz: true, genislik: [2, 1.3], hizalar: ['sol', 'orta'], satirlar: [['', { metin: `${secenekler.imzaciAd || BOS_AD}\n${secenekler.imzaciUnvan || 'İl Müdürü a.\nİl Müdür Yardımcısı'}`, hiza: 'orta' }]] },
+        { t: 'bosluk', yukseklik: 8 },
+        { t: 'p', metin: `Ek: ${proje.kisaAd || proje.ad} Çiftçi Listesi (${satirlar.length} üretici)`, hiza: 'sol' },
+        { t: 'bosluk', yukseklik: 6 },
+        {
+          t: 'tablo', kenarsiz: true, genislik: [1, 1], kucuk: true,
+          satirlar: [
+            [{ metin: 'Dağıtım:\nGereği:', kalin: true }, { metin: 'Bilgi:', kalin: true }],
+            [ilceler.map((ic) => `${ic} İlçe Tarım ve Orman Müdürlüğüne`).join('\n') || '…', ['İdari ve Mali İşler Şube Müdürlüğüne', proje.birim ? `${proje.birim} Şube Müdürlüğüne` : ''].filter(Boolean).join('\n')]
+          ]
+        }
+      ]
+    }, {
+      ad: 'Ek - Çiftçi listesi',
+      ogeler: [
+        { t: 'baslik', metin: `EK: ${buyuk(proje.kisaAd || proje.ad)} ÇİFTÇİ LİSTESİ`, boyut: 2 },
+        ...ek
+      ]
+    }]
+  };
+}
+
 const FORMLAR = {
   ek1: { kod: 'EK-1', ad: 'Hibe desteği başvuru formu', tekil: ek1, kapsam: 'basvuru' },
   ek2: { kod: 'EK-2', ad: 'Hibe desteği sözleşmesi', tekil: ek2, kapsam: 'desteklenen' },
@@ -580,7 +873,11 @@ const FORMLAR = {
   ek5: { kod: 'EK-5', ad: 'Arazi kontrol tutanağı', tekil: ek5, kapsam: 'kontrol' },
   'kontrol-raporu': { kod: 'Kontrol raporu', ad: 'Tohum/fide hibe desteğine esas arazi kontrol raporu', liste: kontrolRaporu, kapsam: 'desteklenen' },
   'asil-yedek': { kod: 'Asıl/yedek', ad: 'Asıl ve yedek liste', liste: asilYedek, kapsam: 'karar' },
-  katki: { kod: 'Katkı payı', ad: 'Üretici katkı payı dilekçesi', tekil: katkiBireysel, liste: katkiToplu, kapsam: 'desteklenen' }
+  katki: { kod: 'Katkı payı', ad: 'Üretici katkı payı dilekçesi', tekil: katkiBireysel, liste: katkiToplu, kapsam: 'desteklenen' },
+  'katki-icmal': { kod: 'Katkı icmali', ad: 'Katkı payı icmal listesi (alfabetik, dekont sırası)', liste: katkiIcmal, kapsam: 'desteklenen' },
+  'ilce-teslim': { kod: 'İlçe teslim', ad: 'Yükleniciden ilçeye teslim tutanağı', liste: ilceTeslim, kapsam: 'desteklenen' },
+  izleme: { kod: 'İzleme', ad: 'Proje izleme formu (BÜGEM)', liste: izleme, kapsam: 'desteklenen', hazirla: true },
+  'odeme-yazisi': { kod: 'Ödeme yazısı', ad: 'Çiftçi talepleri ve katkı payı ödemesi yazısı (il → ilçeler)', liste: odemeYazisi, kapsam: 'desteklenen', hazirla: true }
 };
 
 module.exports = { FORMLAR, ortak };

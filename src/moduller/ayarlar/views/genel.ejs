@@ -16,6 +16,21 @@
         <label class="form-label required">İl</label>
         <input type="text" name="il" value="<%= deger.il || '' %>" class="form-control" required>
       </div>
+      <% var kh = deger.katkiHesabi || {}; %>
+      <div class="col-12"><div class="hr-text my-1">Üretici katkı payı hesabı (varsayılan)</div>
+        <div class="small text-secondary">Katkı payı dilekçelerinde ve ödeme yazısında yazılır. Projenin Formlar bölümünde başka hesap girilirse o proje için o geçer.</div></div>
+      <div class="col-md-6">
+        <label class="form-label">Banka / şube</label>
+        <input type="text" name="katkiHesabi[banka]" value="<%= kh.banka || '' %>" class="form-control">
+      </div>
+      <div class="col-md-6">
+        <label class="form-label">Alıcı adı</label>
+        <input type="text" name="katkiHesabi[alici]" value="<%= kh.alici || '' %>" class="form-control">
+      </div>
+      <div class="col-md-6">
+        <label class="form-label">IBAN</label>
+        <input type="text" name="katkiHesabi[iban]" value="<%= kh.iban || '' %>" class="form-control font-monospace" placeholder="TR.. .... .... .... .... .... ..">
+      </div>
     </div>
   </div>
   <div class="card-footer text-end">

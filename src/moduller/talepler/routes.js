@@ -7,7 +7,7 @@ const { talepHesabi, fiyatBirimi, normsuzMu } = require('../projeler/hesap');
 const { normOku } = require('../ayarlar/katalog');
 const { talepDurumlari } = require('../../config/sabitler');
 const { sayiOku, diziyeCevir, anahtar, sonucBirimi, hayvanlariOku, tarihOku } = require('../../core/yardimcilar');
-const { calisilanIlceler, ilceKisitliMi, yetkiGerekli } = require('../../core/yetki');
+const { calisilanIlceler, ilceKisitliMi, yetkiGerekli, projeFiltresi, projeErisebilirMi, projeErisimYok } = require('../../core/yetki');
 const akis = require('./akis');
 const multer = require('multer');
 const dosyalar = require('../../core/dosyalar');
@@ -43,7 +43,7 @@ const metin = (v) => (v === undefined || v === null ? '' : String(v).trim());
 const Proje = () => mongoose.model('Proje');
 
 // Talep girilebilecek projeler (iptal ve tamamlananlar dışında)
-const acikProjeler = () => Proje().find({ durum: { $in: ['taslak', 'aktif'] } }).sort({ olusturulma: -1 });
+const acikProjeler = (req) => Proje().find({ ...projeFiltresi(req), durum: { $in: ['taslak', 'aktif'] } }).sort({ olusturulma: -1 });
 
 // Formdaki canlı hesap için kalem bilgileri
 function kalemVerisi(proje, ayar) {
@@ -133,10 +133,10 @@ async function formGoster(res, durum, yerel) {
 router.get('/', sar(async (req, res) => {
   const ben = req.ben;
   const ayar = res.locals.ayar;
-  const projeler = await Proje().find().sort({ olusturulma: -1 }).select('ad kisaAd durum donem').lean();
+  const projeler = await Proje().find(projeFiltresi(req)).sort({ olusturulma: -1 }).select('ad kisaAd durum donem').lean();
   if (!projeler.length) return res.render(V + 'liste', { baslik: 'Çiftçi talepleri', projeler, proje: null, satirlar: [], filtre: {}, kisitli: false, toplam: {}, bekleyenler: {} });
 
-  const projeId = mongoose.isValidObjectId(req.query.proje) ? req.query.proje
+  const projeId = mongoose.isValidObjectId(req.query.proje) && projeErisebilirMi(req, req.query.proje) ? req.query.proje
     : String((projeler.find((p) => p.durum === 'aktif') || projeler.find((p) => p.durum === 'taslak') || projeler[0])._id);
   const proje = await Proje().findById(projeId);
   if (!proje) return res.redirect('/talepler');
@@ -191,9 +191,9 @@ router.get('/', sar(async (req, res) => {
 
 router.get('/yeni', sar(async (req, res) => {
   const ayar = res.locals.ayar;
-  const proje = mongoose.isValidObjectId(req.query.proje) ? await Proje().findById(req.query.proje) : null;
+  const proje = mongoose.isValidObjectId(req.query.proje) && projeErisebilirMi(req, req.query.proje) ? await Proje().findById(req.query.proje) : null;
   if (!proje) {
-    const projeler = await acikProjeler();
+    const projeler = await acikProjeler(req);
     if (projeler.length === 1) return res.redirect('/talepler/yeni?proje=' + projeler[0]._id);
     return res.render(V + 'proje-sec', { baslik: 'Talep gir', projeler });
   }
@@ -218,6 +218,7 @@ async function kaydet(req, res, mevcutTalep) {
     return res.redirect(`/talepler/${mevcutTalep._id}?bildirim=talep-kilitli`);
   }
   const projeId = mevcutTalep ? mevcutTalep.projeId : req.body.projeId;
+  if (projeId && !projeErisebilirMi(req, projeId)) return projeErisimYok(res);
   const proje = mongoose.isValidObjectId(projeId) ? await Proje().findById(projeId) : null;
   if (!proje) return res.redirect('/talepler/yeni');
 
@@ -305,6 +306,7 @@ router.post('/', sar(async (req, res) => kaydet(req, res, null)));
 async function talepBul(req, res, next) {
   if (!mongoose.isValidObjectId(req.params.id)) return next('route');
   req.talep = await Talep.findById(req.params.id);
+  if (req.talep && !projeErisebilirMi(req, req.talep.projeId)) return projeErisimYok(res);
   return req.talep ? next() : next('route');
 }
 
@@ -437,7 +439,7 @@ router.post('/toplu-gonder', sar(async (req, res) => {
   const hatalar = new Set();
   for (const id of ids) {
     const t = await Talep.findById(id);
-    if (!t) continue;
+    if (!t || !projeErisebilirMi(req, t.projeId)) continue;
     const r = akis.uygula(t, 'gonder', { ...baglam(req, res), not: req.body.not });
     if (r.hata) { hatalar.add(r.hata); continue; }
     await t.save();

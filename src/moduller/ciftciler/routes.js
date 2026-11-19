@@ -6,7 +6,7 @@ const Ciftci = require('./model');
 const Talep = require('../talepler/model');
 const { talepHesabi } = require('../projeler/hesap');
 const { tcGecerliMi, anahtar, tarihOku, sayiOku } = require('../../core/yardimcilar');
-const { calisilanIlceler, ilceKisitliMi, yetkiGerekli } = require('../../core/yetki');
+const { calisilanIlceler, ilceKisitliMi, yetkiGerekli, projeFiltresi } = require('../../core/yetki');
 
 const router = express.Router();
 const V = 'ciftciler/views/';
@@ -48,8 +48,8 @@ function ciftciDenetle(v, izinliIlceler) {
 
 // Çiftçilerin talep sayısı ve toplam alanı
 // Talep birimleri kaleme göre değiştiği için (da, adet, m²) toplamlar birime göre tutulur.
-async function talepOzetleri(ciftciIdleri, ayar) {
-  const talepler = await Talep.find({ ciftciId: { $in: ciftciIdleri }, durum: { $ne: 'desteklenmedi' } }).select('ciftciId projeId talepKalemleri satirlar').lean();
+async function talepOzetleri(ciftciIdleri, ayar, req) {
+  const talepler = await Talep.find({ ...(req ? projeFiltresi(req, 'projeId') : {}), ciftciId: { $in: ciftciIdleri }, durum: { $ne: 'desteklenmedi' } }).select('ciftciId projeId talepKalemleri satirlar').lean();
   const projeIdleri = [...new Set(talepler.map((t) => String(t.projeId)))];
   const projeler = await mongoose.model('Proje').find({ _id: { $in: projeIdleri } }).lean();
   const projeHaritasi = Object.fromEntries(projeler.map((p) => [String(p._id), p]));
@@ -80,7 +80,7 @@ router.get('/', sar(async (req, res) => {
     const q = anahtar(req.query.q);
     ciftciler = ciftciler.filter((c) => anahtar(c.adSoyad).includes(q) || c.tcKimlikNo.includes(q) || anahtar(c.mahalle).includes(q) || (c.telefon || '').includes(q));
   }
-  const ozet = await talepOzetleri(ciftciler.map((c) => c._id), res.locals.ayar);
+  const ozet = await talepOzetleri(ciftciler.map((c) => c._id), res.locals.ayar, req);
   res.render(V + 'liste', { baslik: 'Çiftçiler', ciftciler, ozet, filtre: { ...req.query, ilce }, kisitli });
 }));
 
@@ -121,7 +121,7 @@ async function ciftciBul(req, res, next) {
 
 // Çiftçi icmali: tüm projelerdeki talepleri
 router.get('/:id', sar(ciftciBul), sar(async (req, res) => {
-  const talepler = await Talep.find({ ciftciId: req.ciftci._id }).populate('projeId').sort({ olusturulma: -1 });
+  const talepler = await Talep.find({ ...projeFiltresi(req, 'projeId'), ciftciId: req.ciftci._id }).populate('projeId').sort({ olusturulma: -1 });
   const satirlar = talepler.filter((t) => t.projeId).map((t) => ({
     talep: t, proje: t.projeId, hesap: talepHesabi(t, t.projeId, res.locals.ayar),
     zincirler: akis.degisimZincirleri(t, t.projeId, res.locals.ayar)

@@ -1,7 +1,8 @@
 // Formlar: uygulama talimatı eklerinin PDF / Word / Excel çıktısı.
 //   GET /belgeler                       proje seçimi ve form listesi
 //   GET /belgeler/:form?talep=&kontrol=&bicim=     başvuru başına formlar (EK-1, 2, 4, 5)
-//   GET /belgeler/:form?proje=&ilce=&bicim=        liste formları (EK-3, kontrol raporu, asıl/yedek)
+//   GET /belgeler/:form?proje=&ilce=&bicim=        liste formları (EK-3, kontrol raporu, asıl/yedek, icmal ...)
+//   GET /belgeler/hazirla/:form?talep=|proje=      çıktı öncesi girilen bilgiler (EK-2, izleme formu, ödeme yazısı)
 
 const express = require('express');
 const mongoose = require('mongoose');
@@ -10,7 +11,7 @@ const belge = require('../../core/belge');
 const { talepHesabi } = require('../projeler/hesap');
 const { degerlendirmeHesabi } = require('../projeler/degerlendirme-hesabi');
 const bbhbIsletmeler = require('../bbhb/isletmeler');
-const { calisilanIlceler, ilceKisitliMi, yetkiGerekli } = require('../../core/yetki');
+const { calisilanIlceler, ilceKisitliMi, yetkiGerekli, projeFiltresi, projeErisebilirMi, projeErisimYok } = require('../../core/yetki');
 
 const router = express.Router();
 const V = 'belgeler/views/';
@@ -57,8 +58,8 @@ async function gonder(res, model, bicim, ad) {
 }
 
 router.get('/', sar(async (req, res) => {
-  const projeler = await Proje().find({ durum: { $ne: 'iptal' } }).sort({ olusturulma: -1 }).select('ad kisaAd donem durum').lean();
-  const proje = req.query.proje && mongoose.isValidObjectId(req.query.proje)
+  const projeler = await Proje().find({ ...projeFiltresi(req), durum: { $ne: 'iptal' } }).sort({ olusturulma: -1 }).select('ad kisaAd donem durum').lean();
+  const proje = req.query.proje && mongoose.isValidObjectId(req.query.proje) && projeErisebilirMi(req, req.query.proje)
     ? await Proje().findById(req.query.proje).lean()
     : (projeler[0] ? await Proje().findById(projeler[0]._id).lean() : null);
   let sayilar = {};
@@ -100,9 +101,23 @@ router.post('/ilce-yetkilisi', sar(async (req, res) => {
 // Çıktı öncesi bilgiler (EK-2: sözleşme tarihi ve ilçe müdürü)
 router.get('/hazirla/:form', sar(async (req, res, next) => {
   const tanim = FORMLAR[req.params.form];
-  if (!tanim || !tanim.tekil || !mongoose.isValidObjectId(req.query.talep)) return next();
+  if (!tanim) return next();
+  // Liste formları (proje izleme formu, ödeme yazısı): proje ve ilçe ile
+  if (tanim.hazirla && mongoose.isValidObjectId(req.query.proje)) {
+    if (!projeErisebilirMi(req, req.query.proje)) return projeErisimYok(res);
+    const proje = await Proje().findById(req.query.proje).lean();
+    if (!proje) return next();
+    const kisiler = await Kisi().find({ aktif: true }).sort({ adSoyad: 1 }).select('adSoyad unvan eposta telefon').lean();
+    const ekip = [...(proje.koordinatorler || []), ...(proje.yurutuculer || [])].map(String);
+    return res.render(V + 'hazirla-liste', {
+      baslik: tanim.ad, tanim, form: req.params.form, proje, kisiler, ekip,
+      ilce: typeof req.query.ilce === 'string' ? req.query.ilce : '', ilceler: calisilanIlceler(req.ben, res.locals.ayar)
+    });
+  }
+  if (!tanim.tekil || !mongoose.isValidObjectId(req.query.talep)) return next();
   const talep = await Talep().findById(req.query.talep).select('ciftciId ilce projeId durum').populate('ciftciId', 'adSoyad').lean();
   if (!talep || !talep.ciftciId) return next();
+  if (!projeErisebilirMi(req, talep.projeId)) return projeErisimYok(res);
   if (ilceKisitliMi(req.ben, res.locals.ayar) && !calisilanIlceler(req.ben, res.locals.ayar).includes(talep.ilce)) return res.status(403).send('Bu ilçenin başvurularına erişiminiz yok.');
   const kayit = await IlceYetkilisi.findOne({ ilce: talep.ilce }).lean();
   res.render(V + 'hazirla', {
@@ -125,6 +140,7 @@ router.get('/:form', sar(async (req, res, next) => {
     if (!mongoose.isValidObjectId(req.query.talep)) return res.status(400).send('Başvuru seçilmedi.');
     const talep = await Talep().findById(req.query.talep).lean();
     if (!talep) return next();
+    if (!projeErisebilirMi(req, talep.projeId)) return projeErisimYok(res);
     if (kisitli && !ilceler.includes(talep.ilce)) return res.status(403).send('Bu ilçenin başvurularına erişiminiz yok.');
     const [proje, ciftci] = await Promise.all([Proje().findById(talep.projeId).lean(), Ciftci().findById(talep.ciftciId).lean()]);
     if (!proje || !ciftci) return next();
@@ -145,6 +161,7 @@ router.get('/:form', sar(async (req, res, next) => {
 
   // Liste formları
   if (!mongoose.isValidObjectId(req.query.proje)) return res.status(400).send('Proje seçilmedi.');
+  if (!projeErisebilirMi(req, req.query.proje)) return projeErisimYok(res);
   const proje = await Proje().findById(req.query.proje).lean();
   if (!proje) return next();
   const ilce = req.query.ilce || '';
@@ -165,7 +182,15 @@ router.get('/:form', sar(async (req, res, next) => {
   }).sort((a, b) => a.talep.ilce.localeCompare(b.talep.ilce, 'tr') || a.ciftci.adSoyad.localeCompare(b.ciftci.adSoyad, 'tr'));
   const puanVar = satirlar.some((s) => s.deg && s.deg.puan != null);
   const ilceYetkilileri = await IlceYetkilisi.find({}).lean();
-  const model = tanim.liste({ satirlar, proje, ayar, ilce, puanVar, ilceYetkilileri });
+  // Çıktı alınırken girilen bilgiler (izleme formu, ödeme yazısı)
+  const q = req.query;
+  const secenekler = {
+    tarih: tarihOku(q.tarih), sonTarih: tarihOku(q.sonTarih), sayi: metin(q.sayi), imzaciAd: metin(q.imzaciAd), imzaciUnvan: metin(q.imzaciUnvan),
+    cevaplar: Object.fromEntries(['s1', 's2', 's3', 's4', 's5', 's6'].map((k) => [k, { secim: metin(q[k]), aciklama: metin(q[k + 'a']) }]))
+  };
+  const yurutenIdleri = [].concat(q.yurutenler || []).filter((id) => mongoose.isValidObjectId(id));
+  secenekler.yurutenler = yurutenIdleri.length ? await Kisi().find({ _id: { $in: yurutenIdleri } }).select('adSoyad unvan eposta telefon').lean() : [];
+  const model = tanim.liste({ satirlar, proje, ayar, ilce, puanVar, ilceYetkilileri, secenekler });
   model.altBilgi = `${proje.kisaAd || proje.ad}${ilce ? ' | ' + ilce : ''} | ${model.formAdi || tanim.ad}`;
   return gonder(res, model, bicim, `${tanim.kod} ${tanim.ad} - ${proje.kisaAd || proje.ad}${ilce ? ' - ' + ilce : ''}`);
 }));

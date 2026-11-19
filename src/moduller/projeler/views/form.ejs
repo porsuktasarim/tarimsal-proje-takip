@@ -44,9 +44,9 @@
                      placeholder="ör. İstanbul Güzlük Yem Bitkileri Üretim Alanlarını Geliştirme Projesi">
             </div>
             <div class="col-md-6">
-              <label class="form-label">Kısa ad</label>
-              <input type="text" name="kisaAd" value="<%= proje.kisaAd || '' %>" class="form-control" placeholder="ör. Güzlük Yem Bitkileri 2026">
-              <small class="form-hint">Listelerde ve raporlarda kullanılır.</small>
+              <label class="form-label required">Kısa ad</label>
+              <input type="text" name="kisaAd" value="<%= proje.kisaAd || '' %>" class="form-control" required placeholder="ör. 2027 Bahar - Silajlık Yerli Mısır">
+              <small class="form-hint">Proje yılı, dönemi ve projenin esas ürünü yazılmalıdır (ör. <em>2027 Bahar - Silajlık Yerli Mısır</em>). Listelerde ve tüm formların alt bilgisinde yer alır.</small>
             </div>
             <div class="col-md-6">
               <label class="form-label required">Yürütücü birim</label>
@@ -269,8 +269,19 @@
               <input type="text" name="belgeAyarlari[mahkeme]" value="<%= ba.mahkeme || '' %>" class="form-control" placeholder="<%= ayar.il || 'İstanbul' %>">
             </div>
             <div class="col-12">
-              <label class="form-label">Katkı payının yatırılacağı hesap</label>
-              <input type="text" name="belgeAyarlari[katkiHesabi]" value="<%= ba.katkiHesabi || '' %>" class="form-control" placeholder="Banka, şube, hesap adı ve IBAN (katkı payı dilekçesinde yazılır; boşsa noktalı çıkar)">
+              <label class="form-label">Katkı payının yatırılacağı hesap <span class="text-secondary fw-normal">(bu proje için farklıysa)</span></label>
+              <input type="text" name="belgeAyarlari[katkiHesabi]" value="<%= ba.katkiHesabi || '' %>" class="form-control" placeholder="<%= ayar.katkiHesabi && ayar.katkiHesabi.iban ? 'Boş: ' + [ayar.katkiHesabi.banka, ayar.katkiHesabi.alici, ayar.katkiHesabi.iban].filter(Boolean).join(' · ') : 'Banka, şube, alıcı ve IBAN' %>">
+              <small class="form-hint">Boş bırakılırsa Ayarlar › Genel'deki varsayılan hesap kullanılır.</small>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Proje kodu <span class="text-secondary fw-normal">(dekont açıklaması)</span></label>
+              <input type="text" name="belgeAyarlari[dekontKodu]" value="<%= ba.dekontKodu || '' %>" class="form-control" placeholder="ör. Mısır-01">
+              <small class="form-hint">Dekont açıklamasında uzun proje adı yerine yazılır: İlçe, Proje kodu, Üretici, Miktar.</small>
+            </div>
+            <div class="col-md-8">
+              <label class="form-label">Yüklenici / tedarikçi</label>
+              <input type="text" name="belgeAyarlari[yuklenici]" value="<%= ba.yuklenici || '' %>" class="form-control" placeholder="ör. … Sayılı … Tarım Kredi Kooperatifi">
+              <small class="form-hint">Girdiyi ilçe müdürlüklerine teslim eden; ilçe teslim tutanağında yazılır.</small>
             </div>
             <div class="col-12 small text-secondary">
               <i class="ti ti-signature me-1"></i>Sözleşmedeki ilçe müdürlüğü imzası ilçe bazındadır: <a href="/belgeler#ilce-mudurleri">Formlar › İlçe müdürleri</a> (ilçe sorumlusu düzenler; çıktı alınırken de değiştirilebilir).

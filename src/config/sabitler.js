@@ -6,6 +6,12 @@
 const varsayilanlar = {
   kurum: 'İstanbul İl Tarım ve Orman Müdürlüğü',
   il: 'İstanbul',
+  // Üretici katkı paylarının yatırıldığı hesap (il müdürlüğü yazısındaki); projede ayrıca değiştirilebilir
+  katkiHesabi: {
+    banka: 'T.C. Ziraat Bankası Cağaloğlu Şubesi',
+    alici: 'T.C. Başbakanlık Hazine Müsteşarlığı İç Ödemeler Saymanlığı',
+    iban: 'TR89 0001 0008 8900 0010 0050 69'
+  },
 
   birimler: ['Çayır Mera ve Yem Bitkileri'],
 

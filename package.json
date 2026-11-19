@@ -1,6 +1,6 @@
 {
   "name": "tarimsal-proje-takip-sistemi",
-  "version": "0.11.6",
+  "version": "0.12.0",
   "description": "Tarımsal Proje Takip Sistemi",
   "main": "src/app.js",
   "scripts": {

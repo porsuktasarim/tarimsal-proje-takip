@@ -46,7 +46,11 @@
                     <div><strong><%= f.kod %></strong> <%= f.ad %></div>
                     <div class="small text-secondary"><%= sayilar[f.kapsam] || 0 %> başvuru<%= k === 'kontrol-raporu' ? ' · ' + (sayilar.kontrol || 0) + ' saha kontrolü' : '' %></div>
                   </div>
-                  <%- bicimDugmeleri('/belgeler/' + k + '?proje=' + proje._id + ilceParam) %>
+                  <% if (f.hazirla) { %>
+                    <a class="btn btn-sm btn-ghost-primary" href="/belgeler/hazirla/<%= k %>?proje=<%= proje._id %><%= ilceParam %>"><i class="ti ti-file-pencil me-1"></i>Hazırla</a>
+                  <% } else { %>
+                    <%- bicimDugmeleri('/belgeler/' + k + '?proje=' + proje._id + ilceParam) %>
+                  <% } %>
                 </div>
               <% }) %>
             </div>

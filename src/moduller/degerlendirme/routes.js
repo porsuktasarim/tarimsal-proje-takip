@@ -13,7 +13,7 @@ const { anahtar, diziyeCevir, sayi, para, sayiOku, hayvanlariOku } = require('..
 const { normOku } = require('../ayarlar/katalog');
 const { uretimKodu, birimTahmini } = require('../projeler/degerlendirme-hesabi');
 const { normsuzMu } = require('../projeler/hesap');
-const { yetkiGerekli, ilceKisitliMi } = require('../../core/yetki');
+const { yetkiGerekli, ilceKisitliMi, projeFiltresi, projeErisebilirMi, projeErisimYok } = require('../../core/yetki');
 
 const router = express.Router();
 const V = 'degerlendirme/views/';
@@ -32,9 +32,9 @@ const ASAMA_GRUPLARI = {
 };
 
 async function projeSec(req) {
-  const projeler = await Proje().find().sort({ olusturulma: -1 }).select('ad kisaAd durum donem').lean();
+  const projeler = await Proje().find(projeFiltresi(req)).sort({ olusturulma: -1 }).select('ad kisaAd durum donem').lean();
   if (!projeler.length) return { projeler, proje: null };
-  const id = mongoose.isValidObjectId(req.query.proje) ? req.query.proje
+  const id = mongoose.isValidObjectId(req.query.proje) && projeErisebilirMi(req, req.query.proje) ? req.query.proje
     : String((projeler.find((p) => p.durum === 'aktif') || projeler.find((p) => p.durum === 'taslak') || projeler[0])._id);
   return { projeler, proje: await Proje().findById(id) };
 }
@@ -172,7 +172,7 @@ router.post('/onizle', sar(async (req, res) => {
   const b = req.body || {};
   if (!mongoose.isValidObjectId(b.id)) return res.status(400).json({ hata: 'Başvuru bulunamadı.' });
   const t = await Talep().findById(b.id).populate('ciftciId').lean();
-  if (!t || !t.ciftciId) return res.status(404).json({ hata: 'Başvuru bulunamadı.' });
+  if (!t || !t.ciftciId || !projeErisebilirMi(req, t.projeId)) return res.status(404).json({ hata: 'Başvuru bulunamadı.' });
   const proje = await Proje().findById(t.projeId);
   const v = izgaraDegerleri(b, proje, ayar);
   const kopya = { ...t, talepKalemleri: v.talepKalemleri, hayvanlar: v.hayvanlar };
@@ -191,7 +191,7 @@ router.post('/kaydet', sar(async (req, res) => {
   for (const d of liste) {
     if (!mongoose.isValidObjectId(d.id)) continue;
     const t = await Talep().findById(d.id).populate('ciftciId', 'adSoyad');
-    if (!t) continue;
+    if (!t || !projeErisebilirMi(req, t.projeId)) continue;
     const ad = t.ciftciId ? t.ciftciId.adSoyad : String(t._id);
     const pid = String(t.projeId);
     if (!projeler[pid]) projeler[pid] = await Proje().findById(pid);
@@ -212,6 +212,7 @@ router.get('/:id/panel', sar(async (req, res) => {
   if (!mongoose.isValidObjectId(req.params.id)) return res.status(404).send('Başvuru bulunamadı.');
   const talep = await Talep().findById(req.params.id).populate('ciftciId');
   if (!talep || !talep.ciftciId) return res.status(404).send('Başvuru bulunamadı.');
+  if (!projeErisebilirMi(req, talep.projeId)) return projeErisimYok(res);
   const proje = await Proje().findById(talep.projeId);
   if (!metinVarMi(proje)) return res.send(`<div class="alert alert-warning">Değerlendirme için önce <a href="${metinSayfasi(proje)}">proje metni</a> yüklenmelidir.</div>`);
   const ayar = res.locals.ayar;
@@ -239,7 +240,7 @@ router.post('/toplu', sar(async (req, res) => {
   const hatalar = new Set();
   for (const id of ids) {
     const t = await Talep().findById(id);
-    if (!t) continue;
+    if (!t || !projeErisebilirMi(req, t.projeId)) continue;
     const r = akis.uygula(t, islem, baglam);
     if (r.hata) { hatalar.add(r.hata); continue; }
     await t.save();

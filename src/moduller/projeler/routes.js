@@ -8,7 +8,7 @@ const { projeHesabi, taleplerOzeti } = require('./hesap');
 const degerlendirmeHesabi = require('./degerlendirme-hesabi');
 const projeMetni = require('./proje-metni');
 const dosyalar = require('../../core/dosyalar');
-const { yetkiGerekli } = require('../../core/yetki');
+const { yetkiGerekli, projeFiltresi, projeErisebilirMi, projeErisimYok } = require('../../core/yetki');
 const { projeDurumlari } = require('../../config/sabitler');
 const { sayiOku, diziyeCevir, tarihOku, anahtar, kodUret } = require('../../core/yardimcilar');
 
@@ -79,6 +79,8 @@ function formuOku(govde, ayar, mevcut) {
       imzaYetkilisiUnvan: metin(govde.belgeAyarlari && govde.belgeAyarlari.imzaYetkilisiUnvan) || undefined,
       mahkeme: metin(govde.belgeAyarlari && govde.belgeAyarlari.mahkeme) || undefined,
       katkiHesabi: metin(govde.belgeAyarlari && govde.belgeAyarlari.katkiHesabi) || undefined,
+      dekontKodu: metin(govde.belgeAyarlari && govde.belgeAyarlari.dekontKodu) || undefined,
+      yuklenici: metin(govde.belgeAyarlari && govde.belgeAyarlari.yuklenici) || undefined,
       donemTuru: metin(govde.belgeAyarlari && govde.belgeAyarlari.donemTuru) || undefined,
       komisyonBaskani: metin(govde.belgeAyarlari && govde.belgeAyarlari.komisyonBaskani) || undefined,
       komisyonUyeleri: String((govde.belgeAyarlari && govde.belgeAyarlari.komisyonUyeleri) || '').split(/[\n;]+/).map((x) => x.trim()).filter(Boolean)
@@ -102,6 +104,7 @@ function formuOku(govde, ayar, mevcut) {
 
   const hatalar = [];
   if (!veri.ad) hatalar.push('Proje adı girilmelidir.');
+  if (!veri.kisaAd) hatalar.push('Kısa ad girilmelidir: proje yılı, dönemi ve esas ürünü (ör. 2027 Bahar - Silajlık Yerli Mısır).');
   if (!veri.birim || !(ayar.birimler.includes(veri.birim) || veri.birim === eski.birim)) {
     hatalar.push('Yürütücü birim seçilmelidir.');
   }
@@ -216,6 +219,7 @@ async function formuGoster(res, durum, sablon) {
 async function projeBul(req, res, next) {
   if (!mongoose.isValidObjectId(req.params.id)) return next('route');
   req.proje = await Proje.findById(req.params.id);
+  if (req.proje && !projeErisebilirMi(req, req.proje._id)) return projeErisimYok(res);
   return req.proje ? next() : next('route');
 }
 
@@ -224,7 +228,7 @@ const duzOlarak = (p) => p.toObject({ flattenMaps: true, virtuals: true });
 // ---------------------------------------------------------------------------
 
 router.get('/', sar(async (req, res) => {
-  const filtre = {};
+  const filtre = { ...projeFiltresi(req) };
   if (req.query.birim) filtre.birim = String(req.query.birim);
   if (req.query.durum && projeDurumlari[req.query.durum]) filtre.durum = req.query.durum;
   if (req.query.donem) filtre.donem = String(req.query.donem);
@@ -234,7 +238,7 @@ router.get('/', sar(async (req, res) => {
     projeler = projeler.filter((p) => [p.ad, p.kisaAd, p.donem].some((v) => anahtar(v).includes(q)));
   }
   const durumSayilari = {};
-  for (const k of Object.keys(projeDurumlari)) durumSayilari[k] = await Proje.countDocuments({ durum: k });
+  for (const k of Object.keys(projeDurumlari)) durumSayilari[k] = await Proje.countDocuments({ ...projeFiltresi(req), durum: k });
   res.render(V + 'liste', { baslik: 'Projeler', projeler, filtre: req.query, durumSayilari });
 }));
 

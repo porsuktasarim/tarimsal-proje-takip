@@ -21,6 +21,7 @@ const rolSema = new mongoose.Schema({
   aciklama: { type: String, trim: true },
   renk: { type: String, trim: true },
   ilceKisitli: { type: Boolean, default: false },   // yalnızca kişinin sorumlu ilçelerinde çalışır
+  projeKisitli: { type: Boolean, default: false },  // yalnızca koordinatörü/yürütücüsü olduğu projeleri görür
   yetkiler: { type: [String], default: [] }
 }, { _id: false });
 
@@ -28,6 +29,10 @@ const ayarSema = new mongoose.Schema({
   _id: { type: String, default: 'genel' },
   kurum: { type: String, trim: true },
   il: { type: String, trim: true },
+  katkiHesabi: {                                     // üretici katkı payının yatırıldığı varsayılan hesap
+    type: new mongoose.Schema({ banka: { type: String, trim: true }, alici: { type: String, trim: true }, iban: { type: String, trim: true } }, { _id: false }),
+    default: undefined
+  },
   birimler: { type: [String], default: [] },
   donemler: { type: [donemSema], default: [] },
   varsayilanDonem: { type: String, trim: true },

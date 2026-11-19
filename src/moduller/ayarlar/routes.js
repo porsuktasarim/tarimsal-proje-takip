@@ -51,7 +51,11 @@ router.get('/genel', (req, res) => {
 });
 
 router.post('/genel', sar(async (req, res) => {
-  const deger = { kurum: (req.body.kurum || '').trim(), il: (req.body.il || '').trim() };
+  const k = req.body.katkiHesabi || {};
+  const deger = {
+    kurum: (req.body.kurum || '').trim(), il: (req.body.il || '').trim(),
+    katkiHesabi: { banka: String(k.banka || '').trim(), alici: String(k.alici || '').trim(), iban: String(k.iban || '').trim().toUpperCase() }
+  };
   const hatalar = [];
   if (!deger.kurum) hatalar.push('Kurum adı girilmelidir.');
   if (!deger.il) hatalar.push('İl adı girilmelidir.');
@@ -482,6 +486,7 @@ router.post('/roller', sar(async (req, res) => {
     aciklama: (r.aciklama || '').trim(),
     renk: rolRenkSecenekleri.includes(r.renk) ? r.renk : 'secondary',
     ilceKisitli: r.ilceKisitli === 'on',
+    projeKisitli: r.projeKisitli === 'on',
     yetkiler: diziyeCevir(r.yetkiler).filter((y) => tumYetkiler.includes(y))
   })).filter((r) => r.ad || r.kod);
 
@@ -510,7 +515,7 @@ router.post('/roller', sar(async (req, res) => {
     if (k.gorev) hatalar.push(`"${r.ad}" rolüne verilmiş ${k.gorev} görev olduğu için silinemez.`);
   }
 
-  const roller = [{ ...adminSatiri, kod: 'admin', ilceKisitli: false, yetkiler: [] }, ...digerleri];
+  const roller = [{ ...adminSatiri, kod: 'admin', ilceKisitli: false, projeKisitli: false, yetkiler: [] }, ...digerleri];
   if (hatalar.length) return rollerSayfasi(res, 422, roller, hatalar);
   await ayarlar.guncelle({ roller });
   return res.redirect('/ayarlar/roller?bildirim=kaydedildi');

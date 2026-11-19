@@ -4,7 +4,7 @@ const Gorev = require('./model');
 const Kisi = require('../ayarlar/modeller/Kisi');
 const { gorevDurumlari, oncelikler } = require('../../config/sabitler');
 const { tarihOku } = require('../../core/yardimcilar');
-const { yetkiGerekli, yetkisizSayfa } = require('../../core/yetki');
+const { yetkiGerekli, yetkisizSayfa, projeFiltresi } = require('../../core/yetki');
 
 const router = express.Router();
 const V = 'gorevler/views/';
@@ -36,11 +36,11 @@ const doldur = (q) => q
   .populate('atama.kisiId', 'adSoyad rol')
   .populate('olusturan', 'adSoyad');
 
-async function secenekler() {
+async function secenekler(req) {
   const Proje = mongoose.model('Proje');
   const [kisiler, projeler] = await Promise.all([
     Kisi.find({ aktif: true }).sort({ adSoyad: 1 }).lean(),
-    Proje.find({ durum: { $in: ['taslak', 'aktif'] } }).sort({ olusturulma: -1 }).select('ad kisaAd durum').lean()
+    Proje.find({ ...(req ? projeFiltresi(req) : {}), durum: { $in: ['taslak', 'aktif'] } }).sort({ olusturulma: -1 }).select('ad kisaAd durum').lean()
   ]);
   return { kisiler, projeler };
 }
@@ -71,7 +71,7 @@ function denetle(v) {
 }
 
 async function formGoster(res, durum, yerel) {
-  return res.status(durum).render(V + 'form', { ...(await secenekler()), ...yerel });
+  return res.status(durum).render(V + 'form', { ...(await secenekler(res.req)), ...yerel });
 }
 
 // ---------------------------------------------------------------------------
@@ -88,6 +88,8 @@ router.get('/', sar(async (req, res) => {
   if (durum === 'acik') kosullar.push({ durum: { $in: ['bekliyor', 'suruyor'] } });
   else if (durum !== 'tumu') kosullar.push({ durum });
   if (mongoose.isValidObjectId(req.query.proje)) kosullar.push({ projeId: req.query.proje });
+  // Proje kısıtlı kişi: yalnızca kendi projelerinin ve projesiz görevler
+  if (req.erisilenProjeler) kosullar.push({ $or: [{ projeId: { $in: req.erisilenProjeler } }, { projeId: null }] });
   const filtre = kosullar.length ? { $and: kosullar } : {};
 
   const gorevler = await doldur(Gorev.find(filtre).sort({ sonTarih: 1, olusturulma: -1 }));
@@ -101,7 +103,7 @@ router.get('/', sar(async (req, res) => {
   }
   if (req.izin('gorev.gor')) sayac.tumu = await Gorev.countDocuments({ durum: { $in: ['bekliyor', 'suruyor'] } });
 
-  const projeler = await mongoose.model('Proje').find().select('ad kisaAd').sort({ olusturulma: -1 }).lean();
+  const projeler = await mongoose.model('Proje').find(projeFiltresi(req)).select('ad kisaAd').sort({ olusturulma: -1 }).lean();
   res.render(V + 'liste', { baslik: 'Görevler', gorevler, gorunum, durum, sayac, projeler, seciliProje: req.query.proje || '' });
 }));
 
