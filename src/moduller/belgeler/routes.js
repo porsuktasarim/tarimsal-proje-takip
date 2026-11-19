@@ -91,6 +91,7 @@ router.post('/ilce-yetkilisi', sar(async (req, res) => {
   if (!yetkiliDuzenlerMi(req, ilce)) return res.redirect(donus + ek + 'bildirim=islem-yapilamadi&hata=' + encodeURIComponent(`${ilce} ilçe müdürünü yalnızca ilçe sorumlusu düzenleyebilir.`));
   await IlceYetkilisi.findOneAndUpdate({ ilce }, {
     ilce, ad: metin(req.body.yetkiliAd) || undefined, unvan: metin(req.body.yetkiliUnvan) || undefined,
+    ...(req.body.birimUyeleri !== undefined ? { birimUyeleri: String(req.body.birimUyeleri).split(/\r?\n|;/).map((x) => x.trim()).filter(Boolean) } : {}),
     guncelleyenAd: req.ben ? req.ben.adSoyad : undefined
   }, { upsert: true, new: true, setDefaultsOnInsert: true });
   return res.redirect(donus + ek + 'bildirim=kaydedildi');
@@ -160,7 +161,8 @@ router.get('/:form', sar(async (req, res, next) => {
     return s;
   }).sort((a, b) => a.talep.ilce.localeCompare(b.talep.ilce, 'tr') || a.ciftci.adSoyad.localeCompare(b.ciftci.adSoyad, 'tr'));
   const puanVar = satirlar.some((s) => s.deg && s.deg.puan != null);
-  const model = tanim.liste({ satirlar, proje, ayar, ilce, puanVar });
+  const ilceYetkilileri = await IlceYetkilisi.find({}).lean();
+  const model = tanim.liste({ satirlar, proje, ayar, ilce, puanVar, ilceYetkilileri });
   return gonder(res, model, bicim, `${tanim.kod} ${tanim.ad} - ${proje.kisaAd || proje.ad}${ilce ? ' - ' + ilce : ''}`);
 }));
 

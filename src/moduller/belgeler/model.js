@@ -7,6 +7,7 @@ const ilceYetkilisiSema = new mongoose.Schema({
   ilce: { type: String, required: true, trim: true, unique: true },
   ad: { type: String, trim: true },
   unvan: { type: String, trim: true },
+  birimUyeleri: { type: [String], default: undefined },   // ilçe proje uygulama biriminin teknik personeli (asıl/yedek liste)
   guncelleyenAd: { type: String, trim: true }
 }, { collection: 'ilce_yetkilileri', timestamps: { createdAt: 'olusturulma', updatedAt: 'guncellenme' } });
 

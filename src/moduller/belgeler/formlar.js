@@ -66,8 +66,15 @@ function araziSatirlari(talep, ciftci, proje, ayar, hesap) {
   if ((talep.satirlar || []).length) {
     return talep.satirlar.map((s) => {
       const k = kalemBul(proje, s.kalemId);
-      const m = k ? miktarHesabi(k, s.miktar, ayar, proje, null) : {};
-      const girdi = k && normsuzMu(k, ayar) ? { v: s.miktar, b: k.talepBirimi } : { v: m.ihtiyac, b: m.ihtiyacBirimi };
+      // Girdi miktarı: kalemin teslim edilecek miktarı, parsellere alanları oranında bölünür
+      const hk = k && hesap.kalemler.find((x) => String(x.kalem._id) === String(k._id));
+      const kalemAlani = (talep.satirlar || []).filter((x) => String(x.kalemId) === String(s.kalemId)).reduce((t, x) => t + (x.miktar || 0), 0);
+      let girdi;
+      if (hk && hk.teslim != null && kalemAlani > 0) girdi = { v: Math.round((hk.teslim * (s.miktar || 0) * 100) / kalemAlani) / 100, b: hk.teslimBirimi };
+      else {
+        const m = k ? miktarHesabi(k, s.miktar, ayar, proje, null) : {};
+        girdi = k && normsuzMu(k, ayar) ? { v: s.miktar, b: k.talepBirimi } : { v: m.ihtiyac, b: m.ihtiyacBirimi };
+      }
       return { mahalle: s.mahalle || ciftci.mahalle || '', ilce: s.parselIlce || talep.ilce, ada: s.ada || '', parsel: s.parsel || '', kalem: k, miktar: s.miktar, birim: (k && k.talepBirimi) || 'da', sulama: s.sulama, araziDurumu: s.araziDurumu, girdi };
     });
   }
@@ -83,7 +90,37 @@ function teslimMetni(hesap) {
     .map((hk) => `${sayi(hk.teslim)} ${hk.teslimBirimi || ''} ${String(hk.kalem.tur || '').toLocaleLowerCase('tr')} (${bitkiTuru(hk.kalem)})`.replace(/\s+/g, ' '))
     .join(', ');
 }
+// Ürün bazında teslim edilecek miktarlar: "Yulaf: 520 kg"
+const urunToplamlari = (hesap) => hesap.kalemler.filter((hk) => hk.teslim != null)
+  .map((hk) => `${bitkiTuru(hk.kalem)}: ${sayi(hk.teslim)} ${hk.teslimBirimi || ''}`.trim()).join('\n');
+// Satırlardaki alanların birim bazında toplamı: "25 da" ya da "25 da; 40 adet"
+const alanToplami = (satirlar) => {
+  const t = {};
+  satirlar.forEach((s) => { if (s.miktar != null) t[s.birim] = (t[s.birim] || 0) + s.miktar; });
+  return Object.entries(t).map(([b, v]) => miktarHucre(v, b === 'da' ? '' : b) + (b === 'da' && Object.keys(t).length > 1 ? ' da' : '')).join('; ');
+};
+const girdiHucre = (s) => (s.girdi && s.girdi.v != null ? `${sayi(s.girdi.v)} ${s.girdi.b || ''}`.trim() : '');
 const teslimKisa = (hesap) => hesap.kalemler.filter((hk) => hk.teslim != null).map((hk) => `${sayi(hk.teslim)} ${hk.teslimBirimi || ''}`.trim()).join('; ');
+
+// İmza bloğu: aynı unvanlı kişiler yan yana (satırda en çok 4), altında "İmza / Tarih"
+const BOS_AD = '…………………';
+function imzaBlogu(unvan, adlar, satirda = 4) {
+  const liste = adlar.length ? adlar : [BOS_AD];
+  const ogeler = [];
+  for (let i = 0; i < liste.length; i += satirda) {
+    const parca = liste.slice(i, i + satirda);
+    ogeler.push({
+      t: 'tablo', kenarsiz: true, hizalar: parca.map(() => 'orta'),
+      satirlar: [parca.map(() => ({ metin: unvan, kalin: true, hiza: 'orta' })), parca.map((k) => ({ metin: k || BOS_AD, hiza: 'orta' })), parca.map(() => ({ metin: 'İmza / Tarih', hiza: 'orta' }))]
+    });
+  }
+  return ogeler;
+}
+// İl proje uygulama komisyonu (talimat md. 4/e): üyeler üstte, başkan altta ortada
+function komisyonImzalari(o) {
+  const uyeler = (o.ba.komisyonUyeleri && o.ba.komisyonUyeleri.length) ? o.ba.komisyonUyeleri : [BOS_AD, BOS_AD, BOS_AD, BOS_AD];
+  return [...imzaBlogu('Komisyon Üyesi', uyeler), { t: 'bosluk', yukseklik: 6 }, ...imzaBlogu('Komisyon Başkanı', [o.ba.komisyonBaskani || BOS_AD])];
+}
 
 // Kaynak girilmemişse üst başlık satırı çıkmaz
 const programBasligi = (o) => (o.program ? [{ t: 'baslik', metin: o.program, boyut: 2 }] : []);
@@ -124,13 +161,16 @@ function ek1(v) {
       },
       { t: 'baslik', metin: 'Üretici Arazi Bilgileri Tablosu', boyut: 3 },
       {
-        t: 'tablo', kucuk: true, genislik: [0.6, 1.6, 0.8, 0.8, 1.6, 1.3, 1, 1.2, 1.3],
-        hizalar: ['orta', 'sol', 'orta', 'orta', 'sol', 'sag', 'orta', 'sag', 'sag'],
-        basliklar: ['Sıra No', 'Köy/Mahalle', 'Ada No', 'Parsel No', 'Bitki Türü', 'Projeye Başvurulan Alan (da)', 'Sulama Durumu (Kuru/Sulu)', 'Aşı Yapılacak Ağaç Sayısı (Adet)*', 'Toplam Ekilmeyen Alan (da)**'],
+        t: 'tablo', kucuk: true, genislik: [0.55, 1.5, 0.7, 0.7, 1.6, 1.2, 1.4, 0.95, 1.1, 1.2],
+        hizalar: ['orta', 'sol', 'orta', 'orta', 'sol', 'sag', 'sag', 'orta', 'sag', 'sag'],
+        basliklar: ['Sıra No', 'Köy/Mahalle', 'Ada No', 'Parsel No', 'Bitki Türü', 'Projeye Başvurulan Alan (da)', 'Tohum/Fide/Fidan Miktarı (Kg/Adet)', 'Sulama Durumu (Kuru/Sulu)', 'Aşı Yapılacak Ağaç Sayısı (Adet)*', 'Toplam Ekilmeyen Alan (da)**'],
         satirlar: (satirlar.length ? satirlar : [{}]).map((s, i) => [
-          String(i + 1), s.mahalle || '', s.ada || '', s.parsel || '', bitkiTuru(s.kalem), miktarHucre(s.miktar, s.birim), SULAMA[s.sulama] || '',
+          String(i + 1), s.mahalle || '', s.ada || '', s.parsel || '', bitkiTuru(s.kalem), miktarHucre(s.miktar, s.birim), girdiHucre(s), SULAMA[s.sulama] || '',
           s.kalem && /aşı/i.test(s.kalem.tur) ? miktarHucre(s.miktar, '') : '', i === 0 && talep.ekilmeyenAlan != null ? sayi(talep.ekilmeyenAlan) : ''
-        ])
+        ]),
+        toplam: [{ metin: 'TOPLAM', birlesik: 5, hiza: 'orta' }, alanToplami(satirlar), { metin: urunToplamlari(hesap), hiza: 'sag' }, '',
+          (() => { const a = satirlar.filter((s) => s.kalem && /aşı/i.test(s.kalem.tur)).reduce((t, s) => t + (s.miktar || 0), 0); return a ? sayi(a) : ''; })(),
+          talep.ekilmeyenAlan != null ? sayi(talep.ekilmeyenAlan) : '']
       },
       { t: 'p', metin: '* Bu kısım sadece aşılama projelerinde doldurulacaktır.', kucuk: true, hiza: 'sol' },
       { t: 'p', metin: `** Bu kısma üreticinin ${o.yil} yılında toplam ekim yapmadığı/yapmayacağı alan (boş arazi miktarı) yazılacaktır.`, kucuk: true, hiza: 'sol' }
@@ -173,8 +213,8 @@ function ek2(v) {
       {
         t: 'tablo', kucuk: true, genislik: [0.6, 1.6, 0.8, 0.8, 1.6, 1.2, 1.6], hizalar: ['orta', 'sol', 'orta', 'orta', 'sol', 'sag', 'sag'],
         basliklar: ['Sıra No', 'Belde/Köy', 'Ada No', 'Parsel No', 'Bitki Türü', 'Ekim/Dikim Alanı (da)', 'Tohum/Fide/Fidan Miktarı (Kg/Adet)'],
-        satirlar: satirlar.map((s, i) => [String(i + 1), s.mahalle, s.ada, s.parsel, bitkiTuru(s.kalem), miktarHucre(s.miktar, s.birim), s.girdi.v != null ? `${sayi(s.girdi.v)} ${s.girdi.b || ''}`.trim() : '']),
-        toplam: ['', { metin: 'Teslim edilecek toplam', birlesik: 4 }, '', { metin: teslimKisa(hesap) || '' }]
+        satirlar: satirlar.map((s, i) => [String(i + 1), s.mahalle, s.ada, s.parsel, bitkiTuru(s.kalem), miktarHucre(s.miktar, s.birim), girdiHucre(s)]),
+        toplam: [{ metin: 'TOPLAM', birlesik: 5, hiza: 'orta' }, alanToplami(satirlar), { metin: urunToplamlari(hesap), hiza: 'sag' }]
       },
       b('MADDE 4 – MESULİYET'),
       p('4.1 Projenin uygulanması sırasında; üreticinin kendisine, çalışanlarına veya mülkiyetine gelen herhangi bir zarar dolayısı ile İl/İlçe Tarım ve Orman Müdürlüğü sorumlu tutulamaz, bu gibi zarar ile bağlantılı herhangi bir tazminat veya ödeme artışı talebini kabul etmez.'),
@@ -229,7 +269,6 @@ function ek3(v) {
     ];
   };
   const govde = satirlar.map(satir);
-  const komisyon = [...((o.ba.komisyonUyeleri && o.ba.komisyonUyeleri.length) ? o.ba.komisyonUyeleri : ['…………………', '…………………', '…………………', '…………………'])];
   return {
     ad: 'EK-3 Kesin icmal',
     yon: 'yatay',
@@ -248,8 +287,7 @@ function ek3(v) {
       },
       { t: 'p', metin: 'Yukarıdaki liste, başvurusu onaylanan, üretici katkı payını yatırarak hibe desteği sözleşmesi imzalayan ve proje kapsamında dağıtımı yapılan girdilerini teslim alan üreticileri göstermekte olup ödemeye esas icmaldir.', kucuk: true },
       { t: 'bosluk', yukseklik: 6 },
-      { t: 'tablo', kenarsiz: true, hizalar: komisyon.map(() => 'orta'), satirlar: [komisyon.map(() => ({ metin: 'Komisyon Üyesi', kalin: true, hiza: 'orta' })), komisyon.map((k) => ({ metin: k, hiza: 'orta' })), komisyon.map(() => ({ metin: 'İmza / Tarih', hiza: 'orta' }))] },
-      { t: 'tablo', kenarsiz: true, hizalar: ['orta'], satirlar: [[{ metin: 'Komisyon Başkanı', kalin: true, hiza: 'orta' }], [{ metin: n(o.ba.komisyonBaskani, '…………………'), hiza: 'orta' }], [{ metin: 'İmza / Tarih', hiza: 'orta' }]] }
+      ...komisyonImzalari(o)
     ]
   };
 }
@@ -365,7 +403,7 @@ function kontrolRaporu(v) {
 // ---------------------------------------------------------------------------
 // Asıl ve yedek liste (ilçe bazında; talimat md. 8/8)
 function asilYedek(v) {
-  const { satirlar, proje, ayar, ilce, puanVar } = v;
+  const { satirlar, proje, ayar, ilce, puanVar, ilceYetkilileri = [] } = v;
   const o = ortak(proje, ayar);
   const ilceler = [...new Set(satirlar.map((s) => s.talep.ilce))].sort((a, b) => a.localeCompare(b, 'tr'));
   const ogeler = [
@@ -386,10 +424,16 @@ function asilYedek(v) {
     ogeler.push({ t: 'tablo', kucuk: true, basliklar, genislik, hizalar, satirlar: asil.length ? asil.map(satirYap) : [['–', 'Asıl listede başvuru yok', '', '', '', '', '', ...(puanVar ? [''] : [])]] });
     ogeler.push({ t: 'baslik', metin: `${ic} — Yedek liste (${yedek.length})${puanVar ? ', puana göre' : ''}`, boyut: 3, hiza: 'sol' });
     ogeler.push({ t: 'tablo', kucuk: true, basliklar, genislik, hizalar, satirlar: yedek.length ? yedek.map(satirYap) : [['–', 'Yedek listede başvuru yok', '', '', '', '', '', ...(puanVar ? [''] : [])]] });
+    // Listeyi ilçe proje uygulama birimi oluşturur (talimat md. 4/f, 8/8): teknik personel ve ilçe müdürü
+    const y = ilceYetkilileri.find((x) => x.ilce === ic) || {};
+    ogeler.push({ t: 'p', metin: `${ic} İlçe Proje Uygulama Birimi`, hiza: 'orta', kucuk: true });
+    ogeler.push(...imzaBlogu('Teknik Personel', (y.birimUyeleri && y.birimUyeleri.length) ? y.birimUyeleri : [BOS_AD, BOS_AD]));
+    ogeler.push(...imzaBlogu('İlçe Müdürü (Birim Başkanı)', [y.ad || BOS_AD]));
+    ogeler.push({ t: 'bosluk', yukseklik: 10 });
   });
-  const komisyon = (o.ba.komisyonUyeleri && o.ba.komisyonUyeleri.length) ? o.ba.komisyonUyeleri : ['…………………', '…………………', '…………………'];
-  ogeler.push({ t: 'bosluk', yukseklik: 8 });
-  ogeler.push({ t: 'tablo', kenarsiz: true, hizalar: komisyon.map(() => 'orta'), satirlar: [komisyon.map(() => ({ metin: 'Komisyon Üyesi', kalin: true, hiza: 'orta' })), komisyon.map((k) => ({ metin: k, hiza: 'orta' })), komisyon.map(() => ({ metin: 'İmza / Tarih', hiza: 'orta' }))] });
+  // Nihai değerlendirme ve onay il proje uygulama komisyonunda
+  ogeler.push({ t: 'p', metin: 'Yukarıdaki asıl ve yedek listeler İl Proje Uygulama Komisyonunca incelenerek onaylanmıştır.', kucuk: true });
+  ogeler.push(...komisyonImzalari(o));
   return { ad: 'Asıl ve yedek liste', yon: 'yatay', ogeler };
 }
 

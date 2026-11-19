@@ -271,13 +271,15 @@
             <div class="col-12 small text-secondary">
               <i class="ti ti-signature me-1"></i>Sözleşmedeki ilçe müdürlüğü imzası ilçe bazındadır: <a href="/belgeler#ilce-mudurleri">Formlar › İlçe müdürleri</a> (ilçe sorumlusu düzenler; çıktı alınırken de değiştirilebilir).
             </div>
-            <div class="col-md-6">
-              <label class="form-label">Kesin icmal: komisyon başkanı</label>
-              <input type="text" name="belgeAyarlari[komisyonBaskani]" value="<%= ba.komisyonBaskani || '' %>" class="form-control">
-            </div>
-            <div class="col-md-6">
+            <div class="col-12"><div class="hr-text my-1">İl proje uygulama komisyonu (EK-3 kesin icmal, asıl/yedek liste onayı)</div>
+              <div class="small text-secondary">Talimat md. 4/e: il müdürü ya da il müdür yardımcısı başkanlığında ilgili şube müdürü, ilçe müdürü/müdürleri ve projede görev alan en az iki ziraat mühendisiyle il müdürünün onayıyla oluşturulur.</div></div>
+            <div class="col-md-7">
               <label class="form-label">Komisyon üyeleri <span class="text-secondary fw-normal">(her satıra bir kişi)</span></label>
-              <textarea name="belgeAyarlari[komisyonUyeleri]" rows="2" class="form-control"><%= (ba.komisyonUyeleri || []).join('\n') %></textarea>
+              <textarea name="belgeAyarlari[komisyonUyeleri]" rows="3" class="form-control"><%= (ba.komisyonUyeleri || []).join('\n') %></textarea>
+            </div>
+            <div class="col-md-5">
+              <label class="form-label">Komisyon başkanı</label>
+              <input type="text" name="belgeAyarlari[komisyonBaskani]" value="<%= ba.komisyonBaskani || '' %>" class="form-control" placeholder="İl müdürü / il müdür yardımcısı">
             </div>
           </div>
         </div>

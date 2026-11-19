@@ -207,6 +207,19 @@ function sayiyaCevir(m) {
   if (/^-?0\d/.test(m)) return null;
   return Number(m.replace(/\./g, '').replace(',', '.'));
 }
+const IZGARA_DIKEY = 40;
+const IZGARA_YATAY = 60;
+// Oranları toplamı "toplam" olan tam sayılara böler (en büyük kalan yöntemi, her sütun en az 1)
+function izgaraPaylari(oranlar, toplam) {
+  const n = oranlar.length;
+  if (n >= toplam) return oranlar.map(() => 1);
+  const top = oranlar.reduce((a, b) => a + b, 0) || n;
+  const ham = oranlar.map((g) => ((g || 0) / top) * (toplam - n));
+  const pay = ham.map((x) => 1 + Math.floor(x));
+  let kalan = toplam - pay.reduce((a, b) => a + b, 0);
+  ham.map((x, i) => ({ i, k: x - Math.floor(x) })).sort((a, b) => b.k - a.k).forEach(({ i }) => { if (kalan > 0) { pay[i] += 1; kalan -= 1; } });
+  return pay;
+}
 const XLSX_HIZA = { sol: 'left', orta: 'center', sag: 'right', iki: 'justify' };
 const ince = { style: 'thin', color: { argb: 'FF999999' } };
 
@@ -227,17 +240,13 @@ async function xlsxOlustur(belge) {
     const ws = kitap.addWorksheet(sayfaAdi(s.ad || (belge.sayfalar.length > 1 ? `${si + 1}` : belge.ad), kullanilan), {
       pageSetup: { paperSize: 9, orientation: belge.yon === 'yatay' ? 'landscape' : 'portrait', fitToPage: true, fitToWidth: 1, fitToHeight: 0, margins: { left: 0.4, right: 0.4, top: 0.5, bottom: 0.5, header: 0.2, footer: 0.2 } }
     });
-    // Sütun sayısı ve genişlikleri en çok sütunlu tablodan
-    const tablolar = s.ogeler.filter((o) => o.t === 'tablo');
-    const enGenis = tablolar.reduce((en, o) => {
-      const n = Math.max(...[o.basliklar || [], ...(o.satirlar || [])].map((r) => r.reduce((t, h) => t + hucreBirlesik(h), 0)), 1);
-      return n > en.n ? { n, o } : en;
-    }, { n: 6, o: null });
-    const sutun = enGenis.n;
+    // Izgara: tüm sütunlar eşit genişlikte; her tablo sütunu, genişlik oranına göre
+    // birden çok ızgara sütununu birleştirerek kaplar (ör. sıra 1, ilçe 6, T.C. 4 sütun).
+    // Böylece aynı sayfadaki farklı sütunlu tablolar ve imza blokları birbirini bozmaz.
+    const sutun = belge.yon === 'yatay' ? IZGARA_YATAY : IZGARA_DIKEY;
     const toplamGenislik = belge.yon === 'yatay' ? 190 : 110;
-    const oranlar = enGenis.o && enGenis.o.genislik && enGenis.o.genislik.length === sutun ? enGenis.o.genislik : Array(sutun).fill(1);
-    const top = oranlar.reduce((a, b) => a + b, 0);
-    oranlar.forEach((g, i) => { ws.getColumn(i + 1).width = Math.max(4, (toplamGenislik * g) / top); });
+    const izgaraGenisligi = toplamGenislik / sutun;
+    for (let i = 1; i <= sutun; i += 1) ws.getColumn(i).width = izgaraGenisligi;
     const ortalamaGenislik = toplamGenislik;
 
     let r = 1;
@@ -257,28 +266,35 @@ async function xlsxOlustur(belge) {
       else if (o.t === 'liste') o.maddeler.forEach((m) => birlesikSatir(`• ${m}`, { boyut: 10 }));
       else if (o.t === 'bosluk') { r += 1; }
       else if (o.t === 'tablo') {
+        const n = Math.max(...[o.basliklar || [], ...(o.satirlar || []), o.toplam || []].map((satir) => satir.reduce((t, h) => t + hucreBirlesik(h), 0)), 1);
+        const oranlar = o.genislik && o.genislik.length === n ? o.genislik : Array(n).fill(1);
+        const bas = [0];
+        izgaraPaylari(oranlar, sutun).forEach((x) => bas.push(bas[bas.length - 1] + x));
         const yaz = (satir, baslik, toplamSatiri) => {
-          let c = 1;
+          let li = 0;
           let enCokSatir = 1;
           satir.forEach((h, i) => {
             let b = hucreBirlesik(h);
-            const sonHucre = i === satir.length - 1;
-            if (sonHucre && c + b - 1 < sutun) b = sutun - c + 1;     // kalan sütunları son hücre kaplar
-            if (b > 1) ws.mergeCells(r, c, r, c + b - 1);
+            if (i === satir.length - 1 && li + b < n) b = n - li;          // kalan sütunları son hücre kaplar
+            b = Math.min(b, n - li);
+            const c = bas[li] + 1;
+            const son = bas[li + b];
+            if (son > c) ws.mergeCells(r, c, r, son);
             const hc = ws.getCell(r, c);
             const m = hucreMetni(h);
             const sayi = !baslik ? sayiyaCevir(m) : null;
             hc.value = sayi != null && Number.isFinite(sayi) ? sayi : m;
             if (sayi != null) hc.numFmt = m.includes(',') ? '#,##0.00' : '#,##0';
             hc.font = { name: 'Times New Roman', size: o.kucuk ? 8 : 10, bold: baslik || toplamSatiri || hucreKalin(h) };
-            hc.alignment = { horizontal: XLSX_HIZA[baslik ? 'orta' : hucreHiza(h, o.hizalar && o.hizalar[i])], vertical: 'middle', wrapText: true };
+            hc.alignment = { horizontal: XLSX_HIZA[baslik ? 'orta' : hucreHiza(h, o.hizalar && o.hizalar[li])], vertical: 'middle', wrapText: true };
             if (baslik) hc.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEEEEEE' } };
-            if (!o.kenarsiz) for (let k = c; k < c + b; k += 1) ws.getCell(r, k).border = { top: ince, left: ince, bottom: ince, right: ince };
-            const w = Array.from({ length: b }, (_, k) => ws.getColumn(c + k).width || 10).reduce((a, x) => a + x, 0);
-            enCokSatir = Math.max(enCokSatir, Math.ceil(m.length / Math.max(4, w * 1.1)) + (m.match(/\n/g) || []).length);
-            c += b;
+            if (!o.kenarsiz) for (let k = c; k <= son; k += 1) ws.getCell(r, k).border = { top: ince, left: ince, bottom: ince, right: ince };
+            const w = (son - c + 1) * izgaraGenisligi * (o.kucuk ? 1.25 : 1);
+            const satirlar = m.split('\n').reduce((t, parca) => t + Math.max(1, Math.ceil(parca.length / Math.max(3, w * 1.05))), 0);
+            enCokSatir = Math.max(enCokSatir, satirlar);
+            li += b;
           });
-          ws.getRow(r).height = Math.max(15, enCokSatir * 13);
+          ws.getRow(r).height = Math.max(15, enCokSatir * (o.kucuk ? 11 : 13));
           r += 1;
         };
         if (o.basliklar) yaz(o.basliklar, true);
