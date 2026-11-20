@@ -1,51 +1,82 @@
 <%
   // Değerlendirmede değer değişikliği ya da yürütücünün değişiklik önerisi.
-  // Parametreler: talep, proje, donus, oneri (true: yürütücü önerisi formu)
+  // Parametreler: talep (forma dolacak değerler), mevcut (geçerli değerleri taşıyan başvuru; verilmezse talep),
+  // proje, donus, bbhb, oneri (true: yürütücü önerisi formu)
   var oneriModu = !!locals.oneri;
-  var gecerli = {};
-  (talep.talepKalemleri || []).forEach(function (t) { gecerli[String(t.kalemId)] = t.miktar; });
-  var ilk = {};
-  ((talep.basvuru && talep.basvuru.talepKalemleri) || []).forEach(function (t) { ilk[String(t.kalemId)] = t.miktar; });
+  var mevcut = locals.mevcut || talep;
+  var harita = function (liste) { var m = {}; (liste || []).forEach(function (t) { m[String(t.kalemId)] = t.miktar; }); return m; };
+  var deger = harita(talep.talepKalemleri);
+  var gecerli = harita(mevcut.talepKalemleri);
+  var ilk = harita(mevcut.basvuru && mevcut.basvuru.talepKalemleri);
   var hv = talep.hayvanlar || {};
-  var ilkHv = (talep.basvuru && talep.basvuru.hayvanlar) || {};
+  var gecerliHv = mevcut.hayvanlar || {};
+  var ilkHv = (mevcut.basvuru && mevcut.basvuru.hayvanlar) || {};
+  var basvuruVar = !!(mevcut.basvuru && mevcut.basvuru.tarih);
+  var g = function (v, birim) { return v == null || v === '' ? '–' : y.sayi(v) + (birim ? ' ' + birim : ''); };
 %>
 <form method="post" action="/talepler/<%= talep._id %>/<%= oneriModu ? 'oneri' : 'degistir' %>"<%= oneriModu ? '' : ' data-degistir-formu' %>>
   <input type="hidden" name="donus" value="<%= donus %>">
-  <div class="row g-2">
-    <% proje.kalemler.forEach(function (k) { var id = String(k._id); %>
-      <div class="col-12 col-sm-6">
-        <label class="form-label small mb-1 text-truncate d-block" title="<%= k.urun %><%= k.cesit ? ' · ' + k.cesit : '' %>"><%= k.urun %><%= k.cesit ? ' · ' + k.cesit : '' %></label>
-        <div class="input-group input-group-sm">
-          <input type="number" step="any" min="0" name="talepKalemleri[<%= id %>]" value="<%= gecerli[id] != null ? gecerli[id] : '' %>" class="form-control text-end" data-onceki="<%= gecerli[id] != null ? gecerli[id] : 0 %>">
-          <span class="input-group-text"><%= k.talepBirimi || 'da' %></span>
-        </div>
-        <% if (ilk[id] != null && ilk[id] !== gecerli[id]) { %><div class="small text-secondary">Başvuru: <%= y.sayi(ilk[id]) %> <%= k.talepBirimi || 'da' %></div><% } %>
-      </div>
-    <% }) %>
-    <% ayar.hayvanTurleri.forEach(function (h) { %>
-      <div class="col-6 col-sm-3">
-        <label class="form-label small mb-1"><%= h.ad %></label>
-        <div class="input-group input-group-sm">
-          <input type="number" step="1" min="0" name="hayvanlar[<%= h.kod %>]" value="<%= hv[h.kod] != null ? hv[h.kod] : '' %>" class="form-control text-end">
-          <span class="input-group-text px-1"><%= h.birim %></span>
-        </div>
-        <% if (ilkHv[h.kod] != null && ilkHv[h.kod] !== hv[h.kod]) { %><div class="small text-secondary">Başvuru: <%= y.sayi(ilkHv[h.kod]) %></div><% } %>
-      </div>
-    <% }) %>
-    <% var bo = locals.bbhb; if (bo && bo.var) {
-         var aktar = {}; ayar.hayvanTurleri.forEach(function (h) { if (h.kod === 'buyukbas') aktar.buyukbas = bo.buyukbas; if (h.kod === 'kucukbas') aktar.kucukbas = bo.kucukbas; }); %>
-      <div class="col-12">
-        <div class="alert alert-info py-2 mb-0 d-flex align-items-center gap-2 small">
-          <i class="ti ti-horse"></i>
-          <div>BBHB kaydı (<%= bo.isletmeSayisi %> işletme): <strong><%= y.sayi(bo.buyukbas) %></strong> büyükbaş · <strong><%= y.sayi(bo.kucukbas) %></strong> küçükbaş · <strong><%= y.sayi(bo.toplam) %></strong> BBHB</div>
-          <button type="button" class="btn btn-sm ms-auto" data-bbhb-aktar="<%= JSON.stringify(aktar) %>" data-not="Hayvan sayıları BBHB kaydına göre düzeltildi (<%= bo.isletmeSayisi %> işletme, <%= y.sayi(bo.toplam) %> BBHB).">Değerlere aktar</button>
-        </div>
-      </div>
-    <% } %>
-    <div class="col-12">
+  <div class="table-responsive">
+    <table class="table table-sm table-vcenter mb-2 degistir-tablosu">
+      <thead>
+        <tr>
+          <th></th>
+          <% if (basvuruVar) { %><th class="tablo-sayi text-nowrap">Başvuruda</th><% } %>
+          <th class="tablo-sayi text-nowrap">Geçerli</th>
+          <th class="text-end text-nowrap" style="width: 11rem"><%= oneriModu ? 'Önerilen' : 'Yeni değer' %></th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="degistir-bolum"><td colspan="<%= basvuruVar ? 4 : 3 %>"><i class="ti ti-paw me-1"></i>Hayvan varlığı ve gereklilikler</td></tr>
+        <% ayar.hayvanTurleri.forEach(function (h) { var degisti = hv[h.kod] !== gecerliHv[h.kod] && !(hv[h.kod] == null && gecerliHv[h.kod] == null); %>
+          <tr>
+            <td><%= h.ad %></td>
+            <% if (basvuruVar) { %><td class="tablo-sayi text-secondary text-nowrap"><%= g(ilkHv[h.kod], h.birim) %></td><% } %>
+            <td class="tablo-sayi text-nowrap"><%= g(gecerliHv[h.kod], h.birim) %></td>
+            <td>
+              <div class="input-group input-group-sm">
+                <input type="number" step="1" min="0" name="hayvanlar[<%= h.kod %>]" value="<%= hv[h.kod] != null ? hv[h.kod] : '' %>" class="form-control text-end<%= degisti ? ' is-warning' : '' %>">
+                <span class="input-group-text"><%= h.birim %></span>
+              </div>
+            </td>
+          </tr>
+        <% }) %>
+        <% var bo = locals.bbhb; if (bo && bo.var) {
+             var aktar = {}; ayar.hayvanTurleri.forEach(function (h) { if (h.kod === 'buyukbas') aktar.buyukbas = bo.buyukbas; if (h.kod === 'kucukbas') aktar.kucukbas = bo.kucukbas; }); %>
+          <tr>
+            <td colspan="<%= basvuruVar ? 4 : 3 %>">
+              <div class="d-flex align-items-center gap-2 small">
+                <i class="ti ti-horse text-info"></i>
+                <div>BBHB kaydı (<%= bo.isletmeSayisi %> işletme): <strong><%= y.sayi(bo.buyukbas) %></strong> büyükbaş · <strong><%= y.sayi(bo.kucukbas) %></strong> küçükbaş · <strong><%= y.sayi(bo.toplam) %></strong> BBHB</div>
+                <button type="button" class="btn btn-sm ms-auto" data-bbhb-aktar="<%= JSON.stringify(aktar) %>" data-not="Hayvan sayıları BBHB kaydına göre düzeltildi (<%= bo.isletmeSayisi %> işletme, <%= y.sayi(bo.toplam) %> BBHB).">Değerlere aktar</button>
+              </div>
+            </td>
+          </tr>
+        <% } %>
+        <tr class="degistir-bolum"><td colspan="<%= basvuruVar ? 4 : 3 %>"><i class="ti ti-seeding me-1"></i>Proje kapsamında desteklenen ürünler</td></tr>
+        <% proje.kalemler.forEach(function (k) { var id = String(k._id), birim = k.talepBirimi || 'da';
+             var degisti = deger[id] !== gecerli[id] && !(deger[id] == null && gecerli[id] == null); %>
+          <tr>
+            <td><%= k.urun %><% if (k.cesit) { %> <span class="text-secondary">· <%= k.cesit %></span><% } %>
+              <% if (gecerli[id] == null) { %><div class="small text-secondary">başvuruda yok — değer girilirse yeni talep olur</div><% } %></td>
+            <% if (basvuruVar) { %><td class="tablo-sayi text-secondary text-nowrap"><%= g(ilk[id], birim) %></td><% } %>
+            <td class="tablo-sayi text-nowrap"><%= g(gecerli[id], birim) %></td>
+            <td>
+              <div class="input-group input-group-sm">
+                <input type="number" step="any" min="0" name="talepKalemleri[<%= id %>]" value="<%= deger[id] != null ? deger[id] : '' %>" class="form-control text-end<%= degisti ? ' is-warning' : '' %>" data-onceki="<%= gecerli[id] != null ? gecerli[id] : 0 %>">
+                <span class="input-group-text"><%= birim %></span>
+              </div>
+            </td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+  <div class="row g-2 align-items-end">
+    <div class="col-12 col-md">
       <label class="form-label small mb-1">Not / gerekçe <span class="text-secondary fw-normal"><%= oneriModu ? '(zorunlu)' : '(miktar düşürülürken zorunlu)' %></span></label>
       <textarea name="not" rows="2" class="form-control form-control-sm" <%= oneriModu ? 'required' : '' %> placeholder="Silinemez; geçmişte görünür"></textarea>
     </div>
-    <div class="col-12"><button type="submit" class="btn btn-sm btn-primary"><i class="ti <%= oneriModu ? 'ti-git-pull-request' : 'ti-device-floppy' %> me-1"></i> <%= oneriModu ? 'Değişikliği öner' : 'Değişikliği kaydet' %></button></div>
+    <div class="col-12 col-md-auto"><button type="submit" class="btn btn-primary"><i class="ti <%= oneriModu ? 'ti-git-pull-request' : 'ti-device-floppy' %> me-1"></i> <%= oneriModu ? 'Değişikliği öner' : 'Değişikliği kaydet' %></button></div>
   </div>
 </form>

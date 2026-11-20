@@ -138,9 +138,17 @@ router.get('/', sar(async (req, res) => {
   const projeler = await Proje().find(projeFiltresi(req)).sort({ olusturulma: -1 }).select('ad kisaAd durum donem').lean();
   if (!projeler.length) return res.render(V + 'liste', { baslik: 'Çiftçi talepleri', projeler, proje: null, satirlar: [], filtre: {}, kisitli: false, toplam: {}, bekleyenler: {} });
 
-  const projeId = mongoose.isValidObjectId(req.query.proje) && projeErisebilirMi(req, req.query.proje) ? req.query.proje
-    : String((projeler.find((p) => p.durum === 'aktif') || projeler.find((p) => p.durum === 'taslak') || projeler[0])._id);
-  const proje = await Proje().findById(projeId);
+  // Proje seçilmeden çiftçi listelenmez: önce proje seçilir.
+  if (!mongoose.isValidObjectId(req.query.proje) || !projeErisebilirMi(req, req.query.proje)) {
+    const kisitliSec = ilceKisitliMi(ben, ayar);
+    const sayiFiltresi = { projeId: { $in: projeler.map((p) => p._id) } };
+    if (kisitliSec) sayiFiltresi.ilce = { $in: ben.ilceler || [] };
+    const sayilar = await Talep.aggregate([{ $match: sayiFiltresi }, { $group: { _id: { p: '$projeId', d: '$durum' }, n: { $sum: 1 } } }]);
+    const ozet = {};
+    sayilar.forEach((x) => { const k = String(x._id.p); ozet[k] = ozet[k] || { toplam: 0 }; ozet[k][x._id.d] = x.n; ozet[k].toplam += x.n; });
+    return res.render(V + 'liste-proje-sec', { baslik: 'Çiftçi talepleri', projeler, ozet, kisitli: kisitliSec });
+  }
+  const proje = await Proje().findById(req.query.proje);
   if (!proje) return res.redirect('/talepler');
 
   const kisitli = ilceKisitliMi(ben, ayar);

@@ -1,6 +1,6 @@
 {
   "name": "tarimsal-proje-takip-sistemi",
-  "version": "0.15.0",
+  "version": "0.16.0",
   "description": "Tarımsal Proje Takip Sistemi",
   "main": "src/app.js",
   "scripts": {
@@ -11,6 +11,7 @@
   "dependencies": {
     "@tabler/core": "^1.7.3",
     "@tabler/icons-webfont": "^3.50.0",
+    "apexcharts": "^4.7.0",
     "docx": "^9.16.0",
     "ejs": "^3.1.10",
     "exceljs": "^4.4.0",

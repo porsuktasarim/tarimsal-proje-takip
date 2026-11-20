@@ -1,0 +1,207 @@
+<%
+  // Genel bakış grafikleri ve tabloları. Veri: grafik (routes.js › grafikVerisi)
+  var g = grafik, T = g.toplam;
+  var oran = function (a, b) { return b ? '%' + y.sayi(Math.round(a / b * 1000) / 10) : '–'; };
+  var td = sabitler.talepDurumlari;
+  var bdg = Object.keys(g.asamalar).filter(function (k) { return g.asamalar[k]; });
+  var butceVar = T.tahmini || T.talep;
+  var veri = {
+    subeler: g.subeler.map(function (s) { return { ad: s.sube, tahmini: s.tahmini, talep: s.talep, desteklenen: s.desteklenen, gerceklesen: s.gerceklesen }; }),
+    projeler: g.projeler.map(function (p) { return { ad: p.ad, tahmini: p.tahmini, talep: p.talep, desteklenen: p.desteklenen, gerceklesen: p.gerceklesen, hedefDekar: p.hedefDekar, talepDekar: p.talepDekar, desteklenenDekar: p.desteklenenDekar, gerceklesenDekar: p.gerceklesenDekar }; }),
+    urunler: g.urunler.filter(function (u) { return u.birim === 'da'; }).slice(0, 15).map(function (u) { return { ad: u.urun, hedef: u.hedef, talep: u.talep, desteklenen: u.desteklenen }; }),
+    ilceler: g.ilceler.map(function (i) { return { ad: i.ilce, talepDekar: i.talepDekar, desteklenenDekar: i.desteklenenDekar }; }),
+    donemler: g.donemler.map(function (d) { return { ad: d.donem, tahmini: d.tahmini, desteklenen: d.desteklenen, desteklenenDekar: d.desteklenenDekar, hedefDekar: d.hedefDekar }; }),
+    asamalar: bdg.map(function (k) { return { ad: td[k].ad, deger: g.asamalar[k], renk: td[k].renk }; }),
+    finansman: [{ ad: 'Hibe (destek kaynağı)', deger: T.hibe }, { ad: 'Üretici katkı payı', deger: T.katki }]
+  };
+%>
+<div class="row row-cards mb-3">
+  <div class="col-sm-6 col-xl-3">
+    <div class="card card-sm"><div class="card-body">
+      <div class="text-secondary small">Tahmini bütçe</div>
+      <div class="h2 mb-0"><%= y.para(T.tahmini) %></div>
+      <div class="small text-secondary"><%= g.projeler.length %> proje · <%= g.subeler.length %> şube</div>
+    </div></div>
+  </div>
+  <div class="col-sm-6 col-xl-3">
+    <div class="card card-sm"><div class="card-body">
+      <div class="text-secondary small">Talep edilen</div>
+      <div class="h2 mb-0"><%= y.para(T.talep) %></div>
+      <div class="small text-secondary">tahminin <%= oran(T.talep, T.tahmini) %> kadarı · <%= y.sayi(T.talepDekar) %> da</div>
+    </div></div>
+  </div>
+  <div class="col-sm-6 col-xl-3">
+    <div class="card card-sm"><div class="card-body">
+      <div class="text-secondary small">Desteklenen</div>
+      <div class="h2 mb-0"><%= y.para(T.desteklenen) %></div>
+      <div class="small text-secondary"><%= y.sayi(T.desteklenenCiftci) %> çiftçi · <%= y.sayi(T.desteklenenDekar) %> da</div>
+    </div></div>
+  </div>
+  <div class="col-sm-6 col-xl-3">
+    <div class="card card-sm"><div class="card-body">
+      <div class="text-secondary small">Gerçekleşen (teslim edilen)</div>
+      <div class="h2 mb-0"><%= y.para(T.gerceklesen) %></div>
+      <div class="small text-secondary">tahminin <%= oran(T.gerceklesen, T.tahmini) %> kadarı · <%= y.sayi(T.gerceklesenDekar) %> da</div>
+    </div></div>
+  </div>
+</div>
+
+<div class="row row-cards mb-3">
+  <div class="col-lg-8">
+    <div class="card h-100">
+      <div class="card-header">
+        <div>
+          <h3 class="card-title">Şubelere göre bütçe</h3>
+          <p class="card-subtitle">Tahmini, talep edilen, desteklenen ve gerçekleşen bütçe (TL)</p>
+        </div>
+      </div>
+      <div class="card-body">
+        <% if (butceVar) { %><div class="grafik" data-grafik="subeButce" style="min-height: <%= Math.max(220, g.subeler.length * 70 + 80) %>px"></div><% } else { %><div class="text-secondary">Bütçe hesaplanamadı (kalemlerde fiyat yok).</div><% } %>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-sm table-vcenter card-table">
+          <thead><tr><th>Şube</th><th class="tablo-sayi">Proje</th><th class="tablo-sayi">Tahmini</th><th class="tablo-sayi">Talep edilen</th><th class="tablo-sayi">Desteklenen</th><th class="tablo-sayi">Gerçekleşen</th></tr></thead>
+          <tbody>
+            <% g.subeler.forEach(function (s) { %>
+              <tr><td><%= s.sube %></td><td class="tablo-sayi"><%= s.proje %></td><td class="tablo-sayi text-nowrap"><%= y.para(s.tahmini) %></td><td class="tablo-sayi text-nowrap"><%= y.para(s.talep) %></td>
+                <td class="tablo-sayi text-nowrap"><%= y.para(s.desteklenen) %></td><td class="tablo-sayi text-nowrap"><%= y.para(s.gerceklesen) %> <span class="text-secondary small"><%= oran(s.gerceklesen, s.tahmini) %></span></td></tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-4">
+    <div class="card h-100">
+      <div class="card-header">
+        <div>
+          <h3 class="card-title">Bütçenin şubelere dağılımı</h3>
+          <p class="card-subtitle">Tahmini bütçe payları</p>
+        </div>
+      </div>
+      <div class="card-body d-flex align-items-center">
+        <% if (T.tahmini) { %><div class="grafik w-100" data-grafik="subePay"></div><% } else { %><div class="text-secondary">Tahmini bütçe yok.</div><% } %>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card mb-3">
+  <div class="card-header">
+    <div>
+      <h3 class="card-title">Proje bazında bütçe ve çıktılar</h3>
+      <p class="card-subtitle">Talep edilen: desteklenmeyenler hariç başvurular · Desteklenen: desteklenen ve teslim edilen başvurular · Gerçekleşen: teslim edilenler</p>
+    </div>
+  </div>
+  <div class="card-body">
+    <% if (butceVar) { %><div class="grafik" data-grafik="projeButce" style="min-height: <%= Math.max(240, g.projeler.length * 64 + 80) %>px"></div><% } else { %><div class="text-secondary">Bütçe hesaplanamadı.</div><% } %>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-sm table-vcenter card-table">
+      <thead>
+        <tr>
+          <th style="min-width: 13rem">Proje</th><th class="tablo-sayi">Tahmini</th><th class="tablo-sayi">Talep edilen</th><th class="tablo-sayi">Desteklenen</th><th class="tablo-sayi">Gerçekleşen</th>
+          <th class="tablo-sayi">Hibe / katkı</th><th class="tablo-sayi text-nowrap">Alan (hedef → desteklenen)</th><th class="text-nowrap" title="Desteklenen başvurulara göre beklenen">Çıktılar (hedef → beklenen)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% if (!g.projeler.length) { %><tr><td colspan="8" class="text-secondary">Proje yok.</td></tr><% } %>
+        <% g.projeler.forEach(function (p) { %>
+          <tr>
+            <td><a href="/projeler/<%= p.id %>" class="text-reset fw-medium"><%= p.ad %></a><div class="small text-secondary"><%= p.sube %> · <%= p.basvuru %> başvuru</div></td>
+            <td class="tablo-sayi text-nowrap"><%= y.para(p.tahmini) %></td>
+            <td class="tablo-sayi text-nowrap"><%= y.para(p.talep) %><div class="small text-secondary"><%= oran(p.talep, p.tahmini) %></div></td>
+            <td class="tablo-sayi text-nowrap"><%= y.para(p.desteklenen) %><div class="small text-secondary"><%= oran(p.desteklenen, p.tahmini) %></div></td>
+            <td class="tablo-sayi text-nowrap"><%= y.para(p.gerceklesen) %><div class="small text-secondary"><%= oran(p.gerceklesen, p.tahmini) %></div></td>
+            <td class="tablo-sayi text-nowrap small"><%= y.para(p.hibe) %><div class="text-secondary"><%= y.para(p.katki) %></div></td>
+            <td class="tablo-sayi text-nowrap"><%= y.sayi(p.hedefDekar) %> → <%= y.sayi(p.desteklenenDekar) %> da<div class="small text-secondary">talep <%= y.sayi(p.talepDekar) %> da · <%= p.desteklenenCiftci %> çiftçi</div></td>
+            <td class="small">
+              <% if (!p.ciktilar.length) { %><span class="text-secondary">Çıktı normu yok</span><% } %>
+              <% p.ciktilar.forEach(function (c) { %>
+                <div class="text-nowrap"><%= c.ad %>: <%= Object.keys(c.hedef).map(function (b) { return y.miktar(c.hedef[b], b); }).join(' · ') || '–' %> → <strong><%= Object.keys(c.beklenen).map(function (b) { return y.miktar(c.beklenen[b], b); }).join(' · ') || '–' %></strong></div>
+              <% }) %>
+            </td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="row row-cards mb-3">
+  <div class="col-lg-6">
+    <div class="card h-100">
+      <div class="card-header"><div><h3 class="card-title">Proje bazında alan</h3><p class="card-subtitle">Hedef, talep edilen, desteklenen ve teslim edilen alan (da)</p></div></div>
+      <div class="card-body">
+        <% if (T.hedefDekar || T.talepDekar) { %><div class="grafik" data-grafik="projeAlan" style="min-height: <%= Math.max(240, g.projeler.length * 64 + 80) %>px"></div><% } else { %><div class="text-secondary">Alan verisi yok.</div><% } %>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-6">
+    <div class="card h-100">
+      <div class="card-header"><div><h3 class="card-title">Ürün başına alan</h3><p class="card-subtitle">Dekarla sayılan ürünler; hedef, talep edilen ve desteklenen (da)</p></div></div>
+      <div class="card-body">
+        <% if (veri.urunler.length) { %><div class="grafik" data-grafik="urunAlan" style="min-height: <%= Math.max(220, veri.urunler.length * 56 + 80) %>px"></div><% } else { %><div class="text-secondary">Dekarla sayılan ürün yok.</div><% } %>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-sm card-table">
+          <thead><tr><th>Ürün</th><th class="tablo-sayi">Hedef</th><th class="tablo-sayi">Talep</th><th class="tablo-sayi">Desteklenen</th><th class="tablo-sayi">Çiftçi</th></tr></thead>
+          <tbody>
+            <% g.urunler.forEach(function (u) { %>
+              <tr><td><%= u.urun %></td><td class="tablo-sayi text-nowrap"><%= y.sayi(u.hedef) %> <%= u.birim %></td><td class="tablo-sayi text-nowrap"><%= y.sayi(u.talep) %> <%= u.birim %></td><td class="tablo-sayi text-nowrap"><%= y.sayi(u.desteklenen) %> <%= u.birim %></td><td class="tablo-sayi"><%= u.ciftci %></td></tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row row-cards mb-3">
+  <div class="col-lg-6">
+    <div class="card h-100">
+      <div class="card-header"><div><h3 class="card-title">İlçelere göre alan</h3><p class="card-subtitle">Talep edilen ve desteklenen alan (da)</p></div></div>
+      <div class="card-body">
+        <% if (veri.ilceler.length) { %><div class="grafik" data-grafik="ilceAlan" style="min-height: <%= Math.max(220, veri.ilceler.length * 44 + 80) %>px"></div><% } else { %><div class="text-secondary">Başvuru yok.</div><% } %>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-sm card-table">
+          <thead><tr><th>İlçe</th><th class="tablo-sayi">Başvuru</th><th class="tablo-sayi">Desteklenen</th><th class="tablo-sayi">Talep (da)</th><th class="tablo-sayi">Desteklenen (da)</th><th class="tablo-sayi">Bütçe</th></tr></thead>
+          <tbody>
+            <% g.ilceler.forEach(function (i) { %>
+              <tr><td><%= i.ilce %></td><td class="tablo-sayi"><%= i.basvuru %></td><td class="tablo-sayi"><%= i.desteklenen %></td><td class="tablo-sayi"><%= y.sayi(i.talepDekar) %></td><td class="tablo-sayi"><%= y.sayi(i.desteklenenDekar) %></td><td class="tablo-sayi text-nowrap"><%= y.para(i.butce) %></td></tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-6">
+    <div class="row row-cards">
+      <div class="col-md-6 col-lg-12 col-xl-6">
+        <div class="card h-100">
+          <div class="card-header"><div><h3 class="card-title">Başvuru aşamaları</h3><p class="card-subtitle"><%= y.sayi(T.basvuru) %> başvuru</p></div></div>
+          <div class="card-body"><% if (veri.asamalar.length) { %><div class="grafik" data-grafik="asamalar"></div><% } else { %><div class="text-secondary">Başvuru yok.</div><% } %></div>
+        </div>
+      </div>
+      <div class="col-md-6 col-lg-12 col-xl-6">
+        <div class="card h-100">
+          <div class="card-header"><div><h3 class="card-title">Finansman</h3><p class="card-subtitle">Desteklenen bütçenin paylaşımı</p></div></div>
+          <div class="card-body"><% if (T.hibe || T.katki) { %><div class="grafik" data-grafik="finansman"></div><% } else { %><div class="text-secondary">Henüz desteklenen başvuru yok.</div><% } %></div>
+        </div>
+      </div>
+      <% if (g.donemler.length > 1) { %>
+        <div class="col-12">
+          <div class="card">
+            <div class="card-header"><div><h3 class="card-title">Dönemlere göre</h3><p class="card-subtitle">Tahmini ve desteklenen bütçe (TL)</p></div></div>
+            <div class="card-body"><div class="grafik" data-grafik="donemler"></div></div>
+          </div>
+        </div>
+      <% } %>
+    </div>
+  </div>
+</div>
+
+<script type="application/json" id="grafik-verisi"><%- JSON.stringify(veri).replace(/</g, '\\u003c') %></script>
+<script src="/vendor/apexcharts/apexcharts.min.js?v=<%= varlikSurumu %>"></script>
+<script src="/public/js/grafikler.js?v=<%= varlikSurumu %>"></script>

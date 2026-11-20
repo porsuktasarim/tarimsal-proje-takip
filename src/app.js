@@ -24,6 +24,7 @@ app.use(express.json({ limit: '2mb' }));
 // Kurum ağında dışarıya bağımlılık olmaması için tema dosyaları yerelden sunulur.
 const sabitDosya = { maxAge: '7d' };
 app.use('/vendor/tabler', express.static(path.join(KOK, 'node_modules/@tabler/core/dist'), sabitDosya));
+app.use('/vendor/apexcharts', express.static(path.join(KOK, 'node_modules/apexcharts/dist'), sabitDosya));
 app.use('/vendor/tabler-icons', express.static(path.join(KOK, 'node_modules/@tabler/icons-webfont/dist'), sabitDosya));
 app.use('/public', express.static(path.join(KOK, 'public'), sabitDosya));
 

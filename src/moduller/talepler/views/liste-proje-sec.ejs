@@ -1,0 +1,45 @@
+<%- include('../../../views/partials/ust') %>
+<%- include('../../../views/partials/sayfa-basligi', { ustBaslik: 'Projeler', eylemler: '' }) %>
+<%
+  var td = sabitler.talepDurumlari;
+  var pd = sabitler.projeDurumlari;
+  var sira = ['aktif', 'taslak', 'tamamlandi', 'iptal'];
+  var gruplar = sira.map(function (d) { return { d: d, projeler: projeler.filter(function (p) { return p.durum === d; }) }; }).filter(function (g) { return g.projeler.length; });
+%>
+<div class="page-body">
+  <div class="container-xl">
+    <%- include('../../../views/partials/bildirim') %>
+    <h3 class="mb-1">Hangi projenin taleplerini görmek istiyorsunuz?</h3>
+    <p class="text-secondary mb-3">Çiftçi talepleri proje bazında listelenir.<%= kisitli ? ' Sayılar yalnızca çalıştığınız ilçeleri kapsar.' : '' %></p>
+    <% gruplar.forEach(function (g) { %>
+      <div class="subheader mb-2 mt-3"><%= pd[g.d].ad %></div>
+      <div class="row row-cards">
+        <% g.projeler.forEach(function (p) { var o = ozet[String(p._id)] || { toplam: 0 }; %>
+          <div class="col-md-6 col-lg-4">
+            <a href="/talepler?proje=<%= p._id %>" class="card card-link h-100">
+              <div class="card-body">
+                <div class="d-flex align-items-start gap-2 mb-2">
+                  <div class="fw-medium flex-fill"><%= p.kisaAd || p.ad %></div>
+                  <span class="badge bg-<%= pd[p.durum].renk %>-lt"><%= pd[p.durum].ad %></span>
+                </div>
+                <% if (p.kisaAd && p.kisaAd !== p.ad) { %><div class="small text-secondary mb-2"><%= p.ad %></div><% } %>
+                <div class="d-flex align-items-baseline gap-1">
+                  <span class="h2 mb-0"><%= o.toplam %></span><span class="text-secondary">başvuru</span>
+                </div>
+                <% if (o.toplam) { %>
+                  <div class="progress progress-separated mt-2" style="height: .4rem">
+                    <% Object.keys(td).forEach(function (k) { if (o[k]) { %><div class="progress-bar bg-<%= td[k].renk %>" style="width: <%= (o[k] / o.toplam * 100).toFixed(1) %>%" title="<%= td[k].ad %>: <%= o[k] %>"></div><% } }) %>
+                  </div>
+                  <div class="small text-secondary mt-1">
+                    <%= Object.keys(td).filter(function (k) { return o[k]; }).map(function (k) { return td[k].ad + ' ' + o[k]; }).join(' · ') %>
+                  </div>
+                <% } %>
+              </div>
+            </a>
+          </div>
+        <% }) %>
+      </div>
+    <% }) %>
+  </div>
+</div>
+<%- include('../../../views/partials/alt') %>
