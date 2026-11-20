@@ -384,6 +384,7 @@
           if (dt) dt.value = ciftci.dogumTarihi ? String(ciftci.dogumTarihi).slice(0, 10) : '';
           var cks = tForm.querySelector('[data-alan="cks"]');
           if (cks) cks.checked = !!ciftci.cks;
+          if (window.turkvetFormaYaz) window.turkvetFormaYaz(tForm, c.isletmeler);
           tForm.querySelectorAll('[data-hayvan]').forEach(function (el) {
             var v = ciftci.hayvanlar ? ciftci.hayvanlar[el.getAttribute('data-hayvan')] : null;
             if (el.value === '') el.value = v != null ? v : '';
@@ -893,4 +894,180 @@
       if (!window.confirm(d.getAttribute('data-onay-dugme'))) e.preventDefault();
     });
   });
+
+  // --- Türkvet / BBHB kayıtları kutusu (talep formu, başvuru sayfası, değerlendirme penceresi) ---
+  // Aile işletmesi: birden çok kişinin işletmesi seçilebilir. Formda seçilenler gizli alanla
+  // kaydedilir; kayıtlı çiftçide seçilenler hemen çiftçiye bağlanır.
+  var tvKacis = function (v) { return String(v == null ? '' : v).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
+  var tvSayi = function (n) { return Number(n || 0).toLocaleString('tr-TR', { maximumFractionDigits: 2 }); };
+  var tvTarih = function (t) { return t ? new Date(t).toLocaleDateString('tr-TR') : ''; };
+  var tvVeri = function (kutu) {
+    if (!kutu._veri) { var el = kutu.querySelector('[data-turkvet-veri]'); kutu._veri = el ? JSON.parse(el.textContent || '[]') : []; }
+    return kutu._veri;
+  };
+  var tvYer = function (x) { return [x.il, x.ilce, x.mahalle].filter(Boolean).join(' / '); };
+  var tvKimlik = function (x) { return x.tcKimlikNo ? 'T.C. ' + x.tcKimlikNo : 'İşletme no ' + x.isletmeciId; };
+  function tvCiz(kutu) {
+    var liste = tvVeri(kutu);
+    var form = kutu.closest('form');
+    var kaldirabilir = kutu.getAttribute('data-kaldirabilir') === '1';
+    var yer = kutu.querySelector('[data-turkvet-liste]');
+    yer.innerHTML = liste.map(function (x, i) {
+      var b = x.bas || {};
+      return '<div class="turkvet-satir">' +
+        '<div class="flex-fill">' +
+          '<div><strong>' + tvKacis(x.isletmeciAdi) + '</strong>' + (x.yakinlik ? ' <span class="badge bg-secondary-lt">' + tvKacis(x.yakinlik) + '</span>' : '') +
+          (x.bagli ? '' : ' <span class="badge bg-blue-lt">kaydedilince eklenecek</span>') + '</div>' +
+          '<div class="small text-secondary">' + tvKacis(tvYer(x)) + ' · <span class="font-monospace">' + tvKacis(tvKimlik(x)) + '</span></div>' +
+        '</div>' +
+        '<div class="text-end small text-nowrap">' +
+          '<div>' + tvSayi(b.buyukbas) + ' büyükbaş · ' + tvSayi(b.kucukbas) + ' küçükbaş</div>' +
+          '<div><strong>' + tvSayi(x.bbhb) + ' BBHB</strong> <span class="text-secondary">' + tvTarih(x.tarih) + '</span></div>' +
+          (x.kayitSayisi > 1 ? '<div class="text-secondary" title="Aynı kişinin en fazla 3 kaydı tutulur; en son yapılan geçerlidir">' + x.kayitSayisi + ' kayıt · en sonuncusu geçerli</div>' : '') +
+        '</div>' +
+        ((!x.bagli || (kaldirabilir && kutu.getAttribute('data-mod') === 'bagla')) ? '<button type="button" class="btn btn-sm btn-ghost-danger btn-icon" data-turkvet-kaldir="' + i + '" title="Kaldır"><i class="ti ti-x"></i></button>' : '') +
+        (!x.bagli && kutu.getAttribute('data-mod') === 'form' ? '<input type="hidden" name="turkvet" value="' + tvKacis(x.isletmeciId) + '">' : '') +
+      '</div>';
+    }).join('');
+    var bos = kutu.querySelector('[data-turkvet-bos]');
+    if (bos) bos.hidden = liste.length > 0;
+    if (liste.length > 1 || (liste.length && kutu.getAttribute('data-aktar') === '1' && form)) {
+      var top = { buyukbas: 0, kucukbas: 0, bbhb: 0 };
+      liste.forEach(function (x) { top.buyukbas += (x.bas || {}).buyukbas || 0; top.kucukbas += (x.bas || {}).kucukbas || 0; top.bbhb += x.bbhb || 0; });
+      var aktarVar = kutu.getAttribute('data-aktar') === '1' && form && form.querySelector('input[name="hayvanlar[buyukbas]"], input[name="hayvanlar[kucukbas]"]');
+      yer.insertAdjacentHTML('beforeend', '<div class="d-flex align-items-center gap-2 small pt-1">' +
+        '<span><strong>Toplam' + (liste.length > 1 ? ' (' + liste.length + ' işletme)' : '') + ':</strong> ' + tvSayi(top.buyukbas) + ' büyükbaş · ' + tvSayi(top.kucukbas) + ' küçükbaş · ' + tvSayi(top.bbhb) + ' BBHB</span>' +
+        (aktarVar ? '<button type="button" class="btn btn-sm ms-auto" data-turkvet-aktar data-buyukbas="' + top.buyukbas + '" data-kucukbas="' + top.kucukbas + '" data-sayi="' + liste.length + '" data-bbhb="' + tvSayi(top.bbhb) + '"><i class="ti ti-arrow-big-down-lines me-1"></i>Hayvan sayılarına aktar</button>' : '') +
+        '</div>');
+    }
+  }
+  function tvHepsiniCiz(kok) { (kok || document).querySelectorAll('[data-turkvet]').forEach(function (k) { if (!k._cizildi) { k._cizildi = true; tvCiz(k); } }); }
+  tvHepsiniCiz();
+  // Değerlendirme penceresi gibi sonradan yüklenen içerik
+  new MutationObserver(function () { tvHepsiniCiz(); }).observe(document.body, { childList: true, subtree: true });
+
+  var tvPencere = null, tvKutu = null, tvSecili = {};
+  function tvPencereyiKur() {
+    if (tvPencere) return tvPencere;
+    document.body.insertAdjacentHTML('beforeend',
+      '<div class="modal modal-blur fade" id="turkvet-penceresi" tabindex="-1" aria-hidden="true"><div class="modal-dialog modal-lg modal-dialog-scrollable"><div class="modal-content">' +
+      '<div class="modal-header"><h5 class="modal-title"><i class="ti ti-building-barn me-1"></i>Türkvet / BBHB kaydı ekle</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Kapat"></button></div>' +
+      '<div class="modal-body">' +
+        '<div class="input-icon mb-2"><span class="input-icon-addon"><i class="ti ti-search"></i></span><input type="search" class="form-control" placeholder="Ad soyad, T.C., işletme no, köy/mahalle…" data-tv-ara autocomplete="off"></div>' +
+        '<div class="small text-secondary mb-2">Aile işletmesi: çiftçinin kendisinin yanında eşinin, babasının vb. işletmeleri de seçilebilir. Aynı kişinin birden çok kaydı varsa en son yapılanı geçerlidir.</div>' +
+        '<div class="list-group" data-tv-sonuc></div>' +
+      '</div>' +
+      '<div class="modal-footer"><span class="me-auto small text-secondary" data-tv-sayi>0 kayıt seçili</span><button type="button" class="btn" data-bs-dismiss="modal">Vazgeç</button><button type="button" class="btn btn-primary" data-tv-ekle disabled><i class="ti ti-plus me-1"></i>Seçilenleri ekle</button></div>' +
+      '</div></div></div>');
+    tvPencere = document.getElementById('turkvet-penceresi');
+    var ara = tvPencere.querySelector('[data-tv-ara]');
+    var sonuc = tvPencere.querySelector('[data-tv-sonuc]');
+    var zaman = null;
+    var sayiGuncelle = function () {
+      var n = Object.keys(tvSecili).length;
+      tvPencere.querySelector('[data-tv-sayi]').textContent = n + ' kayıt seçili';
+      tvPencere.querySelector('[data-tv-ekle]').disabled = n === 0;
+    };
+    tvPencere._ara = function () {
+      clearTimeout(zaman);
+      var q = ara.value.trim();
+      if (q.length < 2) { sonuc.innerHTML = '<div class="text-secondary small">En az 2 karakter yazınız.</div>'; return; }
+      zaman = setTimeout(function () {
+        fetch('/bbhb/isletme-ara?q=' + encodeURIComponent(q)).then(function (r) { return r.json(); }).then(function (v) {
+          var ekli = {}; tvVeri(tvKutu).forEach(function (x) { ekli[x.isletmeciId] = true; });
+          sonuc.innerHTML = v.length ? v.map(function (x) {
+            var e = ekli[x.isletmeciId];
+            return '<label class="list-group-item d-flex gap-2 align-items-start' + (e ? ' bg-secondary-lt' : '') + '">' +
+              '<input type="checkbox" class="form-check-input mt-1" data-tv-sec="' + tvKacis(x.isletmeciId) + '"' + (e ? ' checked disabled' : (tvSecili[x.isletmeciId] ? ' checked' : '')) + '>' +
+              '<span class="flex-fill"><strong>' + tvKacis(x.isletmeciAdi) + '</strong>' + (e ? ' <span class="badge bg-green-lt">ekli</span>' : '') +
+              '<span class="d-block small text-secondary">' + tvKacis(tvYer(x)) + ' · <span class="font-monospace">' + tvKacis(tvKimlik(x)) + '</span></span></span>' +
+              '<span class="small text-end text-nowrap">' + tvSayi(x.bas.buyukbas) + ' büyükbaş · ' + tvSayi(x.bas.kucukbas) + ' küçükbaş<span class="d-block"><strong>' + tvSayi(x.bbhb) + ' BBHB</strong> <span class="text-secondary">' + tvTarih(x.tarih) + '</span></span></span>' +
+              '</label>';
+          }).join('') : '<div class="text-secondary small">Kayıt bulunamadı. Kayıt yoksa önce BBHB hesaplama sayfasından Türkvet dosyası ya da manuel giriş yapılmalıdır.</div>';
+          tvPencere._sonuclar = {}; v.forEach(function (x) { tvPencere._sonuclar[x.isletmeciId] = x; });
+        }).catch(function () { sonuc.innerHTML = '<div class="text-danger small">Arama yapılamadı.</div>'; });
+      }, 250);
+    };
+    ara.addEventListener('input', tvPencere._ara);
+    sonuc.addEventListener('change', function (e) {
+      var c = e.target.closest('[data-tv-sec]'); if (!c) return;
+      var id = c.getAttribute('data-tv-sec');
+      if (c.checked) tvSecili[id] = tvPencere._sonuclar[id]; else delete tvSecili[id];
+      sayiGuncelle();
+    });
+    tvPencere.querySelector('[data-tv-ekle]').addEventListener('click', function () {
+      var secilen = Object.keys(tvSecili).map(function (k) { return tvSecili[k]; });
+      if (!secilen.length || !tvKutu) return;
+      if (tvKutu.getAttribute('data-mod') === 'bagla') {
+        var f = document.createElement('form');
+        f.method = 'post'; f.action = '/bbhb/ciftci/' + tvKutu.getAttribute('data-ciftci') + '/bagla';
+        f.innerHTML = secilen.map(function (x) { return '<input type="hidden" name="isletmeciId" value="' + tvKacis(x.isletmeciId) + '">'; }).join('') +
+          '<input type="hidden" name="donus" value="' + tvKacis(tvKutu.getAttribute('data-donus') || location.pathname) + '">';
+        document.body.appendChild(f); f.submit();
+        return;
+      }
+      var liste = tvVeri(tvKutu);
+      secilen.forEach(function (x) { if (!liste.some(function (y) { return y.isletmeciId === x.isletmeciId; })) liste.push(Object.assign({}, x, { bagli: false })); });
+      tvCiz(tvKutu);
+      tvPencere._modal.hide();
+    });
+    var M = (window.tabler && window.tabler.Modal) || (window.bootstrap && window.bootstrap.Modal);
+    tvPencere._modal = M ? M.getOrCreateInstance(tvPencere) : null;
+    tvPencere._sayiGuncelle = sayiGuncelle;
+    return tvPencere;
+  }
+
+  document.addEventListener('click', function (e) {
+    var ekle = e.target.closest('[data-turkvet-ekle]');
+    if (ekle) {
+      tvKutu = ekle.closest('[data-turkvet]');
+      tvSecili = {};
+      var p = tvPencereyiKur();
+      var ara = p.querySelector('[data-tv-ara]');
+      var form = tvKutu.closest('form');
+      var ad = tvKutu.getAttribute('data-ara') || (form && form.querySelector('[data-alan="adSoyad"]') ? form.querySelector('[data-alan="adSoyad"]').value : '');
+      ara.value = ad || '';
+      p.querySelector('[data-tv-sonuc]').innerHTML = '';
+      p._sayiGuncelle();
+      if (p._modal) p._modal.show();
+      if (ara.value.trim().length >= 2) p._ara();
+      setTimeout(function () { ara.focus(); }, 300);
+      return;
+    }
+    var kaldir = e.target.closest('[data-turkvet-kaldir]');
+    if (kaldir) {
+      var kutu = kaldir.closest('[data-turkvet]');
+      var liste = tvVeri(kutu);
+      var x = liste[Number(kaldir.getAttribute('data-turkvet-kaldir'))];
+      if (!x) return;
+      if (!x.bagli) { liste.splice(liste.indexOf(x), 1); tvCiz(kutu); return; }
+      if (!window.confirm(x.isletmeciAdi + ' işletmesinin bağı kaldırılsın mı? (BBHB kaydı silinmez; bu işletme bu çiftçiyle bir daha otomatik eşleşmez.)')) return;
+      var f = document.createElement('form');
+      f.method = 'post'; f.action = '/bbhb/ciftci/' + kutu.getAttribute('data-ciftci') + '/kaldir';
+      f.innerHTML = '<input type="hidden" name="isletmeciId" value="' + tvKacis(x.isletmeciId) + '"><input type="hidden" name="donus" value="' + tvKacis(kutu.getAttribute('data-donus') || location.pathname) + '">';
+      document.body.appendChild(f); f.submit();
+      return;
+    }
+    var aktar = e.target.closest('[data-turkvet-aktar]');
+    if (aktar) {
+      var fm = aktar.closest('form');
+      ['buyukbas', 'kucukbas'].forEach(function (k) {
+        var i = fm.querySelector('input[name="hayvanlar[' + k + ']"]');
+        if (i) { i.value = aktar.getAttribute('data-' + k); i.dispatchEvent(new Event('input', { bubbles: true })); }
+      });
+      var not = fm.querySelector('textarea[name="not"]');
+      if (not && !not.value.trim()) not.value = 'Hayvan sayıları Türkvet/BBHB kaydına göre düzeltildi (' + aktar.getAttribute('data-sayi') + ' işletme, ' + aktar.getAttribute('data-bbhb') + ' BBHB).';
+    }
+  });
+
+  // Talep formunda T.C. sorgusundan gelen bağlı işletmeler kutuya yazılır
+  window.turkvetFormaYaz = function (form, isletmeler) {
+    var kutu = form.querySelector('[data-turkvet]');
+    if (!kutu) return;
+    var liste = tvVeri(kutu);
+    var yeniler = liste.filter(function (x) { return !x.bagli; });
+    kutu._veri = (isletmeler || []).map(function (x) { return Object.assign({}, x, { bagli: true }); })
+      .concat(yeniler.filter(function (x) { return !(isletmeler || []).some(function (y) { return y.isletmeciId === x.isletmeciId; }); }));
+    tvCiz(kutu);
+  };
 })();

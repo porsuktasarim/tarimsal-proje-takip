@@ -53,6 +53,9 @@
                   <% }) %>
                 </div>
                 <small class="form-hint mt-1">Talebin değerlendirilmesinde yardımcı bilgidir. Kayıtlı çiftçide son girilen sayılar getirilir; güncel değilse düzeltilmelidir.</small>
+                <div class="mt-3">
+                  <%- include('../../bbhb/views/turkvet', { isletmeler: locals.turkvetListesi || [], mod: 'form', ekleyebilir: true, ara: ciftci.adSoyad || '' }) %>
+                </div>
               <% } %>
             </div>
           </div>

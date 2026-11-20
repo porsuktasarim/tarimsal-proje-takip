@@ -126,8 +126,22 @@ async function formGoster(res, durum, yerel) {
   const { proje } = yerel;
   return res.status(durum).render(V + 'form', {
     kalemVerisi: kalemVerisi(proje, res.locals.ayar),
+    turkvetListesi: await turkvetListesi(yerel.ciftci, yerel.turkvetIdleri),
     ...yerel
   });
+}
+
+// Talep formundaki Türkvet/BBHB kutusu: kayıtlı çiftçinin bağlı işletmeleri ve formda yeni seçilenler
+async function turkvetListesi(ciftciVeri, yeniIdler) {
+  const harita = await bbhbIsletmeler.isletmeHaritasi();
+  const tc = ciftciVeri && ciftciVeri.tcKimlikNo;
+  const c = tc ? await Ciftci.findOne({ tcKimlikNo: tc }).lean() : null;
+  const liste = c ? bbhbIsletmeler.ciftciBbhb(c, harita).isletmeler.filter((x) => x.kayit)
+    .map((x) => ({ ...bbhbIsletmeler.isletmeOzeti(x.kayit), yakinlik: x.yakinlik })) : [];
+  (yeniIdler || []).forEach((id) => {
+    if (harita.has(id) && !liste.some((x) => x.isletmeciId === id)) liste.push({ ...bbhbIsletmeler.isletmeOzeti(harita.get(id)), bagli: false });
+  });
+  return liste;
 }
 
 // ---------------------------------------------------------------------------
@@ -264,6 +278,7 @@ async function kaydet(req, res, mevcutTalep) {
       ciftci: ciftciVeri,
       ilceler: izinliIlceler,
       hatalar,
+      turkvetIdleri: [].concat(req.body.turkvet || []).map(String),
       eylem: mevcutTalep ? `/talepler/${mevcutTalep._id}` : '/talepler'
     });
   }
@@ -282,6 +297,9 @@ async function kaydet(req, res, mevcutTalep) {
       ...ciftciVeri, hayvanlar, hayvanTarihi: new Date(), kaydeden: ben ? ben._id : undefined, kaydedenAd: ben ? ben.adSoyad : undefined
     });
   }
+  // Formda "Türkvet kaydı ekle" ile seçilen işletmeler (aile işletmeleri) çiftçiye bağlanır
+  const secilenIsletmeler = [].concat(req.body.turkvet || []).map((x) => String(x).trim()).filter(Boolean);
+  if (secilenIsletmeler.length && bbhbIsletmeler.bagla(ciftci, secilenIsletmeler, await bbhbIsletmeler.isletmeHaritasi(), ben)) await ciftci.save();
   // BBHB kayıtlarındaki işletmelerle otomatik eşleştirme (T.C. ya da ad soyad + köy)
   await bbhbIsletmeler.ciftciyiEslestir(ciftci);
 

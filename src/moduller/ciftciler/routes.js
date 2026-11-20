@@ -87,7 +87,11 @@ router.get('/', sar(async (req, res) => {
 // Talep formundaki T.C. sorgusu
 router.get('/tc/:tc', sar(async (req, res) => {
   const c = await Ciftci.findOne({ tcKimlikNo: String(req.params.tc).replace(/\D/g, '') }).lean();
-  res.json(c ? { bulundu: true, ciftci: c } : { bulundu: false, gecerli: tcGecerliMi(req.params.tc) });
+  if (!c) return res.json({ bulundu: false, gecerli: tcGecerliMi(req.params.tc) });
+  // Bağlı Türkvet/BBHB işletmeleri (aile işletmeleri dahil) en güncel kayıtlarıyla
+  const harita = await bbhbIsletmeler.isletmeHaritasi();
+  const isletmeler = bbhbIsletmeler.ciftciBbhb(c, harita).isletmeler.filter((x) => x.kayit).map((x) => ({ ...bbhbIsletmeler.isletmeOzeti(x.kayit), yakinlik: x.yakinlik, eslesme: x.eslesme }));
+  return res.json({ bulundu: true, ciftci: c, isletmeler });
 }));
 
 router.get('/yeni', (req, res) => {

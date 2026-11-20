@@ -6,7 +6,7 @@ const isletmeler = require('./isletmeler');
 const BbhbSonuc = require('./model');
 const { kategorileriKatsayiIleGetir, kriterParagraflariOlustur } = require('./aciklamalar');
 const { AKTIF_VERSIYON, KATSAYI_TABLOLARI } = require('./kurallar');
-const { yetkiGerekli } = require('../../core/yetki');
+const { yetkiGerekli, ilceKisitliMi } = require('../../core/yetki');
 const { kodUret, anahtar, tcGecerliMi } = require('../../core/yardimcilar');
 
 const router = express.Router();
@@ -15,7 +15,8 @@ const sar = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catc
 // Dosyalar diske yazılmaz, yalnızca hesap için bellekte tutulur
 const yukle = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024, files: 20 } });
 
-const ISLETME_YETKI = ['ciftci.yonet', 'talep.degerlendir', 'bbhb.hesapla'];
+// Talep girerken ve değerlendirmede Türkvet/BBHB kaydı eklenebilir (aile işletmesi: birden çok kişi)
+const ISLETME_YETKI = ['ciftci.yonet', 'talep.gir', 'talep.degerlendir', 'bbhb.hesapla'];
 router.use((req, res, next) => {
   let gerek = 'bbhb.gor';
   if (/^\/ciftci\//.test(req.path) || req.path === '/isletme-ara') gerek = ISLETME_YETKI;
@@ -147,28 +148,24 @@ router.get('/isletme-ara', sar(async (req, res) => {
   const harita = await isletmeler.isletmeHaritasi();
   const liste = [...harita.values()]
     .filter((x) => isletmeler.adAnahtari(`${x.isletmeciAdi} ${x.isletmeciId} ${x.mahalle} ${x.ilce} ${x.tcKimlikNo || ''}`).includes(q))
-    .slice(0, 20)
-    .map((x) => ({ isletmeciId: x.isletmeciId, isletmeciAdi: x.isletmeciAdi, ilce: x.ilce, mahalle: x.mahalle, bbhb: x.bbhb, bas: x.bas }));
+    .slice(0, 30)
+    .map(isletmeler.isletmeOzeti);
   return res.json(liste);
 }));
 
 // Çiftçiye işletme bağla (aile işletmesi ya da öneriyi onaylama)
+// Birden çok işletme birlikte bağlanabilir (isletmeciId dizi olabilir)
 router.post('/ciftci/:id/bagla', sar(async (req, res) => {
   const donus = donusAdresi(req.body.donus, `/ciftciler/${req.params.id}`);
   const c = mongoose.isValidObjectId(req.params.id) ? await mongoose.model('Ciftci').findById(req.params.id) : null;
-  const id = String(req.body.isletmeciId || '').trim();
-  const harita = await isletmeler.isletmeHaritasi();
-  const is = harita.get(id);
-  if (!c || !is) return res.redirect(ekle(donus, 'bildirim=islem-yapilamadi&hata=' + encodeURIComponent('İşletme bulunamadı.')));
-  if (!c.isletmeler.some((x) => x.isletmeciId === id)) {
-    c.isletmeler.push({
-      isletmeciId: id, isletmeciAdi: is.isletmeciAdi, ilce: is.ilce, mahalle: is.mahalle, eslesme: 'elle',
-      yakinlik: String(req.body.yakinlik || '').trim() || undefined, ekleyenAd: req.ben ? req.ben.adSoyad : undefined
-    });
-    c.reddedilenIsletmeler = (c.reddedilenIsletmeler || []).filter((x) => x !== id);
-    await c.save();
+  const idler = [].concat(req.body.isletmeciId || []).map((x) => String(x).trim()).filter(Boolean);
+  if (!c || !idler.length) return res.redirect(ekle(donus, 'bildirim=islem-yapilamadi&hata=' + encodeURIComponent('İşletme seçilmelidir.')));
+  if (ilceKisitliMi(req.ben, res.locals.ayar) && !req.izin('ciftci.yonet') && !(req.ben.ilceler || []).includes(c.ilce)) {
+    return res.redirect(ekle(donus, 'bildirim=islem-yapilamadi&hata=' + encodeURIComponent(`Bu çiftçi ${c.ilce} ilçesinde kayıtlı; işletmeyi ${c.ilce} ilçesi personeli ekler.`)));
   }
-  return res.redirect(ekle(donus, 'bildirim=islem-yapildi'));
+  const n = isletmeler.bagla(c, idler, await isletmeler.isletmeHaritasi(), req.ben, req.body.yakinlik);
+  if (n) await c.save();
+  return res.redirect(ekle(donus, 'bildirim=islem-yapildi&hata=' + encodeURIComponent(n ? `${n} işletme eklendi.` : 'Seçilen işletmeler zaten ekli.')));
 }));
 
 // İşletme bağını kaldır (kayıt silinmez; otomatik eşleşme bir daha yapılmaz)

@@ -26,6 +26,9 @@ const yerAnahtari = (s) => katla(s).replace(/\b(mahallesi|mahalle|mah|mh|koyu|ko
 // İşletmeci kimliği → en güncel değerler. Değerlendirme ızgarasındaki her hücre
 // değişikliğinde yeniden hesap yapıldığı için kısa süre bellekte tutulur; BBHB
 // kaydedilince ya da silinince temizlenir.
+// Her işletmeci (kişi) için saklanan en fazla BBHB kaydı; fazlası yeni kayıt eklenince silinir (servis.js).
+const KAYIT_SINIRI = 3;
+
 let onbellek = null;
 const ONBELLEK_SURESI = 30 * 1000;
 function onbellegiTemizle() { onbellek = null; }
@@ -41,13 +44,16 @@ async function haritaOlustur() {
   const sonuclar = await BbhbSonuc.find({ durum: 'aktif' }).sort({ createdAt: -1 }).lean();
   const harita = new Map();
   sonuclar.forEach((s) => (s.bolumler || []).forEach((b) => (b.isletmeciSonuclari || []).forEach((is) => {
-    if (harita.has(is.isletmeciId)) return;
+    const kayitOzeti = { bbhb: is.isletmeciToplamBBHB, tarih: s.createdAt, sonucId: String(s._id), kaynakTipi: s.kaynakTipi };
+    // Aynı işletmecinin birden çok kaydı varsa en son yapılan geçerlidir; öncekiler geçmişte görünür (en fazla 3).
+    if (harita.has(is.isletmeciId)) { const g = harita.get(is.isletmeciId).gecmis; if (g.length < KAYIT_SINIRI) g.push(kayitOzeti); return; }
     const bas = { buyukbas: 0, kucukbas: 0, tekTirnakli: 0 };
     (is.detaylar || []).forEach((d) => { const t = GRUP_TURU[d.grup]; if (t) bas[t] += d.adet; });
     harita.set(is.isletmeciId, {
       isletmeciId: is.isletmeciId, isletmeciAdi: is.isletmeciAdi, tcKimlikNo: is.tcKimlikNo,
       il: b.il, ilce: b.ilce, mahalle: b.mahalle, bbhb: is.isletmeciToplamBBHB, bas, detaylar: is.detaylar,
-      sonucId: String(s._id), tarih: s.createdAt, hesaplamaTarihi: s.hesaplamaTarihi, kaynakTipi: s.kaynakTipi
+      sonucId: String(s._id), tarih: s.createdAt, hesaplamaTarihi: s.hesaplamaTarihi, kaynakTipi: s.kaynakTipi,
+      gecmis: [kayitOzeti]
     });
   })));
   return harita;
@@ -128,4 +134,26 @@ async function ozetHaritasi(ciftciler) {
   return sonuc;
 }
 
-module.exports = { GRUP_TURU, onbellegiTemizle, isletmeHaritasi, adaylar, ciftciyiEslestir, tumunuEslestir, ciftciBbhb, ozetHaritasi, adAnahtari, yerAnahtari };
+// Arama ve seçim listelerinde gösterilen işletme bilgisi
+const isletmeOzeti = (x) => ({
+  isletmeciId: x.isletmeciId, isletmeciAdi: x.isletmeciAdi, tcKimlikNo: x.tcKimlikNo || '', il: x.il, ilce: x.ilce, mahalle: x.mahalle,
+  bbhb: x.bbhb, bas: x.bas, tarih: x.tarih, kayitSayisi: (x.gecmis || []).length
+});
+
+// Çiftçiye işletmeleri bağlar (kaydetmez); eklenen sayısını döner. Talep formundan da kullanılır.
+function bagla(c, idler, harita, ben, yakinlik) {
+  let n = 0;
+  idler.forEach((id) => {
+    const is = harita.get(id);
+    if (!is || c.isletmeler.some((x) => x.isletmeciId === id)) return;
+    c.isletmeler.push({
+      isletmeciId: id, isletmeciAdi: is.isletmeciAdi, ilce: is.ilce, mahalle: is.mahalle, eslesme: 'elle',
+      yakinlik: String(yakinlik || '').trim() || undefined, ekleyenAd: ben ? ben.adSoyad : undefined
+    });
+    c.reddedilenIsletmeler = (c.reddedilenIsletmeler || []).filter((x) => x !== id);
+    n += 1;
+  });
+  return n;
+}
+
+module.exports = { isletmeOzeti, bagla, KAYIT_SINIRI, GRUP_TURU, onbellegiTemizle, isletmeHaritasi, adaylar, ciftciyiEslestir, tumunuEslestir, ciftciBbhb, ozetHaritasi, adAnahtari, yerAnahtari };

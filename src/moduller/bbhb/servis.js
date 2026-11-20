@@ -11,6 +11,7 @@ const { topluSiniflandir } = require('./siniflandirici');
 const { cokluDosyaOku } = require('./ice-aktarim');
 const { AKTIF_VERSIYON } = require('./kurallar');
 const BbhbSonuc = require('./model');
+const { KAYIT_SINIRI } = require('./isletmeler');
 
 /** Aynı işletmeci+grup+kategori için adet=1 olan kayıtları toplar */
 function adetleriTopla(kayitlar) {
@@ -122,7 +123,42 @@ async function sonucuKaydet(hesaplamaSonucu, olusturan) {
       durum: 'aktif'
     }));
   }
+  await fazlaKayitlariSil(kayitlar.flatMap((k) => k.bolumler[0].isletmeciSonuclari.map((x) => x.isletmeciId)));
   return kayitlar;
 }
 
-module.exports = { manuelHesapla, turkvetIleHesapla, sonucuKaydet, hesaplamaTarihiUret };
+/**
+ * Her işletmeci (kişi) için en fazla KAYIT_SINIRI kadar BBHB kaydı tutulur; en son yapılan
+ * geçerlidir. Daha eski kayıtlarda o işletmecinin satırı çıkarılır, bölüm ve genel toplam
+ * yeniden yazılır; içinde işletmeci kalmayan kayıt silinir.
+ */
+async function fazlaKayitlariSil(isletmeciIdleri, sinir = KAYIT_SINIRI) {
+  const idler = [...new Set(isletmeciIdleri.map(String))];
+  if (!idler.length) return 0;
+  const belgeler = await BbhbSonuc.find({ 'bolumler.isletmeciSonuclari.isletmeciId': { $in: idler } }).sort({ createdAt: -1, _id: -1 });
+  const sayac = new Map();
+  const silinecek = new Map();   // belge → çıkarılacak işletmeciler
+  belgeler.forEach((b) => b.bolumler.forEach((bl) => bl.isletmeciSonuclari.forEach((is) => {
+    if (!idler.includes(is.isletmeciId)) return;
+    const n = (sayac.get(is.isletmeciId) || 0) + 1;
+    sayac.set(is.isletmeciId, n);
+    if (n > sinir) { if (!silinecek.has(b)) silinecek.set(b, new Set()); silinecek.get(b).add(is.isletmeciId); }
+  })));
+  let degisen = 0;
+  for (const [b, set] of silinecek) {
+    b.bolumler.forEach((bl) => {
+      bl.isletmeciSonuclari = bl.isletmeciSonuclari.filter((x) => !set.has(x.isletmeciId));
+      bl.bolumToplamBBHB = Number(bl.isletmeciSonuclari.reduce((t, x) => t + x.isletmeciToplamBBHB, 0).toFixed(2));
+    });
+    b.bolumler = b.bolumler.filter((bl) => bl.isletmeciSonuclari.length);
+    if (!b.bolumler.length) await b.deleteOne();
+    else {
+      b.genelToplamBBHB = Number(b.bolumler.reduce((t, bl) => t + bl.bolumToplamBBHB, 0).toFixed(2));
+      await b.save();
+    }
+    degisen += 1;
+  }
+  return degisen;
+}
+
+module.exports = { manuelHesapla, turkvetIleHesapla, sonucuKaydet, hesaplamaTarihiUret, fazlaKayitlariSil };

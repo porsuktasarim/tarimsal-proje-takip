@@ -41,18 +41,17 @@
             </td>
           </tr>
         <% }) %>
-        <% var bo = locals.bbhb; if (bo && bo.var) {
-             var aktar = {}; ayar.hayvanTurleri.forEach(function (h) { if (h.kod === 'buyukbas') aktar.buyukbas = bo.buyukbas; if (h.kod === 'kucukbas') aktar.kucukbas = bo.kucukbas; }); %>
-          <tr>
-            <td colspan="<%= basvuruVar ? 4 : 3 %>">
-              <div class="d-flex align-items-center gap-2 small">
-                <i class="ti ti-horse text-info"></i>
-                <div>BBHB kaydı (<%= bo.isletmeSayisi %> işletme): <strong><%= y.sayi(bo.buyukbas) %></strong> büyükbaş · <strong><%= y.sayi(bo.kucukbas) %></strong> küçükbaş · <strong><%= y.sayi(bo.toplam) %></strong> BBHB</div>
-                <button type="button" class="btn btn-sm ms-auto" data-bbhb-aktar="<%= JSON.stringify(aktar) %>" data-not="Hayvan sayıları BBHB kaydına göre düzeltildi (<%= bo.isletmeSayisi %> işletme, <%= y.sayi(bo.toplam) %> BBHB).">Değerlere aktar</button>
-              </div>
-            </td>
-          </tr>
-        <% } %>
+        <% var bo = locals.bbhb || { isletmeler: [] };
+             var cId = talep.ciftciId && talep.ciftciId._id ? talep.ciftciId._id : talep.ciftciId;
+             var tvListe = (bo.isletmeler || []).filter(function (x) { return x.kayit; }).map(function (x) {
+               var k = x.kayit; return { isletmeciId: k.isletmeciId, isletmeciAdi: k.isletmeciAdi, tcKimlikNo: k.tcKimlikNo, il: k.il, ilce: k.ilce, mahalle: k.mahalle, bbhb: k.bbhb, bas: k.bas, tarih: k.tarih, kayitSayisi: (k.gecmis || []).length, yakinlik: x.yakinlik };
+             });
+             var tvEkle = izin('talep.gir') || izin('talep.degerlendir') || izin('ciftci.yonet') || izin('bbhb.hesapla'); %>
+        <tr>
+          <td colspan="<%= basvuruVar ? 4 : 3 %>" class="py-2">
+            <%- include('../../bbhb/views/turkvet', { isletmeler: tvListe, mod: 'bagla', ciftciId: cId ? String(cId) : '', donus: donus, ekleyebilir: tvEkle && !!cId, ara: locals.ciftciAdi || '' }) %>
+          </td>
+        </tr>
         <tr class="degistir-bolum"><td colspan="<%= basvuruVar ? 4 : 3 %>"><i class="ti ti-seeding me-1"></i>Proje kapsamında desteklenen ürünler</td></tr>
         <% proje.kalemler.forEach(function (k) { var id = String(k._id), birim = k.talepBirimi || 'da';
              var degisti = deger[id] !== gecerli[id] && !(deger[id] == null && gecerli[id] == null); %>

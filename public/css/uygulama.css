@@ -205,3 +205,11 @@ tr.izleme-pasif td { opacity: .55; }
 
 /* Talep sayfası çiftçi bilgileri: iki sütun */
 .ciftci-bilgileri dt { font-weight: 500; color: var(--tblr-secondary); }
+
+/* Türkvet / BBHB kayıtları kutusu */
+.turkvet { border: 1px dashed var(--tblr-border-color); border-radius: 6px; padding: .5rem .75rem; background: var(--tblr-bg-surface); }
+.turkvet-satir { display: flex; align-items: center; gap: .75rem; padding: .4rem 0; border-top: 1px solid var(--tblr-border-color-translucent); }
+.turkvet-satir:first-child { border-top: 0; }
+.hesap-satiri dt { font-weight: 400; color: var(--tblr-secondary); }
+.hesap-satiri dd { margin-bottom: .15rem; }
+.son-adim { border-left: 3px solid var(--tblr-primary); padding: .5rem .75rem; background: var(--tblr-bg-surface-secondary); border-radius: 4px; }

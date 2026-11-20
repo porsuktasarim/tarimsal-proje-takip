@@ -1,0 +1,26 @@
+<%
+  // Türkvet / BBHB kayıtları kutusu (hayvan varlığının içinde). Aile işletmesi kavramı gereği birden çok
+  // kişinin işletmesi eklenebilir; her işletmenin en son yapılan BBHB kaydı geçerlidir.
+  // Parametreler:
+  //   isletmeler : [{ isletmeciId, isletmeciAdi, tcKimlikNo, il, ilce, mahalle, bbhb, bas, tarih, kayitSayisi, yakinlik }]
+  //   mod        : 'form'  → talep formunda; seçilenler gizli alanla formla birlikte kaydedilir
+  //                'bagla' → kayıtlı çiftçide; seçilenler hemen çiftçiye bağlanır
+  //   ciftciId, donus (bagla), ara (aramaya ön yazılacak ad), ekleyebilir, aktar (hayvan sayılarına aktar düğmesi)
+  var mod = locals.mod || 'bagla';
+  var veri = (locals.isletmeler || []).map(function (x) {
+    return { isletmeciId: x.isletmeciId, isletmeciAdi: x.isletmeciAdi, tcKimlikNo: x.tcKimlikNo || '', il: x.il || '', ilce: x.ilce || '', mahalle: x.mahalle || '',
+      bbhb: x.bbhb, bas: x.bas || {}, tarih: x.tarih, kayitSayisi: x.kayitSayisi || 1, yakinlik: x.yakinlik || '', bagli: x.bagli !== false };
+  });
+%>
+<div class="turkvet" data-turkvet data-mod="<%= mod %>" data-ciftci="<%= locals.ciftciId || '' %>" data-donus="<%= locals.donus || '' %>"
+     data-ara="<%= locals.ara || '' %>" data-aktar="<%= locals.aktar === false ? '' : '1' %>" data-kaldirabilir="<%= locals.ekleyebilir ? '1' : '' %>">
+  <div class="d-flex align-items-center gap-2 mb-1">
+    <span class="small fw-medium"><i class="ti ti-building-barn me-1 text-secondary"></i>Türkvet / BBHB kayıtları</span>
+    <% if (locals.ekleyebilir) { %>
+      <button type="button" class="btn btn-sm btn-outline-primary ms-auto" data-turkvet-ekle><i class="ti ti-plus me-1"></i>Türkvet kaydı ekle</button>
+    <% } %>
+  </div>
+  <div data-turkvet-liste></div>
+  <div class="small text-secondary" data-turkvet-bos>Eklenmiş kayıt yok. Çiftçinin kendisinin ve ailesinin (eşi, babası vb.) işletmeleri eklenebilir; her işletmenin en son yapılan BBHB kaydı geçerlidir.</div>
+  <script type="application/json" data-turkvet-veri><%- JSON.stringify(veri).replace(/</g, '\\u003c') %></script>
+</div>

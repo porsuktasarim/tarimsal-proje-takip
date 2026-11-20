@@ -41,7 +41,7 @@
 
     <% if (degistirilebilir && izin('talep.degerlendir')) { %>
       <div class="hr-text my-3">Değerleri değiştir</div>
-      <%- include(V + 'degistir-formu', { talep: talep, proje: proje, donus: donus, bbhb: deg.bbhb }) %>
+      <%- include(V + 'degistir-formu', { talep: talep, proje: proje, donus: donus, bbhb: deg.bbhb, ciftciAdi: ciftci.adSoyad }) %>
     <% } else if (talep.durum === 'gonderildi') { %>
       <div class="alert alert-info py-2 small mb-0">Değer değiştirmek için önce başvuru teslim alınmalıdır.</div>
     <% } %>
