@@ -194,3 +194,7 @@ tr:has(input[name$="[alt]"]:checked) td:nth-child(3) { padding-left: 2.25rem; po
 tr:has(input[name$="[alt]"]:checked) td:nth-child(3)::before { content: "↳"; position: absolute; left: .9rem; top: .9rem; color: var(--tblr-secondary); }
 /* İzleme raporları: pasif kayıtlar */
 tr.izleme-pasif td { opacity: .55; }
+/* Süreç: tıklanabilir durum dairesi */
+.surec-daire { line-height: 1; text-decoration: none; }
+.surec-daire:hover .ti-circle { color: var(--tblr-primary) !important; }
+.surec-daire:hover .ti-circle::before { content: "\ea67"; }

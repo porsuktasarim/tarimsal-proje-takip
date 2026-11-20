@@ -176,10 +176,12 @@
             if (!izinli) {
               return '<span class="badge ' + (yapildi ? 'bg-green-lt' : 'bg-secondary-lt') + '" title="' + (ipucu || '') + '"><i class="ti ' + (yapildi ? 'ti-check' : 'ti-clock') + ' me-1"></i>' + (yapildi ? ad : (bekleyenAd || ad)) + '</span>';
             }
+            // Yapılmamışsa eylem ("Yapıldı olarak işaretle", "Onayla"), yapılmışsa durum ve geri alma
+            var eylem = taraf === 'il' && a.durum.ilceGerekli ? 'Onayla' : 'Yapıldı olarak işaretle';
             return '<form method="post" action="/projeler/' + proje._id + '/surec/' + a.kod + '" class="d-inline">' +
               '<input type="hidden" name="taraf" value="' + taraf + '"><input type="hidden" name="deger" value="' + (yapildi ? '0' : '1') + '">' +
-              '<button class="btn btn-sm ' + (yapildi ? 'btn-success' : 'btn-outline-secondary') + '"' + (kapali ? ' disabled' : '') + ' title="' + (ipucu || (yapildi ? 'İşareti kaldır' : 'İşaretle')) + '">' +
-              '<i class="ti ' + (yapildi ? 'ti-check' : 'ti-square') + ' me-1"></i>' + ad + '</button></form>';
+              '<button class="btn btn-sm ' + (yapildi ? 'btn-success' : (kapali ? 'btn-outline-secondary' : 'btn-primary')) + '"' + (kapali ? ' disabled' : '') + ' title="' + (ipucu || (yapildi ? 'İşareti kaldırmak için tıklayın' : eylem)) + '">' +
+              '<i class="ti ' + (yapildi ? 'ti-check' : 'ti-square') + ' me-1"></i>' + (yapildi ? ad : (kapali ? (bekleyenAd || ad) : eylem)) + '</button></form>';
           };
         %>
         <div class="card mb-3" id="surec">
@@ -196,7 +198,25 @@
             <% var yaz = function (a, no, alt) { var k = a.kayit, d = a.durum, ip = (a.veri && surecIpuclari[a.veri]) || {}, yt = a.yetki || {}; %>
               <div class="list-group-item py-2<%= alt ? ' ps-5' : '' %>">
                 <div class="d-flex align-items-start gap-2 flex-wrap flex-md-nowrap">
-                  <span class="pt-1"><i class="ti <%= d.tamam ? 'ti-circle-check text-success' : (d.ust && d.biten ? 'ti-progress text-blue' : 'ti-circle text-secondary') %> fs-2"></i></span>
+                  <%
+                    // Soldaki daire: kişinin yapabileceği sıradaki işlem varsa tıklanır (işaretle / onayla / geri al)
+                    var sol = null;
+                    if (!d.ust) {
+                      if (!d.ilceGerekli) { if (yt.yapar) sol = { taraf: 'il', deger: k.il.tamam ? '0' : '1' }; }
+                      else if (k.il.tamam) { if (yt.onaylar) sol = { taraf: 'il', deger: '0' }; }
+                      else if (k.ilce.tamam) { if (yt.onaylar) sol = { taraf: 'il', deger: '1' }; else if (yt.yapar) sol = { taraf: 'ilce', deger: '0' }; }
+                      else if (yt.yapar) sol = { taraf: yt.ikisi ? 'il' : 'ilce', deger: '1' };
+                    }
+                    var ikon = d.tamam ? 'ti-circle-check text-success' : ((d.ust && d.biten) || (!d.ust && k.ilce.tamam) ? 'ti-progress text-blue' : 'ti-circle text-secondary');
+                  %>
+                  <% if (sol) { %>
+                    <form method="post" action="/projeler/<%= proje._id %>/surec/<%= a.kod %>" class="pt-1">
+                      <input type="hidden" name="taraf" value="<%= sol.taraf %>"><input type="hidden" name="deger" value="<%= sol.deger %>">
+                      <button class="btn btn-link p-0 surec-daire" title="<%= sol.deger === '1' ? (sol.taraf === 'il' && d.ilceGerekli ? 'Onayla' : 'Yapıldı olarak işaretle') : 'İşareti kaldır' %>"><i class="ti <%= ikon %> fs-2"></i></button>
+                    </form>
+                  <% } else { %>
+                    <span class="pt-1" title="<%= d.ust ? 'Alt adımlar tamamlanınca kendiliğinden tamamlanır' : (d.tamam ? 'Tamamlandı' : 'Bu adımı ' + (k.ilce.tamam ? a.onaylayanAd + ' onaylar' : a.yapanAd + ' işaretler')) %>"><i class="ti <%= ikon %> fs-2"></i></span>
+                  <% } %>
                   <div class="flex-fill">
                     <div class="<%= d.tamam ? 'text-secondary' : '' %>">
                       <span class="text-secondary small me-1"><%= no %></span><%= a.ad %>
