@@ -7,8 +7,10 @@
 //                                                   ▼
 //                                desteklendi | yedek | desteklenmedi ──▶ teslim (desteklendi'den)
 //
-// - Yürütücü (talep.gir) taslağı düzenler, gönderir; geri gönderilen başvuruya yalnızca not
-//   düşüp yeniden gönderir.
+// - Yürütücü (talep.gir) taslağı düzenler, gönderir. Geri gönderilen başvuruda talep miktarlarını,
+//   yeni kalemi ve hayvan sayılarını değiştirmeyi önerir (geçerli değerlere uygulanmaz) ve not düşüp
+//   yeniden gönderir. Koordinatör öneriyi not yazarak kabul eder (değerler değişir) ya da reddeder;
+//   öneri karara bağlanmadan değer değiştirilemez, karar verilemez.
 // - Değerlendirici (talep.degerlendir) teslim alır, değer değiştirir, not düşer, yürütücüye
 //   geri gönderir ve karar verir.
 // - Her işlem geçmişe yazılır; geçmiş ve notlar değiştirilmez, silinmez.
@@ -49,6 +51,7 @@ const ISLEMLER = {
 };
 
 const TUR_ADLARI = {
+  oneri: 'Değişiklik önerildi', oneri_kabul: 'Öneri kabul edildi', oneri_red: 'Öneri reddedildi',
   olusturma: 'Başvuru girildi', gonderme: 'Gönderildi', teslim_alma: 'Teslim alındı', degisiklik: 'Değer değiştirildi',
   not: 'Not', geri_gonderme: 'Yürütücüye gönderildi', karar: 'Karar', karar_geri_alma: 'Karar geri alındı',
   teslim: 'Teslim edildi', teslim_geri_alma: 'Teslim geri alındı', duzenleme: 'Başvuru formu düzenlendi'
@@ -76,6 +79,7 @@ function engel(kod, talep, { izin, ben, kisitli }) {
   // Not: değerlendirici her ilçede, yürütücü yalnızca kendi ilçesinde
   const ilceGerek = t.ilce === true || (t.ilce === 'gir' && !izin('talep.degerlendir'));
   if (ilceGerek && !ilceUygunMu(talep, ben, kisitli)) return `${talep.ilce} ilçesinin başvurusunda işlem yapma yetkiniz yok.`;
+  if (t.karar && oneriBekliyor(talep)) return 'Yürütücünün değişiklik önerisi kabul ya da reddedilmeden karar verilemez.';
   return null;
 }
 
@@ -87,6 +91,8 @@ function kullanilabilirIslemler(talep, baglam) {
       return { kod: k, ad: t.ad, ikon: t.ikon, renk: t.renk, notZorunlu: t.notZorunlu ? t.notZorunlu(talep) : false, notEtiket: t.notEtiket || 'Not', karar: !!t.karar };
     });
 }
+
+const oneriBekliyor = (talep) => !!(talep.oneri && talep.oneri.tarih);
 
 // Başvuru verisinin (talep miktarları, hayvanlar) geçerli hâli
 const anlik = (talep) => ({
@@ -141,6 +147,7 @@ function farklar(eski, yeni, proje, ayar) {
 function degistir(talep, proje, { talepKalemleri, hayvanlar, not }, { ben, ayar, izin }) {
   if (!izin('talep.degerlendir')) return { hata: 'Bu işlem için yetkiniz yok.' };
   if (talep.durum !== 'incelemede') return { hata: 'Değerler yalnızca incelemedeki başvuruda değiştirilebilir; önce başvuru teslim alınmalıdır.' };
+  if (oneriBekliyor(talep)) return { hata: 'Önce yürütücünün değişiklik önerisi kabul ya da reddedilmelidir.' };
   const eski = anlik(talep);
   const yeni = { talepKalemleri: talepKalemleri.filter((x) => x.miktar > 0), hayvanlar };
   const d = farklar(eski, yeni, proje, ayar);
@@ -157,11 +164,54 @@ function degistir(talep, proje, { talepKalemleri, hayvanlar, not }, { ben, ayar,
   return { tamam: true, farklar: d };
 }
 
+// Yürütücünün değişiklik önerisi: yalnızca kendisine geri gönderilmiş (yurutucude) başvuruda.
+// Geçerli değerler değişmez; öneri kaydedilir, geçmişe yazılır. Yeniden kaydedilirse öneri güncellenir.
+function oneriKaydet(talep, proje, { talepKalemleri, hayvanlar, not }, { ben, ayar, izin, kisitli }) {
+  if (!izin('talep.gir')) return { hata: 'Bu işlem için yetkiniz yok.' };
+  if (talep.durum !== 'yurutucude') return { hata: 'Değişiklik yalnızca size geri gönderilmiş başvuruda önerilebilir.' };
+  if (!ilceUygunMu(talep, ben, kisitli)) return { hata: `${talep.ilce} ilçesinin başvurusunda işlem yapma yetkiniz yok.` };
+  const yeni = { talepKalemleri: talepKalemleri.filter((x) => x.miktar > 0), hayvanlar };
+  const d = farklar(anlik(talep), yeni, proje, ayar);
+  const n = metin(not);
+  if (!d.length) {
+    if (oneriBekliyor(talep)) { talep.oneri = undefined; talep.gecmis.push({ ...kisiBilgisi(ben, ayar), tur: 'not', durum: talep.durum, not: `Değişiklik önerisi geri çekildi.${n ? ' ' + n : ''}` }); return { tamam: true, cekildi: true }; }
+    return { hata: 'Geçerli değerlerden farklı bir değer girilmedi.' };
+  }
+  if (!n) return { hata: 'Değişiklik önerisinin gerekçesi yazılmalıdır.' };
+  if (!yeni.talepKalemleri.length && !(talep.satirlar || []).length) return { hata: 'En az bir kalem için miktar kalmalıdır.' };
+  talep.oneri = { ...yeni, degisiklikler: d, not: n, tarih: new Date(), ...kisiBilgisi(ben, ayar) };
+  talep.gecmis.push({ ...kisiBilgisi(ben, ayar), tur: 'oneri', durum: talep.durum, not: n, degisiklikler: d });
+  return { tamam: true, farklar: d };
+}
+
+// Koordinatörün öneri kararı: not zorunlu; kabulde değerler öneridekiyle değişir
+function oneriKarar(talep, proje, { kabul, not }, { ben, ayar, izin }) {
+  if (!izin('talep.degerlendir')) return { hata: 'Bu işlem için yetkiniz yok.' };
+  if (!oneriBekliyor(talep)) return { hata: 'Bekleyen değişiklik önerisi yok.' };
+  if (talep.durum === 'yurutucude') return { hata: 'Öneri, başvuru koordinatöre gönderildikten sonra karara bağlanır.' };
+  const n = metin(not);
+  if (!n) return { hata: kabul ? 'Kabul notu yazılmalıdır.' : 'Ret gerekçesi yazılmalıdır.' };
+  const o = talep.oneri.toObject ? talep.oneri.toObject() : talep.oneri;
+  if (kabul) {
+    const yeni = { talepKalemleri: (o.talepKalemleri || []).map((x) => ({ kalemId: x.kalemId, miktar: x.miktar })), hayvanlar: o.hayvanlar || {} };
+    const d = farklar(anlik(talep), yeni, proje, ayar);
+    talep.talepKalemleri = yeni.talepKalemleri;
+    talep.hayvanlar = yeni.hayvanlar;
+    talep.markModified('hayvanlar');
+    talep.gecmis.push({ ...kisiBilgisi(ben, ayar), tur: 'oneri_kabul', durum: talep.durum, not: `${n} (Öneren: ${o.kisiAd || 'yürütücü'})`, degisiklikler: d });
+  } else {
+    talep.gecmis.push({ ...kisiBilgisi(ben, ayar), tur: 'oneri_red', durum: talep.durum, not: `${n} (Öneren: ${o.kisiAd || 'yürütücü'})`, degisiklikler: o.degisiklikler || [] });
+  }
+  talep.oneri = undefined;
+  return { tamam: true };
+}
+
 // Değer değişiklik zincirleri: her alan (kalem talebi, hayvan sayısı) için başvurudaki
 // değerden başlayarak sırayla yapılan değişiklikler, yapan kişi ve gerekçesiyle.
 // Yalnızca en az bir kez değişmiş alanlar döner.
 function degisimZincirleri(talep, proje, ayar) {
-  const gecmis = (talep.gecmis || []).filter((g) => (g.degisiklikler || []).length);
+  // Yalnızca geçerli değere uygulanmış değişiklikler (öneri ve reddedilen öneri sayılmaz)
+  const gecmis = (talep.gecmis || []).filter((g) => (g.degisiklikler || []).length && !['oneri', 'oneri_red'].includes(g.tur));
   if (!gecmis.length) return [];
   const basvuru = talep.basvuru || {};
   const ilkMiktar = new Map(((basvuru.talepKalemleri) || []).map((x) => [String(x.kalemId), x.miktar]));
@@ -185,4 +235,4 @@ function degisimZincirleri(talep, proje, ayar) {
   }).filter(Boolean);
 }
 
-module.exports = { degisimZincirleri, ISLEMLER, TUR_ADLARI, KARARLAR, engel, kullanilabilirIslemler, uygula, degistir, farklar, anlik, kisiBilgisi };
+module.exports = { oneriKaydet, oneriKarar, oneriBekliyor, degisimZincirleri, ISLEMLER, TUR_ADLARI, KARARLAR, engel, kullanilabilirIslemler, uygula, degistir, farklar, anlik, kisiBilgisi };

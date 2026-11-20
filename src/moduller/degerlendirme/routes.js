@@ -162,7 +162,7 @@ router.get('/', sar(async (req, res) => {
     donus: '/degerlendirme?' + new URLSearchParams(Object.entries({
       proje: String(proje._id), asama: grup || req.query.asama, ilce, mahalle, q: req.query.q || '', limit: req.query.limit || ''
     }).filter(([, v]) => v)).toString(),
-    toplu: Object.keys(akis.ISLEMLER).filter((k) => !['gonder', 'not'].includes(k)).map((k) => ({ kod: k, ...akis.ISLEMLER[k] }))
+    toplu: Object.keys(akis.ISLEMLER).filter((k) => k !== 'gonder').map((k) => ({ kod: k, ...akis.ISLEMLER[k] }))
   });
 }));
 

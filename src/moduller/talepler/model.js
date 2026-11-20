@@ -49,7 +49,7 @@ const gecmisSema = new mongoose.Schema({
   kisi: { type: mongoose.Schema.Types.ObjectId, ref: 'Kisi' },
   kisiAd: { type: String, trim: true },
   rolAd: { type: String, trim: true },
-  tur: { type: String, trim: true },        // olusturma, gonderme, teslim_alma, degisiklik, not, geri_gonderme, karar, karar_geri_alma, teslim, duzenleme
+  tur: { type: String, trim: true },        // olusturma, gonderme, teslim_alma, degisiklik, not, geri_gonderme, karar, karar_geri_alma, teslim, duzenleme, oneri, oneri_kabul, oneri_red
   onceki: { type: String, trim: true },     // önceki aşama
   durum: { type: String, trim: true },      // yeni aşama
   not: { type: String, trim: true },
@@ -88,6 +88,17 @@ const talepSema = new mongoose.Schema({
     kisiAd: { type: String, trim: true }
   },
   gecmis: { type: [gecmisSema], default: [] },
+  // Yürütücüye geri gönderilen başvuruda yürütücünün değişiklik önerisi (talep miktarları, yeni kalem,
+  // hayvan sayıları). Geçerli değerlere uygulanmaz; koordinatör not yazarak kabul ya da reddeder.
+  oneri: {
+    type: new mongoose.Schema({
+      talepKalemleri: { type: mongoose.Schema.Types.Mixed },
+      hayvanlar: { type: mongoose.Schema.Types.Mixed },
+      degisiklikler: [{ _id: false, alan: String, ad: String, eski: mongoose.Schema.Types.Mixed, yeni: mongoose.Schema.Types.Mixed, birim: String }],
+      not: String, kisi: mongoose.Schema.Types.ObjectId, kisiAd: String, rolAd: String, tarih: Date
+    }, { _id: false }),
+    default: undefined
+  },
   aciklama: { type: String, trim: true },
   kaydeden: { type: mongoose.Schema.Types.ObjectId, ref: 'Kisi' },
   kaydedenAd: { type: String, trim: true }

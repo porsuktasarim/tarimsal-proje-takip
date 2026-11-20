@@ -26,7 +26,7 @@ const V = 'talepler/views/';
 // (akis.js); silme yalnızca Sistem Yöneticisi (core/yetki.js).
 router.use((req, res, next) => {
   let gerek = 'talep.gor';
-  if (/\/(islem|degistir|uygulama|kontrol)$/.test(req.path)) gerek = ['talep.gir', 'talep.degerlendir'];
+  if (/\/(islem|degistir|uygulama|kontrol|oneri|oneri-karar|toplu-not)$/.test(req.path)) gerek = ['talep.gir', 'talep.degerlendir'];
   else if (/\/kontrol\/[^/]+\/foto\//.test(req.path)) gerek = 'talep.gor';
   else if (/\/sil$/.test(req.path)) gerek = 'talep.gor';
   else if (req.method !== 'GET' || /\/(yeni|duzenle)$/.test(req.path)) gerek = 'talep.gir';
@@ -43,7 +43,9 @@ const metin = (v) => (v === undefined || v === null ? '' : String(v).trim());
 const Proje = () => mongoose.model('Proje');
 
 // Talep girilebilecek projeler (iptal ve tamamlananlar dışında)
-const acikProjeler = (req) => Proje().find({ ...projeFiltresi(req), durum: { $in: ['taslak', 'aktif'] } }).sort({ olusturulma: -1 });
+// Taslak projeye yalnızca değerlendirme yetkisi olan (koordinatör/yönetici) talep girebilir; yürütücü proje yürürlüğe girince girer.
+const talebeAcikDurumlar = (req) => (req.izin('talep.degerlendir') ? ['taslak', 'aktif'] : ['aktif']);
+const acikProjeler = (req) => Proje().find({ ...projeFiltresi(req), durum: { $in: talebeAcikDurumlar(req) } }).sort({ olusturulma: -1 });
 
 // Formdaki canlı hesap için kalem bilgileri
 function kalemVerisi(proje, ayar) {
@@ -191,7 +193,8 @@ router.get('/', sar(async (req, res) => {
 
 router.get('/yeni', sar(async (req, res) => {
   const ayar = res.locals.ayar;
-  const proje = mongoose.isValidObjectId(req.query.proje) && projeErisebilirMi(req, req.query.proje) ? await Proje().findById(req.query.proje) : null;
+  let proje = mongoose.isValidObjectId(req.query.proje) && projeErisebilirMi(req, req.query.proje) ? await Proje().findById(req.query.proje) : null;
+  if (proje && !talebeAcikDurumlar(req).includes(proje.durum)) proje = null;
   if (!proje) {
     const projeler = await acikProjeler(req);
     if (projeler.length === 1) return res.redirect('/talepler/yeni?proje=' + projeler[0]._id);
@@ -221,6 +224,7 @@ async function kaydet(req, res, mevcutTalep) {
   if (projeId && !projeErisebilirMi(req, projeId)) return projeErisimYok(res);
   const proje = mongoose.isValidObjectId(projeId) ? await Proje().findById(projeId) : null;
   if (!proje) return res.redirect('/talepler/yeni');
+  if (!mevcutTalep && !talebeAcikDurumlar(req).includes(proje.durum)) return res.redirect('/talepler/yeni?bildirim=proje-taslak');
 
   const ilceler = calisilanIlceler(ben, ayar);
   const ciftciVeri = ciftciFormuOku(req.body.ciftci || {});
@@ -333,7 +337,10 @@ router.get('/:id', sar(talepBul), sar(async (req, res) => {
   res.render(V + 'detay', {
     kisiler, uygulamaYetkisi,
     baslik: ciftci.adSoyad, talep: req.talep, proje, ciftci, hesap, kalemAdi, kalemBirimi, deg, islemler, duzenlenebilir,
-    degistirilebilir: metinVar && req.izin('talep.degerlendir') && req.talep.durum === 'incelemede', donus: req.originalUrl.split('?')[0],
+    degistirilebilir: metinVar && req.izin('talep.degerlendir') && req.talep.durum === 'incelemede' && !akis.oneriBekliyor(req.talep), donus: req.originalUrl.split('?')[0],
+    // Yürütücü: geri gönderilen başvuruda değişiklik önerir; koordinatör öneriyi karara bağlar
+    oneriFormu: req.izin('talep.gir') && req.talep.durum === 'yurutucude' && (!ilceKisitliMi(req.ben, res.locals.ayar) || (req.ben.ilceler || []).includes(req.talep.ilce)),
+    oneriKarari: akis.oneriBekliyor(req.talep) && req.izin('talep.degerlendir') && req.talep.durum !== 'yurutucude',
     metinEksik: !metinVar && req.izin('talep.degerlendir')
   });
 }));
@@ -450,6 +457,26 @@ router.post('/toplu-gonder', sar(async (req, res) => {
   return res.redirect(bildirimEkle(donus, 'toplu-islem') + '&hata=' + encodeURIComponent(mesaj));
 }));
 
+// Toplu not: seçilen başvuruların her birinin geçmişine aynı not düşülür
+router.post('/toplu-not', sar(async (req, res) => {
+  const donus = donusAdresi(req.body.donus, '/talepler');
+  const ids = diziyeCevir(req.body.ids).filter((id) => mongoose.isValidObjectId(id));
+  if (!ids.length) return res.redirect(bildirimEkle(donus, 'islem-yapilamadi') + '&hata=' + encodeURIComponent('Başvuru seçilmelidir.'));
+  let tamam = 0;
+  const hatalar = new Set();
+  for (const id of ids) {
+    const t = await Talep.findById(id);
+    if (!t || !projeErisebilirMi(req, t.projeId)) continue;
+    const r = akis.uygula(t, 'not', { ...baglam(req, res), not: req.body.not });
+    if (r.hata) { hatalar.add(r.hata); continue; }
+    await t.save();
+    tamam += 1;
+  }
+  if (!tamam) return res.redirect(bildirimEkle(donus, 'islem-yapilamadi') + '&hata=' + encodeURIComponent([...hatalar].join(' ')));
+  const mesaj = hatalar.size ? `${tamam} başvuruya not düşüldü; ${ids.length - tamam} başvuruya düşülemedi: ${[...hatalar].join(' ')}` : `${tamam} başvuruya not düşüldü.`;
+  return res.redirect(bildirimEkle(donus, 'toplu-islem') + '&hata=' + encodeURIComponent(mesaj));
+}));
+
 // Akış işlemi: gönder, teslim al, yürütücüye gönder, karar, not ...
 router.post('/:id/islem', sar(talepBul), sar(async (req, res) => {
   const donus = donusAdresi(req.body.donus, `/talepler/${req.talep._id}`);
@@ -461,6 +488,31 @@ router.post('/:id/islem', sar(talepBul), sar(async (req, res) => {
   if (r.hata) return res.redirect(bildirimEkle(donus, 'islem-yapilamadi') + '&hata=' + encodeURIComponent(r.hata));
   await req.talep.save();
   return res.redirect(bildirimEkle(donus, 'islem-yapildi'));
+}));
+
+// Yürütücünün değişiklik önerisi (geri gönderilen başvuruda; geçerli değerler değişmez)
+router.post('/:id/oneri', sar(talepBul), sar(async (req, res) => {
+  const donus = donusAdresi(req.body.donus, `/talepler/${req.talep._id}`);
+  const proje = await Proje().findById(req.talep.projeId);
+  const ayar = res.locals.ayar;
+  const r = akis.oneriKaydet(req.talep, proje, {
+    talepKalemleri: talepKalemleriniOku(req.body, proje),
+    hayvanlar: hayvanlariOku(req.body.hayvanlar, ayar.hayvanTurleri),
+    not: req.body.not
+  }, baglam(req, res));
+  if (r.hata) return res.redirect(bildirimEkle(donus, 'islem-yapilamadi') + '&hata=' + encodeURIComponent(r.hata));
+  await req.talep.save();
+  return res.redirect(bildirimEkle(donus, 'oneri-kaydedildi'));
+}));
+
+// Koordinatör: öneriyi not yazarak kabul ya da reddeder
+router.post('/:id/oneri-karar', sar(talepBul), sar(async (req, res) => {
+  const donus = donusAdresi(req.body.donus, `/talepler/${req.talep._id}`);
+  const proje = await Proje().findById(req.talep.projeId);
+  const r = akis.oneriKarar(req.talep, proje, { kabul: req.body.karar === 'kabul', not: req.body.not }, baglam(req, res));
+  if (r.hata) return res.redirect(bildirimEkle(donus, 'islem-yapilamadi') + '&hata=' + encodeURIComponent(r.hata));
+  await req.talep.save();
+  return res.redirect(bildirimEkle(donus, req.body.karar === 'kabul' ? 'oneri-kabul' : 'oneri-red'));
 }));
 
 // Değerlendirmede değer değişikliği (eski değer geçmişte kalır)

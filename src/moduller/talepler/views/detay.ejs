@@ -266,6 +266,41 @@
           <% } %>
         </div>
 
+        <% var on = talep.oneri && talep.oneri.tarih ? talep.oneri : null; %>
+        <% if (on) { %>
+          <div class="card mb-3 border-warning" id="oneri">
+            <div class="card-header"><h3 class="card-title"><i class="ti ti-git-pull-request text-warning me-1"></i>Yürütücünün değişiklik önerisi</h3></div>
+            <div class="card-body">
+              <div class="small text-secondary mb-2"><%= on.kisiAd || '–' %><%= on.rolAd ? ' · ' + on.rolAd : '' %> · <%= y.tarih(on.tarih) %> — geçerli değerlere henüz uygulanmadı</div>
+              <% (on.degisiklikler || []).forEach(function (x) { %>
+                <div class="small"><%= x.ad %>: <span class="text-decoration-line-through text-secondary"><%= x.eski == null ? '–' : y.sayi(x.eski) %></span> → <strong><%= x.yeni == null ? '–' : y.sayi(x.yeni) %></strong> <%= x.birim || '' %><%= x.eski == null ? ' (yeni kalem)' : '' %></div>
+              <% }) %>
+              <% if (on.not) { %><div class="gecmis-not small mt-2"><%= on.not %></div><% } %>
+              <% if (oneriKarari) { %>
+                <form method="post" action="/talepler/<%= talep._id %>/oneri-karar" class="mt-3">
+                  <input type="hidden" name="donus" value="<%= donus %>">
+                  <textarea name="not" rows="2" class="form-control form-control-sm mb-2" required placeholder="Kabul notu ya da ret gerekçesi (zorunlu)"></textarea>
+                  <div class="d-flex gap-2">
+                    <button class="btn btn-sm btn-success" name="karar" value="kabul"><i class="ti ti-check me-1"></i> Kabul et</button>
+                    <button class="btn btn-sm btn-outline-danger" name="karar" value="red"><i class="ti ti-x me-1"></i> Reddet</button>
+                  </div>
+                  <div class="small text-secondary mt-1">Öneri karara bağlanmadan değerler değiştirilemez ve karar verilemez.</div>
+                </form>
+              <% } else if (talep.durum === 'yurutucude') { %>
+                <div class="small text-secondary mt-2">Başvuru koordinatöre gönderildiğinde kabul ya da red edilecek. Aşağıdan öneri güncellenebilir; geçerli değerler girilirse öneri geri çekilir.</div>
+              <% } %>
+            </div>
+          </div>
+        <% } %>
+        <% if (oneriFormu) { %>
+          <div class="card mb-3">
+            <div class="card-header"><h3 class="card-title">Değişiklik öner</h3></div>
+            <div class="card-body">
+              <div class="small text-secondary mb-2">Başvuru size geri gönderildi. Talep miktarlarını değiştirebilir, yeni kalem ekleyebilir, hayvan sayılarını düzeltebilirsiniz. Öneri koordinatöre gönderildiğinde not yazılarak kabul ya da red edilir; kabul edilene kadar geçerli değerler değişmez.</div>
+              <%- include('degistir-formu', { talep: on ? Object.assign({}, talep.toObject ? talep.toObject() : talep, { talepKalemleri: on.talepKalemleri, hayvanlar: on.hayvanlar }) : talep, proje: proje, donus: donus, bbhb: deg.bbhb, oneri: true }) %>
+            </div>
+          </div>
+        <% } %>
         <% if (degistirilebilir) { %>
           <div class="card mb-3">
             <div class="card-header"><h3 class="card-title">Değerleri değiştir</h3></div>

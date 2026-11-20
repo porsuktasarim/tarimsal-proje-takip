@@ -86,7 +86,7 @@
             <p class="empty-subtitle text-secondary">Bu süzgeçle listelenecek çiftçi talebi bulunmuyor.</p>
             <div class="empty-action"><a href="/talepler/yeni?proje=<%= proje._id %>" class="btn btn-primary"><i class="ti ti-plus me-1"></i> Talep gir</a></div>
           </div>
-        <% } else { var topluGonder = izin('talep.gir'); %>
+        <% } else { var topluGonder = izin('talep.gir') || izin('talep.degerlendir'), gonderebilir = izin('talep.gir'); %>
           <form method="post" action="/talepler/toplu-gonder" id="toplu-formu" data-islem-formu>
           <input type="hidden" name="donus" value="<%= locals.donus || '' %>">
           <div class="table-responsive">
@@ -107,7 +107,7 @@
               <tbody>
                 <% satirlar.forEach(function (s) { var t = s.talep, c = s.ciftci, h = s.hesap, d = td[t.durum]; %>
                   <tr class="<%= t.durum === 'desteklenmedi' ? 'opacity-50' : '' %>">
-                    <% if (topluGonder) { %><td><% if (t.durum === 'taslak' || t.durum === 'yurutucude') { %><input type="checkbox" class="form-check-input" name="ids" value="<%= t._id %>" data-secim data-asama="<%= t.durum %>"><% } %></td><% } %>
+                    <% if (topluGonder) { %><td><input type="checkbox" class="form-check-input" name="ids" value="<%= t._id %>" data-secim data-asama="<%= t.durum %>"></td><% } %>
                     <td>
                       <a href="/talepler/<%= t._id %>" class="text-reset fw-medium"><%= c.adSoyad %></a>
                       <div class="text-secondary small font-monospace"><%= c.tcKimlikNo %></div>
@@ -148,13 +148,14 @@
               <div class="row g-2 align-items-center">
                 <div class="col-12 col-lg-auto"><span class="text-secondary text-nowrap"><span data-secili-sayi>0</span> başvuru seçili</span></div>
                 <div class="col-12 col-lg">
-                  <textarea name="not" rows="1" class="form-control form-control-sm" placeholder="Yürütücü görüşü / not (geri gönderilen başvurularda zorunlu; seçilen tümüne yazılır)"></textarea>
+                  <textarea name="not" rows="1" class="form-control form-control-sm" placeholder="Not / yürütücü görüşü (seçilen tümüne yazılır; silinemez)"></textarea>
                 </div>
                 <div class="col-12 col-lg-auto">
-                  <button type="submit" class="btn btn-sm btn-primary" data-toplu-dugme disabled><i class="ti ti-send me-1"></i> Seçilenleri koordinatöre gönder</button>
+                  <% if (gonderebilir) { %><button type="submit" class="btn btn-sm btn-primary" data-toplu-dugme disabled><i class="ti ti-send me-1"></i> Seçilenleri koordinatöre gönder</button><% } %>
+                  <button type="submit" formaction="/talepler/toplu-not" class="btn btn-sm btn-outline-secondary" data-toplu-dugme data-not-zorunlu="Not" disabled><i class="ti ti-message-plus me-1"></i> Seçilenlere not düş</button>
                 </div>
               </div>
-              <div class="small text-secondary mt-1">Taslaktaki ve size geri gönderilmiş başvurular seçilebilir. Geri gönderilmiş başvurularda not yazılması zorunludur.</div>
+              <div class="small text-secondary mt-1">Gönderme yalnızca taslaktaki ve size geri gönderilmiş başvurularda yapılır (geri gönderilmişlerde not zorunlu); diğer seçilenler atlanır. Not her aşamadaki başvuruya düşülebilir ve geçmişte kalır.</div>
             </div>
           <% } %>
           </form>

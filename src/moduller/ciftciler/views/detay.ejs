@@ -123,6 +123,16 @@
                 </details>
               </div>
             <% } %>
+            <% if (izin('talep.gir') || izin('talep.degerlendir')) { %>
+              <div class="card-body border-top py-2">
+                <form method="post" action="/talepler/<%= t._id %>/islem" class="d-flex gap-2 align-items-start" data-islem-formu>
+                  <input type="hidden" name="islem" value="not">
+                  <input type="hidden" name="donus" value="/ciftciler/<%= ciftci._id %>">
+                  <textarea name="not" rows="1" class="form-control form-control-sm" required placeholder="Bu başvuruya not düş (geçmişe yazılır; silinemez)"></textarea>
+                  <button class="btn btn-sm btn-outline-secondary text-nowrap"><i class="ti ti-message-plus me-1"></i>Not ekle</button>
+                </form>
+              </div>
+            <% } %>
           </div>
         <% }) %>
       </div>

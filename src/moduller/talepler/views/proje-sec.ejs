@@ -4,7 +4,7 @@
   <div class="container-xl">
     <h3 class="mb-3">Talep hangi projeye girilecek?</h3>
     <% if (!projeler.length) { %>
-      <div class="card"><div class="card-body text-secondary">Talep girilebilecek (taslak ya da yürütülen) proje yok.</div></div>
+      <div class="card"><div class="card-body text-secondary">Talep girilebilecek proje yok. Taslak projelere talep, proje yürürlüğe girince girilebilir.</div></div>
     <% } %>
     <div class="row row-cards">
       <% projeler.forEach(function (p) { var d = sabitler.projeDurumlari[p.durum]; %>
